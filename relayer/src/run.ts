@@ -3,7 +3,7 @@ import { buildProof, txidOf, type Esplora } from "./btc/proof.js";
 import { plan, type ChainView, type OfferView } from "./watcher.js";
 
 export interface Services {
-  near: { view<T>(m: string, a?: Record<string, unknown>): Promise<T>; call(m: string, a: Record<string, unknown>): Promise<unknown> };
+  near: { view<T>(m: string, a?: Record<string, unknown>): Promise<T>; call(m: string, a: Record<string, unknown>): Promise<unknown>; chainNow?(): Promise<number> };
   esplora: Esplora;
   broadcast(rawHex: string): Promise<string>;
   addressTxs(address: string): Promise<{ txid: string; status: { confirmed: boolean; block_height?: number }; vout: { scriptpubkey_address: string; value: number }[] }[]>;
@@ -12,7 +12,8 @@ export interface Services {
   beforeProof?(txid: string, blockHash: string, depth: number): Promise<void>;
 }
 
-export async function tick(s: Services, nowS = Math.floor(Date.now() / 1000)) {
+export async function tick(s: Services, nowArg?: number) {
+  const nowS = nowArg ?? (s.near.chainNow ? await s.near.chainNow() : Math.floor(Date.now() / 1000));
   const params = await s.near.view<{ min_conf: number; grace_s: number }>("get_params");
   const open = await s.near.view<OfferView[]>("get_offers", { from: 0, limit: 200 });
   const created = await s.near.view<OfferView[]>("get_created", { from: 0, limit: 200 }).catch(() => [] as OfferView[]);
