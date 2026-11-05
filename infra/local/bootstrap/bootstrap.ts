@@ -33,7 +33,7 @@ async function deploy(name: string, wasm: string, initMethod: string, args: Reco
   await a.account.signAndSendTransaction({ receiverId: a.id, actions: [actionCreators.deployContract(readFileSync(`/wasm/${wasm.replace(/-/g, "_")}.wasm`)), actionCreators.functionCall(initMethod, args, 100n * 10n ** 12n, 0n)] });
   return a;
 }
-const view = async (c: string, m: string, args = {}) => JSON.parse(Buffer.from(((await provider.query({ request_type: "call_function", account_id: c, method_name: m, args_base64: Buffer.from(JSON.stringify(args)).toString("base64"), finality: "final" })) as any).result).toString());
+const view = async (c: string, m: string, args = {}) => JSON.parse(Buffer.from(((await provider.query({ request_type: "call_function", account_id: c, method_name: m, args_base64: Buffer.from(JSON.stringify(args)).toString("base64"), finality: "optimistic" })) as any).result).toString());
 
 const ROOT_SCALAR = "0b".repeat(32);
 const signer = await deploy("signer", "mock-signer", "new", { root_scalar_hex: ROOT_SCALAR });
@@ -48,7 +48,7 @@ const covered = await deploy("covered", "covered", "new", { params: {
 await covered.account.callFunction({ contractId: usdc.id, methodName: "storage_deposit", args: {}, gas: 30n * 10n ** 12n, deposit: 10n ** 22n });
 // Local only: the contract keeps no admin key either; delete its full-access key like production.
 await covered.account.signAndSendTransaction({ receiverId: covered.id, actions: [actionCreators.deleteKey(covered.kp.getPublicKey())] });
-const codeHash: string = ((await provider.query({ request_type: "view_account", account_id: covered.id, finality: "final" })) as any).code_hash;
+const codeHash: string = ((await provider.query({ request_type: "view_account", account_id: covered.id, finality: "optimistic" })) as any).code_hash;
 const relayer = await create("relayer", 50n);
 for (const u of ["astrid", "marcus"]) { const a = await create(u, 20n); await root.callFunction({ contractId: usdc.id, methodName: "mint", args: { account_id: a.id, amount: "1000000000000" }, gas: 30n * 10n ** 12n }); appendFileSync("/config/demo-keys.txt", `${a.id} ${a.kp.toString()}\n`); }
 
