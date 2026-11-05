@@ -1,12 +1,10 @@
 //! L1 stand-in for the Near-One Bitcoin light client: same method name and borsh argument layout
 //! (`verify_transaction_inclusion_v2(ProofArgsV2)`), but the test says which (txid, block) pairs
 //! exist and at what depth instead of tracking real headers.
-use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::store::LookupMap;
 use near_sdk::{near, PanicOnDefault};
 
-#[derive(BorshSerialize, BorshDeserialize)]
-#[borsh(crate = "near_sdk::borsh")]
+#[near(serializers = [borsh])]
 pub struct ProofArgsV2 {
     pub tx_id: [u8; 32],
     pub tx_block_blockhash: [u8; 32],
