@@ -8,22 +8,16 @@ import { sha256 } from "@noble/hashes/sha256";
 import { base58 } from "@scure/base";
 import type { Clients } from "./verify.js";
 
-export const CFG = {
-  network: (import.meta.env.VITE_NEAR_NETWORK as string) ?? "testnet",
-  rpc: (import.meta.env.VITE_NEAR_RPC as string) ?? "https://rpc.testnet.near.org",
-  contract: (import.meta.env.VITE_COVERED_ID as string) ?? "covered.testnet",
-  usdc: (import.meta.env.VITE_USDC_ID as string) ?? "usdc.fakes.testnet",
-  esplora: (import.meta.env.VITE_ESPLORA as string) ?? "https://mempool.space/testnet4/api",
-  explorerBtc: (import.meta.env.VITE_EXPLORER_BTC as string) ?? "https://mempool.space/testnet4",
-  explorerNear: (import.meta.env.VITE_EXPLORER_NEAR as string) ?? "https://testnet.nearblocks.io",
-  codeHash: (import.meta.env.VITE_CODE_HASH as string) ?? "",
-  signer: (import.meta.env.VITE_SIGNER_ID as string) ?? "v1.signer-prod.testnet",
-  lightClient: (import.meta.env.VITE_LIGHT_CLIENT_ID as string) ?? "btc-client.testnet",
-  minConf: Number(import.meta.env.VITE_MIN_CONF ?? 1),
-  helper: (import.meta.env.VITE_HELPER as string) ?? "https://helper.testnet.near.org",
-};
+/** Runtime configuration, served as /config.json by the web container (written by `covered up` / the cloud bootstrap). */
+export interface Config { network: string; rpc: string; contract: string; usdc: string; esplora: string; explorerBtc: string; explorerNear: string; codeHash: string; signer: string; lightClient: string; minConf: number; helper: string; mode: "local" | "testnet" | "mainnet" }
+const defaults: Config = { network: "testnet", rpc: "https://rpc.testnet.near.org", contract: "covered.testnet", usdc: "usdc.fakes.testnet", esplora: "https://mempool.space/testnet4/api", explorerBtc: "https://mempool.space/testnet4", explorerNear: "https://testnet.nearblocks.io", codeHash: "", signer: "v1.signer-prod.testnet", lightClient: "btc-client.testnet", minConf: 1, helper: "https://helper.testnet.near.org", mode: "testnet" };
+export const CFG: Config = { ...defaults, ...((window as any).COVERED_CONFIG ?? {}) };
+export async function loadConfig() {
+  try { const r = await fetch("/config.json", { cache: "no-store" }); if (r.ok) Object.assign(CFG, await r.json()); } catch {}
+}
 
-export const provider = new JsonRpcProvider({ url: CFG.rpc });
+export let provider = new JsonRpcProvider({ url: CFG.rpc });
+export function reconnect() { provider = new JsonRpcProvider({ url: CFG.rpc }); }
 
 export async function view<T>(method: string, args: Record<string, unknown> = {}, contract = CFG.contract): Promise<T> {
   const r: any = await provider.query({ request_type: "call_function", account_id: contract, method_name: method, args_base64: btoa(JSON.stringify(args)), finality: "final" });
@@ -53,7 +47,8 @@ export function clearWallet() { localStorage.removeItem(LS); }
 export async function createWallet(name: string): Promise<Wallet> {
   const accountId = `${name.toLowerCase().replace(/[^a-z0-9-_]/g, "")}.${CFG.network}`;
   const kp = KeyPairEd25519.fromRandom();
-  const r = await fetch(`${CFG.helper}/account`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ newAccountId: accountId, newAccountPublicKey: kp.getPublicKey().toString() }) });
+  const url = CFG.mode === "local" ? "/api/dev/account" : `${CFG.helper}/account`;
+  const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ newAccountId: accountId, newAccountPublicKey: kp.getPublicKey().toString() }) });
   if (!r.ok) throw new Error(`account creation failed: ${await r.text()}`);
   const w = { accountId, key: kp.toString() };
   localStorage.setItem(LS, JSON.stringify(w));

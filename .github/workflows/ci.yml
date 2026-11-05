@@ -1,0 +1,53 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: wasm32-unknown-unknown }
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p covered
+      - run: cargo install cargo-near --locked
+      - run: bin/covered build
+      - run: cargo test -p integration -- --test-threads=1   # near-workspaces downloads near-sandbox
+      - uses: actions/upload-artifact@v4
+        with: { name: wasm, path: target/near/*/*.wasm }
+  relayer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: relayer/package-lock.json }
+      - run: cd relayer && npm ci && npm test && npm run build
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: cd web && npm ci && npm test && npm run build
+  images:
+    runs-on: ubuntu-latest
+    needs: [relayer, web]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build relayer && docker build web
+  deploy:
+    # Pushes to main redeploy the cloud VM when the secrets exist (DEPLOY_HOST, DEPLOY_SSH_KEY).
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: [contracts, images]
+    steps:
+      - uses: actions/checkout@v4
+      - name: deploy over ssh
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          if [ -z "$HOST" ]; then echo "no DEPLOY_HOST secret; skipping"; exit 0; fi
+          mkdir -p ~/.ssh && echo "$KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          bin/covered deploy "$HOST" main

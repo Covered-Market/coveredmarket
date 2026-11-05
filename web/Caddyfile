@@ -1,0 +1,20 @@
+# One Caddy serves the static app, proxies the relayer, and (in the cloud) gets TLS for $DOMAIN.
+{$DOMAIN::80} {
+	encode gzip
+	handle /api/* {
+		reverse_proxy relayer:8787
+	}
+	handle /btc/* {
+		reverse_proxy relayer:8787
+	}
+	handle /config.json {
+		root * /config
+		file_server
+		header Cache-Control no-store
+	}
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

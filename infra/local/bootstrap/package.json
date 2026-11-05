@@ -1,0 +1,2 @@
+{ "name": "covered-bootstrap", "private": true, "type": "module", "scripts": { "start": "tsx bootstrap.ts" },
+  "dependencies": { "@near-js/accounts": "^2.0.0", "@near-js/crypto": "^2.0.0", "@near-js/providers": "^2.0.0", "@near-js/signers": "^2.0.0", "@near-js/transactions": "^2.0.0", "tsx": "^4.19.0" } }

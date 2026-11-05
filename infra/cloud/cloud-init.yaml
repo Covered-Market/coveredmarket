@@ -1,0 +1,26 @@
+#cloud-config
+# First boot: Docker, a `deploy` user, the repo, the production .env, then `docker compose up`.
+package_update: true
+packages: [ca-certificates, curl, git, ufw]
+users:
+  - name: deploy
+    groups: [docker, sudo]
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys:
+      - ${deploy_pubkey}
+write_files:
+  - path: /opt/covered.env
+    permissions: "0600"
+    content: |
+      ${indent(6, env_file)}
+      DOMAIN=${domain}
+runcmd:
+  - curl -fsSL https://get.docker.com | sh
+  - systemctl enable --now docker
+  - ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw --force enable
+  - git clone --branch ${git_ref} ${repo} /opt/covered
+  - mv /opt/covered.env /opt/covered/.env
+  - chown -R deploy:deploy /opt/covered
+  - cd /opt/covered && docker compose -f infra/compose.yaml up -d --build
+  - echo "covered up at https://${domain}" > /var/log/covered-bootstrap.log

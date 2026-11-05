@@ -19,10 +19,14 @@ export async function nearClient(cfg: NearCfg) {
     if (!account) throw new Error("relayer key not configured");
     return account.callFunction({ contractId: cfg.covered, methodName: method, args, gas: BigInt(gasTgas) * 10n ** 12n });
   };
+  const callAny = async (contractId: string, method: string, args: Record<string, unknown>, gasTgas = 50) => {
+    if (!account) throw new Error("relayer key not configured");
+    return account.callFunction({ contractId, methodName: method, args, gas: BigInt(gasTgas) * 10n ** 12n });
+  };
   /** Relay a signed delegate action (NEP-366) built by the user's wallet. */
   const relay = async (signedDelegate: any) => {
     if (!account) throw new Error("relayer key not configured");
     return account.signAndSendTransaction({ receiverId: signedDelegate.delegateAction.senderId, actions: [actionCreators.signedDelegate(signedDelegate)] });
   };
-  return { view, call, relay, provider };
+  return { view, call, callAny, relay, provider };
 }

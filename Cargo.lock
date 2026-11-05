@@ -2097,6 +2097,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mock-usdc"
+version = "0.1.0"
+dependencies = [
+ "near-contract-standards",
+ "near-sdk",
+]
+
+[[package]]
 name = "multiversion_no_op"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2237,6 +2245,15 @@ dependencies = [
  "json_comments",
  "thiserror 2.0.21",
  "tracing",
+]
+
+[[package]]
+name = "near-contract-standards"
+version = "5.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ea737f770ef1dc8f55325ed2200c554f26c14d65e36c4c1342f6878365f1fd11"
+dependencies = [
+ "near-sdk",
 ]
 
 [[package]]
