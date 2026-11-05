@@ -10,7 +10,8 @@ case "$cmd" in
     need docker "https://docs.docker.com/get-docker/"; touch .env
     # phase 1: chain, bitcoin, wasm, bootstrap (writes ids and keys into .env); phase 2: relayer + web read that .env
     docker compose "${LOCAL[@]}" up -d --build bootstrap "$@"
-    code=$(docker compose "${LOCAL[@]}" wait bootstrap)
+    docker compose "${LOCAL[@]}" wait bootstrap >/dev/null || true
+    code=$(docker inspect -f '{{.State.ExitCode}}' "$(docker compose "${LOCAL[@]}" ps -aq bootstrap)")
     if [ "$code" != "0" ]; then docker compose "${LOCAL[@]}" logs bootstrap contracts near-sandbox bitcoind | tail -80; echo "bootstrap failed ($code)"; exit 1; fi
     docker compose "${LOCAL[@]}" up -d --build relayer web config
     for i in $(seq 1 60); do curl -fsS localhost/api/health >/dev/null 2>&1 && curl -fsS localhost/config.json >/dev/null 2>&1 && break; sleep 2
