@@ -1,0 +1,79 @@
+/* Covered — generated from tokens.json */
+:root, [data-theme="paper"] {
+  --paper: #f2ead6;
+  --paper-raised: #faf5e8;
+  --paper-sunk: #e6dcc2;
+  --rule: #c4b894;
+  --rule-strong: #7e7658;
+  --ink: #132a23;
+  --ink-muted: #4f5f57;
+  --intaglio: #1f4f40;
+  --intaglio-deep: #143a2f;
+  --on-intaglio: #f2ead6;
+  --gilt: #b88a2e;
+  --gilt-ink: #7a5a15;
+  --on-gilt: #1f1a0a;
+  --copper: #b3612c;
+  --copper-ink: #8a4418;
+  --oxblood: #7e2432;
+  --on-oxblood: #f8e9eb;
+  --focus: #1f4f40;
+  --shadow-lift: 0 1px 0 #c4b894, 0 12px 32px -16px #132a2366;
+}
+[data-theme="vault"] {
+  --paper: #0f211b;
+  --paper-raised: #163229;
+  --paper-sunk: #0a1713;
+  --rule: #2f4d43;
+  --rule-strong: #5d7a70;
+  --ink: #ede4cc;
+  --ink-muted: #a7b3aa;
+  --intaglio: #4a9a7e;
+  --intaglio-deep: #2c6b57;
+  --on-intaglio: #0f211b;
+  --gilt: #d9b257;
+  --gilt-ink: #e2c06d;
+  --on-gilt: #1f1a0a;
+  --copper: #d88a54;
+  --copper-ink: #e8a26e;
+  --oxblood: #d9707f;
+  --on-oxblood: #1a0a0e;
+  --focus: #d9b257;
+  --shadow-lift: 0 1px 0 #2f4d43, 0 12px 32px -16px #00000099;
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --radius-0: 0px;
+  --radius-sm: 2px;
+  --radius-coin: 999px;
+  --stroke-hair: 1px;
+  --stroke-mark: 2px;
+  --stroke-plate: 3px;
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Spline Sans Mono", "SF Mono", Menlo, monospace;
+}
+@font-face { font-family: "Fraunces"; src: url("/ds/fonts/Fraunces-Variable.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Fraunces"; src: url("/ds/fonts/Fraunces-Italic-Variable.woff2") format("woff2"); font-weight: 100 900; font-style: italic; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("/ds/fonts/InstrumentSans-Variable.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Spline Sans Mono"; src: url("/ds/fonts/SplineSansMono-Variable.woff2") format("woff2"); font-weight: 300 700; font-style: normal; font-display: swap; }
+.display-1 { font-family: var(--font-display); font-size: 88px; line-height: 0.95; font-weight: 500; letter-spacing: -0.02em; font-variation-settings: "opsz" 144; }
+.display-2 { font-family: var(--font-display); font-size: 56px; line-height: 1.0; font-weight: 500; letter-spacing: -0.015em; font-variation-settings: "opsz" 144; }
+.title { font-family: var(--font-display); font-size: 32px; line-height: 1.1; font-weight: 600; letter-spacing: -0.01em; font-variation-settings: "opsz" 72; }
+.lede { font-family: var(--font-display); font-size: 22px; line-height: 1.35; font-weight: 400; font-style: italic; font-variation-settings: "opsz" 48; }
+.heading { font-family: var(--font-sans); font-size: 20px; line-height: 26px; font-weight: 600; }
+.body { font-family: var(--font-sans); font-size: 16px; line-height: 24px; font-weight: 400; }
+.body-small { font-family: var(--font-sans); font-size: 14px; line-height: 20px; font-weight: 400; }
+.label { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.12em; }
+.stamp { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.16em; }
+.figure-xl { font-family: var(--font-mono); font-size: 44px; line-height: 48px; font-weight: 500; letter-spacing: -0.01em; }
+.figure { font-family: var(--font-mono); font-size: 16px; line-height: 24px; font-weight: 500; }
+.figure-small { font-family: var(--font-mono); font-size: 13px; line-height: 18px; font-weight: 400; letter-spacing: 0.01em; }

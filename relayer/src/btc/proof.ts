@@ -1,0 +1,83 @@
+/** Build and locally verify a light-client inclusion proof from mempool.space (or any Esplora API). */
+import { sha256 } from "@noble/hashes/sha256";
+
+export interface Esplora {
+  txHex(txid: string): Promise<string>;
+  merkleProof(txid: string): Promise<{ block_height: number; merkle: string[]; pos: number }>;
+  blockHashAt(height: number): Promise<string>;
+  block(hash: string): Promise<{ id: string; height: number; merkle_root: string; tx_count: number }>;
+  tipHeight(): Promise<number>;
+}
+
+/** The proof shape the contract takes (`Proof` in lib.rs). Hashes in display order. */
+export interface Proof { tx_raw: string; block_hash: string; tx_index: number; merkle_proof: string[] }
+
+export function esplora(base: string, fetchFn: typeof fetch = fetch): Esplora {
+  const j = async (p: string) => { const r = await fetchFn(base + p); if (!r.ok) throw new Error(`${p}: ${r.status}`); return r.json(); };
+  const t = async (p: string) => { const r = await fetchFn(base + p); if (!r.ok) throw new Error(`${p}: ${r.status}`); return (await r.text()).trim(); };
+  return {
+    txHex: (id) => t(`/tx/${id}/hex`),
+    merkleProof: (id) => j(`/tx/${id}/merkle-proof`),
+    blockHashAt: (h) => t(`/block-height/${h}`),
+    block: (hash) => j(`/block/${hash}`),
+    tipHeight: async () => Number(await t(`/blocks/tip/height`)),
+  };
+}
+
+const hexToBytes = (h: string) => Uint8Array.from(h.match(/../g)!.map((b) => parseInt(b, 16)));
+const bytesToHex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+const sha256d = (b: Uint8Array): Uint8Array => sha256(sha256(b));
+/** display-order hex ↔ internal byte order */
+const rev = (h: string) => bytesToHex(hexToBytes(h).reverse());
+
+/** Non-witness txid (BIP-141) of a raw transaction, display order. */
+export function txidOf(rawHex: string): string {
+  const raw = hexToBytes(rawHex);
+  const stripped = stripWitness(raw);
+  return rev(bytesToHex(sha256d(stripped)));
+}
+
+function readVarInt(b: Uint8Array, o: number): [number, number] {
+  const f = b[o];
+  if (f < 0xfd) return [f, o + 1];
+  if (f === 0xfd) return [b[o + 1] | (b[o + 2] << 8), o + 3];
+  if (f === 0xfe) return [(b[o + 1] | (b[o + 2] << 8) | (b[o + 3] << 16) | (b[o + 4] << 24)) >>> 0, o + 5];
+  throw new Error("varint too large");
+}
+
+/** Remove the segwit marker/flag and witness fields so the hash is the txid, not the wtxid. */
+export function stripWitness(raw: Uint8Array): Uint8Array {
+  if (!(raw[4] === 0x00 && raw[5] === 0x01)) return raw;
+  let o = 6;
+  const [nIn, o1] = readVarInt(raw, o); o = o1;
+  for (let i = 0; i < nIn; i++) { o += 36; const [l, o2] = readVarInt(raw, o); o = o2 + l + 4; }
+  const [nOut, o3] = readVarInt(raw, o); o = o3;
+  for (let i = 0; i < nOut; i++) { o += 8; const [l, o4] = readVarInt(raw, o); o = o4 + l; }
+  const bodyEnd = o;
+  for (let i = 0; i < nIn; i++) { const [n, o5] = readVarInt(raw, o); o = o5; for (let k = 0; k < n; k++) { const [l, o6] = readVarInt(raw, o); o = o6 + l; } }
+  return new Uint8Array([...raw.slice(0, 4), ...raw.slice(6, bodyEnd), ...raw.slice(o, o + 4)]);
+}
+
+/** Walk a merkle branch (display-order hex) to the root (display-order hex). */
+export function merkleRoot(txid: string, pos: number, branch: string[]): string {
+  let h: Uint8Array = hexToBytes(rev(txid));
+  let idx = pos;
+  for (const sib of branch) {
+    const s = hexToBytes(rev(sib));
+    const buf = idx & 1 ? new Uint8Array([...s, ...h]) : new Uint8Array([...h, ...s]);
+    h = sha256d(buf);
+    idx >>= 1;
+  }
+  return rev(bytesToHex(h));
+}
+
+/** Fetch everything, verify locally against the block's merkle root, return the contract proof + depth. */
+export async function buildProof(api: Esplora, txid: string): Promise<{ proof: Proof; depth: number; height: number }> {
+  const [raw, mp] = await Promise.all([api.txHex(txid), api.merkleProof(txid)]);
+  if (txidOf(raw) !== txid) throw new Error("tx hex does not hash to txid");
+  const blockHash = await api.blockHashAt(mp.block_height);
+  const [block, tip] = await Promise.all([api.block(blockHash), api.tipHeight()]);
+  const root = merkleRoot(txid, mp.pos, mp.merkle);
+  if (root !== block.merkle_root) throw new Error(`merkle mismatch: ${root} vs ${block.merkle_root}`);
+  return { proof: { tx_raw: raw, block_hash: blockHash, tx_index: mp.pos, merkle_proof: mp.merkle }, depth: tip - mp.block_height + 1, height: mp.block_height };
+}

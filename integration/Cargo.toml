@@ -1,0 +1,15 @@
+[package]
+name = "integration"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+near-workspaces = "0.20"
+near-sdk = { workspace = true, features = ["unit-testing"] }
+tokio = { version = "1", features = ["full"] }
+serde_json = { workspace = true }
+anyhow = "1"
+hex = { workspace = true }
+bitcoin = { workspace = true, features = ["rand-std"] }
+covered = { path = "../contracts/covered" }
