@@ -157,15 +157,17 @@ log(`CV-${b.serial} Exercised; seller claimed ${Number(bal) / 1e6} USDC; account
 // ── 4. the REAL light client accepts our proof of a real testnet3 transaction
 const lcTip = Number(await view(REAL_LC, "get_last_block_height"));
 const api = esplora(TESTNET3);
-const height = lcTip - 8;
-const blockHash = await api.blockHashAt(height);
-const txids = await api.blockTxids(blockHash);
-const txid = txids[Math.min(1, txids.length - 1)];
+// testnet3 has many coinbase-only blocks; the light client refuses an empty Merkle branch, so take the
+// most recent block (at least 8 deep) that carries a real transaction.
+let height = lcTip - 8, blockHash = "", txids: string[] = [];
+for (; height > lcTip - 300; height--) { blockHash = await api.blockHashAt(height); txids = await api.blockTxids(blockHash); if (txids.length > 1) break; }
+if (txids.length < 2) throw new Error("no testnet3 block with a non-coinbase tx in range");
+const txid = txids[txids.length - 1];
 const { proof } = await buildProof(api, txid);
 const args = lcArgsV2({ txid, ...proof }, 6);
 const rv = async (bytes: Uint8Array) => { try { const r: any = await p.query({ request_type: "call_function", account_id: REAL_LC, method_name: "verify_transaction_inclusion_v2", args_base64: Buffer.from(bytes).toString("base64"), finality: "final" }); return Buffer.from(r.result).toString(); } catch (e) { return "error: " + String((e as Error).message).slice(0, 160); } };
 const good = await rv(args);
-const tampered = Uint8Array.from(args); tampered[0] ^= 1;
+const tampered = Uint8Array.from(args); tampered[0] ^= 1;   // a different txid with the same branch
 const bad = await rv(tampered);
 log(`real light client (${REAL_LC}, tip ${lcTip}): proof of ${txid} at ${height} → ${good}; tampered → ${bad}`);
 const yes = (r: string) => r === "true" || r === "\u0001";
