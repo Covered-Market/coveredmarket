@@ -10,7 +10,7 @@ export interface NearCfg { networkId: string; nodeUrl: string; relayerId?: strin
 export async function nearClient(cfg: NearCfg) {
   const provider = new JsonRpcProvider({ url: cfg.nodeUrl });
   const view = async <T>(method: string, args: Record<string, unknown> = {}): Promise<T> => {
-    const r: any = await provider.query({ request_type: "call_function", account_id: cfg.covered, method_name: method, args_base64: Buffer.from(JSON.stringify(args)).toString("base64"), finality: "final" });
+    const r: any = await provider.query({ request_type: "call_function", account_id: cfg.covered, method_name: method, args_base64: Buffer.from(JSON.stringify(args)).toString("base64"), finality: "optimistic" });
     return JSON.parse(Buffer.from(r.result).toString());
   };
   let account: Account | undefined;
@@ -28,5 +28,7 @@ export async function nearClient(cfg: NearCfg) {
     if (!account) throw new Error("relayer key not configured");
     return account.signAndSendTransaction({ receiverId: signedDelegate.delegateAction.senderId, actions: [actionCreators.signedDelegate(signedDelegate)], throwOnFailure: false } as any);
   };
-  return { view, call, callAny, relay, provider };
+  /** The contract's clock: latest block timestamp in seconds. Guards (window, grace) are judged against this, not wall time. */
+  const chainNow = async () => Number(BigInt((await provider.block({ finality: "optimistic" })).header.timestamp_nanosec) / 1_000_000_000n);
+  return { view, call, callAny, relay, provider, chainNow };
 }
