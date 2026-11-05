@@ -45,10 +45,18 @@ Local parameters (set in `infra/local/bootstrap/bootstrap.ts`): `min_conf 1`, `f
 
 ### Tests
 ```
-bin/covered test   # L0: contract (28), relayer (12), web (8) — no chain needed
-bin/covered e2e    # L1: builds wasm and runs the sandbox flows in integration/tests/flow.rs
+bin/covered test        # L0: contract (28), relayer (13), web (8) — no chain needed
+bin/covered e2e         # L1: builds wasm and runs the sandbox flows in integration/tests/flow.rs
+bin/covered up && bin/covered e2e-stack
+                        # L1+: the whole product on the composed stack, see below
 ```
-CI (`.github/workflows/ci.yml`) runs both plus the Docker image builds on every push and PR.
+`e2e-stack` (`e2e/run.mjs`) drives two contracts through their entire life on the running stack — NEAR sandbox, Bitcoin Core regtest, the relayer, the web app — with no mocks above the chain:
+
+- **KEPT**: create offer → real regtest deposit → relayer builds the Merkle proof and gets the offer Funded → buyer pays the premium in USDC → window closes (sandbox fast-forward) → relayer settles → signer signs → relayer broadcasts → mined → relayer proves the spend → **Kept**, coins at the seller's refund address.
+- **EXERCISED**: same until expiry → buyer pays the strike inside the window → relayer requests the signature → broadcast → mined → **Exercised**, coins at the buyer's address; the seller claims premiums + strike; `claimable + escrow == token balance`.
+- **UI**: market, sell, deposit, contracts, try and both certificates in Chromium; **Verify** must show 7/7 verified for each. Screenshots land in `e2e/artifacts/`.
+
+CI: `.github/workflows/ci.yml` (unit tests, wasm, sandbox flows, images, Terraform/Compose validation) on every push and PR; `.github/workflows/stack.yml` runs `up` + `e2e-stack` on `main`, version tags and on demand, and uploads the screenshots. Deploys happen only on version tags.
 
 ### Deploy to the cloud — one command after one file
 The production shape is deliberately the simplest thing: **one VM, two containers** (`web` = Caddy serving the static app with automatic TLS and proxying `/api` and `/btc`; `relayer`), plus a tiny `config` job that turns `.env` into the app's `config.json`. Bitcoin data comes from a public Esplora (mempool.space) and NEAR from a public RPC; no node of our own is needed for testnet or mainnet.
