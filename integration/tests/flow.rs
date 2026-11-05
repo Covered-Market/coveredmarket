@@ -67,6 +67,14 @@ async fn setup() -> Result<Env> {
     Ok(Env { worker, covered, signer, lc, usdc, seller, buyer, anyone })
 }
 
+/// A valid regtest P2WPKH address from a deterministic secret key (test wallets).
+fn addr_from_secret(b: u8) -> String {
+    let secp = bitcoin::secp256k1::Secp256k1::new();
+    let sk = bitcoin::secp256k1::SecretKey::from_slice(&[b; 32]).unwrap();
+    let pk: [u8; 33] = sk.public_key(&secp).serialize();
+    covered::btc::address_for_script(&covered::btc::p2wpkh_script(&pk), covered::btc::Network::Regtest)
+}
+
 fn next_0800(now_s: u64, lead: u64) -> u64 {
     let mut e = (now_s / DAY) * DAY + 8 * 3600;
     while e < now_s + lead { e += DAY; }
@@ -90,7 +98,7 @@ fn deposit_tx(script: &[u8], value: u64) -> (String, String) {
 
 async fn create_and_fund(e: &Env, size: u64, strike: u128, premium: u128) -> Result<u64> {
     let now = now_s(&e.worker).await?;
-    let refund = { let s = covered::btc::p2wpkh_script(&[2u8; 33].map(|_| 2)); covered::btc::address_for_script(&s, covered::btc::Network::Regtest) };
+    let refund = addr_from_secret(9);
     let serial: u64 = e.seller.call(e.covered.id(), "create_offer")
         .args_json(json!({ "terms": { "size_sats": U64(size), "strike_units": U128(strike), "premium_units": U128(premium), "expiry_s": U64(next_0800(now, DAY)), "refund_address": refund }}))
         .deposit(NearToken::from_millinear(100)).transact().await?.json()?;
@@ -109,7 +117,7 @@ async fn create_and_fund(e: &Env, size: u64, strike: u128, premium: u128) -> Res
 }
 
 async fn buy(e: &Env, serial: u64, amount: u128) -> Result<()> {
-    let buyer_addr = covered::btc::address_for_script(&covered::btc::p2wpkh_script(&[3u8; 33].map(|_| 3)), covered::btc::Network::Regtest);
+    let buyer_addr = addr_from_secret(10);
     e.buyer.call(e.usdc.id(), "ft_transfer_call")
         .args_json(json!({ "receiver_id": e.covered.id(), "amount": amount.to_string(), "msg": json!({ "serial": serial, "btc_address": buyer_addr }).to_string() }))
         .deposit(NearToken::from_yoctonear(1)).max_gas().transact().await?.into_result()?;
