@@ -12,7 +12,7 @@ services:
       timeout: 3s
       retries: 60
   bitcoind:
-    image: bitcoin/bitcoin:28.1
+    image: bitcoin/bitcoin:29.5
     command: >
       bitcoind -regtest -server -txindex -fallbackfee=0.0001 -rpcbind=0.0.0.0 -rpcallowip=0.0.0.0/0
       -rpcuser=covered -rpcpassword=covered -printtoconsole
@@ -25,6 +25,7 @@ services:
       timeout: 5s
       retries: 60
   contracts:
+    restart: "no"
     build:
       context: ..
       dockerfile: infra/local/contracts.Dockerfile
@@ -32,6 +33,7 @@ services:
       - wasm:/out
     command: ["sh", "-c", "cp /build/target/near/*/*.wasm /out/ && ls -la /out"]
   bootstrap:
+    restart: "no"
     build: ./local/bootstrap
     depends_on:
       near-sandbox: { condition: service_healthy }

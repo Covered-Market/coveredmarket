@@ -2,6 +2,7 @@ import express from "express";
 import { Core } from "./btc/core.js";
 import { esplora, type Esplora } from "./btc/proof.js";
 import { checkDelegate } from "./metatx.js";
+import { decodeSignedDelegate, viewOf } from "./near/delegate.js";
 import { nearClient } from "./near/client.js";
 import { tick, type Services } from "./run.js";
 import { spotUsd } from "./spot.js";
@@ -32,11 +33,15 @@ app.get("/api/spot", async (_req, res) => {
   res.json(spot);
 });
 app.post("/api/relay", async (req, res) => {
-  const d = req.body?.delegateAction;
-  const v = checkDelegate({ senderId: d?.senderId, receiverId: d?.receiverId, actions: (d?.actions ?? []).map((a: any) => ({ methodName: a.functionCall?.methodName, args: JSON.parse(Buffer.from(a.functionCall?.args ?? [], "base64").toString() || "{}"), gas: BigInt(a.functionCall?.gas ?? 0), deposit: BigInt(a.functionCall?.deposit ?? 0) })) },
-    { covered: cfg.covered, usdc: cfg.usdc, maxGas: 300n * 10n ** 12n, maxDepositYocto: 10n ** 24n });
+  let sd: any;
+  try { sd = decodeSignedDelegate(String(req.body?.signedDelegate ?? "")); } catch { return res.status(400).json({ error: "signedDelegate must be base64 borsh" }); }
+  const v = checkDelegate(viewOf(sd), { covered: cfg.covered, usdc: cfg.usdc, maxGas: 300n * 10n ** 12n, maxDepositYocto: 10n ** 24n });
   if (!v.ok) return res.status(400).json({ error: v.reason });
-  try { res.json({ outcome: await near.relay(req.body) }); } catch (e) { res.status(500).json({ error: (e as Error).message }); }
+  try {
+    const outcome: any = await near.relay(sd);
+    const ok = outcome?.status && "SuccessValue" in outcome.status;
+    res.status(ok ? 200 : 422).json({ ok, value: ok ? Buffer.from(outcome.status.SuccessValue, "base64").toString() : undefined, failure: ok ? undefined : outcome?.status?.Failure });
+  } catch (e) { res.status(500).json({ error: (e as Error).message }); }
 });
 
 // Local stack only: create and fund NEAR accounts (the testnet helper's role) and mint mock USDC.
@@ -63,6 +68,7 @@ if (core) {
   // dev conveniences (regtest only): faucet and mining
   app.post("/btc/dev/send", h(async (r) => ({ txid: await core.send(r.body.address, Number(r.body.btc)) })));
   app.post("/btc/dev/mine", h(async (r) => ({ blocks: await core.mine(Number(r.body?.n ?? 1)) })));
+  app.post("/btc/dev/address", h(async () => ({ address: await core.newAddress() })));
 }
 app.listen(cfg.port, () => console.log(`relayer on :${cfg.port} → ${cfg.covered} (${cfg.networkId}), btc=${cfg.btcBackend}`));
 

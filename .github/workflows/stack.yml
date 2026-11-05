@@ -1,0 +1,32 @@
+name: stack
+# Boots the whole product with `bin/covered up` (NEAR sandbox, Bitcoin regtest, contracts, relayer, web)
+# and runs `bin/covered e2e-stack`: both contract lifecycles end to end, the UI, and Verify 7/7.
+on:
+  push:
+    branches: [main, "e2e/**"]
+    tags: ["v*"]
+  workflow_dispatch:
+concurrency:
+  group: stack-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: bin/covered up
+        run: bin/covered up
+      - name: browser for the UI checks
+        run: cd e2e && npm ci && npx playwright install --with-deps chromium
+      - name: bin/covered e2e-stack
+        run: bin/covered e2e-stack
+      - name: logs on failure
+        if: failure()
+        run: docker compose -f infra/compose.yaml -f infra/compose.local.yaml logs --tail=200
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-screens
+          path: e2e/artifacts/
+          if-no-files-found: ignore

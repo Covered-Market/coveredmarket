@@ -25,7 +25,7 @@ export function Sell({ wallet }: { wallet: Wallet }) {
     setBusy(true);
     try {
       const serial = await call(wallet, CFG.contract, "create_offer", { terms: { size_sats: String(toSats(s)), strike_units: String(toUsdcUnits(k)), premium_units: String(toUsdcUnits(pr)), expiry_s: String(expiry), refund_address: refund } }, 10n ** 23n, 60);
-      const id = typeof serial === "number" ? serial : (serial as any)?.status?.SuccessValue ? Number(atob((serial as any).status.SuccessValue)) : null;
+      const id = typeof serial === "number" ? serial : typeof serial === "string" ? Number(serial) : (serial as any)?.status?.SuccessValue ? Number(atob((serial as any).status.SuccessValue)) : null;
       location.hash = id ? `#/deposit/${id}` : "#/contracts";
     } catch (e) { alert((e as Error).message); } finally { setBusy(false); }
   };
@@ -44,7 +44,7 @@ export function Sell({ wallet }: { wallet: Wallet }) {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {[1, 2, 7, 14, 30, 56].map((d) => <Button key={d} size="sm" variant={d === days ? "primary" : "quiet"} onClick={() => setDays(d)}>{d === 1 ? "tomorrow" : `${d} days`}</Button>)}
           </div>
-          <span className="body-small" style={{ color: "var(--ink-muted)" }}>The buyer may exercise for {Math.round((params?.grace_s ?? 7200) / 60)} minutes after 08:00 UTC by paying the strike. No price feed decides the outcome.</span>
+          <span className="body-small" style={{ color: "var(--ink-muted)" }}>The buyer may exercise for {Math.round((params?.grace_s ?? 7200) / 60)} minutes after expiry by paying the strike. No price feed decides the outcome.</span>
         </div>
         <Field label="Premium you ask" value={premium} onChange={(e) => setPremium(e.target.value)} adorn="USD" help={`${ann.toFixed(1)}% annualised on ${usd(s * spot * 1e6)} of Bitcoin. Paid in USDC on NEAR; claim any time.`} inputMode="decimal" />
         <Field label="Return coins to" value={refund} onChange={(e) => setRefund(e.target.value)} placeholder={`${hrp}q…`} help="Your own Bitcoin address (bech32, v0). Coins come back here if kept or withdrawn." />

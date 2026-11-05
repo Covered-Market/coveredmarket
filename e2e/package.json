@@ -1,0 +1,13 @@
+{
+  "name": "covered-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node run.mjs" },
+  "dependencies": {
+    "@near-js/accounts": "^2.0.0",
+    "@near-js/crypto": "^2.0.0",
+    "@near-js/providers": "^2.0.0",
+    "@near-js/signers": "^2.0.0",
+    "playwright": "^1.48.0"
+  }
+}
