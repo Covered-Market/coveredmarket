@@ -152,8 +152,8 @@ async fn flow_kept() -> Result<()> {
     assert!(r.is_failure());
     // (sandbox grace is 7200 s; fast-forward in blocks ≈ seconds)
     fast_forward_to(&e, expiry + 600).await?;
-    // mock signer fails once: stays Committed with retry
-    e.signer.call("set_fail_next").args_json(json!({ "n": 1 })).transact().await?.into_result()?;
+    // mock signer answers with the wrong key once: signature rejected, stays Committed with retry
+    e.signer.call("set_wrong_key_next").args_json(json!({ "n": 1 })).transact().await?.into_result()?;
     e.anyone.call(e.covered.id(), "settle").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
     assert_eq!(state(&e, s).await?["state"], "Committed");
     let sighash1 = state(&e, s).await?["commitment_sighash"].clone();
