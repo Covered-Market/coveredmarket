@@ -11,7 +11,7 @@ jobs:
         with: { targets: wasm32-unknown-unknown }
       - uses: Swatinem/rust-cache@v2
       - run: cargo test -p covered
-      - run: cargo install cargo-near --locked
+      - run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/latest/download/cargo-near-installer.sh | sh
       - run: bin/covered build
       - run: cargo test -p integration -- --test-threads=1   # near-workspaces downloads near-sandbox
       - uses: actions/upload-artifact@v4
