@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      - run: cd e2e && npm ci && node probe-testnet.mjs | tee probe.txt
+      - run: cd e2e && npm ci && set -o pipefail; node probe-testnet.mjs | tee probe.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: probe, path: e2e/probe.txt }
@@ -33,7 +33,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: (cd relayer && npm ci) && (cd web && npm ci) && (cd e2e && npm ci)
-      - run: mkdir -p e2e/artifacts && cd e2e && npx tsx testnet.ts | tee artifacts/testnet.log
+      - run: set -o pipefail; mkdir -p e2e/artifacts && cd e2e && npx tsx testnet.ts | tee artifacts/testnet.log
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: testnet-l2, path: e2e/artifacts/ }

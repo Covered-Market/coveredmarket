@@ -17,26 +17,38 @@ import { verifySignedTx } from "../web/src/lib/bip143.ts";
 import { addressFromScript, hex, p2wpkhScript, parseRootKey, scriptFromAddress } from "../web/src/lib/derive.ts";
 import * as secp from "@noble/secp256k1";
 
-const RPC = process.env.NEAR_RPC ?? "https://rpc.testnet.near.org";
+const RPC = process.env.NEAR_RPC ?? "https://rpc.testnet.fastnear.com";
 const SIGNER = "v1.signer-prod.testnet";
 const REAL_LC = "btc-client-v4.testnet";
 const TESTNET3 = "https://mempool.space/testnet/api";
 const HELPER = "https://helper.testnet.near.org/account";
-const p = new JsonRpcProvider({ url: RPC });
+// Retries: public RPCs rate-limit (429) and occasionally time out; every call here is idempotent to retry
+// except a transaction, which near-js resends with the same nonce (so it cannot double-apply).
+const p = new JsonRpcProvider({ url: RPC }, { retries: 8, wait: 1500, backoff: 1.6 });
 const TGAS = 10n ** 12n;
 const ts = Date.now().toString(36);
 const report: Record<string, unknown> = {};
 const log = (...a: unknown[]) => console.log(new Date().toISOString().slice(11, 19), ...a);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const wasm = (n: string) => readFileSync(new URL(`../target/near/${n}/${n}.wasm`, import.meta.url));
-const view = async (c: string, m: string, a: object = {}) => {
+const TRANSIENT = /429|rate|timeout|ECONNRESET|fetch failed|503|502/i;
+async function retry<T>(f: () => Promise<T>, n = 8, transient = TRANSIENT): Promise<T> {
+  for (let i = 0; ; i++) {
+    try { return await f(); } catch (e) {
+      const m = String((e as Error).message ?? e);
+      if (i >= n || !transient.test(m)) throw e;
+      await sleep(1500 * 1.6 ** i);
+    }
+  }
+}
+const view = async (c: string, m: string, a: object = {}) => retry(async () => {
   const r: any = await p.query({ request_type: "call_function", account_id: c, method_name: m, args_base64: Buffer.from(JSON.stringify(a)).toString("base64"), finality: "optimistic" });
   return JSON.parse(Buffer.from(r.result).toString() || "null");
-};
-const chainNow = async () => Number(BigInt((await p.block({ finality: "optimistic" })).header.timestamp_nanosec) / 1_000_000_000n);
+});
+const chainNow = async () => retry(async () => Number(BigInt((await p.block({ finality: "optimistic" })).header.timestamp_nanosec) / 1_000_000_000n));
 async function until<T>(what: string, f: () => Promise<T | null | false | undefined>, ms = 180_000): Promise<T> {
   const t0 = Date.now();
-  for (;;) { const v = await f(); if (v) return v; if (Date.now() - t0 > ms) throw new Error("timed out: " + what); await sleep(3000); }
+  for (;;) { const v = await f(); if (v) return v; if (Date.now() - t0 > ms) throw new Error("timed out: " + what); await sleep(5000); }
 }
 async function account(prefix: string) {
   const kp = KeyPairEd25519.fromRandom();
@@ -47,7 +59,7 @@ async function account(prefix: string) {
   return { id, acc: new Account(id, p, new KeyPairSigner(kp)) };
 }
 type U = Awaited<ReturnType<typeof account>>;
-const call = (u: U, contractId: string, methodName: string, args: object, deposit = 0n, gas = 300n) => u.acc.callFunction({ contractId, methodName, args, deposit, gas: gas * TGAS });
+const call = (u: U, contractId: string, methodName: string, args: object, deposit = 0n, gas = 300n) => retry(() => u.acc.callFunction({ contractId, methodName, args, deposit, gas: gas * TGAS }), 4, /-429|429 Too Many/);  // only a refused request is safe to resend
 async function deploy(u: U, file: string, init: string, args: object) {
   await u.acc.deployContract(wasm(file));
   await call(u, u.id, init, args, 0n, 100n);

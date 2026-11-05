@@ -9,7 +9,7 @@ import { spotUsd } from "./spot.js";
 
 const env = (k: string, d?: string) => process.env[k] ?? d ?? (() => { throw new Error(`missing env ${k}`); })();
 const cfg = {
-  networkId: env("NEAR_NETWORK", "testnet"), nodeUrl: env("NEAR_RPC", "https://rpc.testnet.near.org"),
+  networkId: env("NEAR_NETWORK", "testnet"), nodeUrl: env("NEAR_RPC", "https://rpc.testnet.fastnear.com"),
   relayerId: process.env.RELAYER_ID, relayerKey: process.env.RELAYER_KEY, covered: env("COVERED_ID", "covered.testnet"),
   usdc: env("USDC_ID", "usdc.fakes.testnet"), lightClient: process.env.LIGHT_CLIENT_ID, lightClientMock: process.env.LIGHT_CLIENT_MOCK === "1",
   btcBackend: env("BTC_BACKEND", "esplora") as "esplora" | "core",
