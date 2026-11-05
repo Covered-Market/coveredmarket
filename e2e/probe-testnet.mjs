@@ -7,7 +7,7 @@ import { JsonRpcProvider } from "@near-js/providers";
 import { KeyPairSigner } from "@near-js/signers";
 import { createHash } from "node:crypto";
 
-const RPC = process.env.NEAR_RPC ?? "https://rpc.testnet.near.org";
+const RPC = process.env.NEAR_RPC ?? "https://rpc.testnet.fastnear.com";
 const SIGNER = process.env.SIGNER_ID ?? "v1.signer-prod.testnet";
 const LC = process.env.LIGHT_CLIENT_ID ?? "btc-client-v4.testnet";
 const ESPLORA = process.env.ESPLORA ?? "https://mempool.space/testnet/api";
