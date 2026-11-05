@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildProof, merkleRoot, txidOf, type Esplora } from "./proof.js";
+import { buildProof, lcArgsV2, merkleRoot, txidOf, type Esplora } from "./proof.js";
+import vectors from "../../../web/src/vectors.json" with { type: "json" };
 
 // Real mainnet fixture: block 170, the first Bitcoin transaction (Satoshi → Hal Finney).
 const TXID = "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16";
@@ -40,5 +41,12 @@ describe("proof builder", () => {
     const segwit = "02000000" + "0001" + "01" + "11".repeat(32) + "00000000" + "00" + "ffffffff" + "01" + "e803000000000000" + "16" + "0014" + "22".repeat(20) + "02" + "03" + "aabbcc" + "21" + "02" + "33".repeat(32) + "00000000";
     const legacy = "02000000" + "01" + "11".repeat(32) + "00000000" + "00" + "ffffffff" + "01" + "e803000000000000" + "16" + "0014" + "22".repeat(20) + "00000000";
     expect(txidOf(segwit)).toBe(txidOf(legacy));
+  });
+});
+
+describe("light client argument encoding", () => {
+  it("is byte-identical to the contract's borsh_args", () => {
+    const p = vectors.lc_args_proof;
+    expect(Buffer.from(lcArgsV2(p, p.confirmations)).toString("hex")).toBe(vectors.lc_args_hex);
   });
 });

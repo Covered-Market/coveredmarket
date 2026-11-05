@@ -103,3 +103,12 @@ export async function buildProof(api: Esplora, txid: string): Promise<{ proof: P
   if (merkleRoot(txids[0], 0, cbBranch) !== block.merkle_root) throw new Error("coinbase branch does not reach the merkle root");
   return { proof: { tx_raw: raw, block_hash: blockHash, tx_index: mp.pos, merkle_proof: mp.merkle, coinbase_tx_id: txids[0], coinbase_merkle_proof: cbBranch }, depth: tip - mp.block_height + 1, height: mp.block_height };
 }
+
+/** Borsh `ProofArgsV2` for the Near-One light client — byte-identical to the contract's `ProofRef::borsh_args`. */
+export function lcArgsV2(p: { txid: string; block_hash: string; tx_index: number; merkle_proof: string[]; coinbase_tx_id: string; coinbase_merkle_proof: string[] }, confirmations: number): Uint8Array {
+  const h = (d: string) => hexToBytes(d).reverse();
+  const u64 = (n: number) => { const b = new Uint8Array(8); new DataView(b.buffer).setBigUint64(0, BigInt(n), true); return b; };
+  const vec = (xs: string[]) => { const n = new Uint8Array(4); new DataView(n.buffer).setUint32(0, xs.length, true); return [n, ...xs.map(h)]; };
+  const parts = [h(p.txid), h(p.block_hash), u64(p.tx_index), ...vec(p.merkle_proof), h(p.coinbase_tx_id), ...vec(p.coinbase_merkle_proof), u64(confirmations)];
+  const out = new Uint8Array(parts.reduce((s, x) => s + x.length, 0)); let o = 0; for (const x of parts) { out.set(x, o); o += x.length; } return out;
+}
