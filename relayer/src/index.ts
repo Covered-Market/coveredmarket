@@ -64,6 +64,7 @@ if (core) {
   app.get("/btc/blocks/tip/height", h(async () => String(await core.tipHeight())));
   app.get("/btc/block-height/:h", h((r) => core.blockHashAt(Number(r.params.h))));
   app.get("/btc/block/:hash", h((r) => core.block(r.params.hash)));
+  app.get("/btc/block/:hash/txids", h((r) => core.blockTxids(r.params.hash)));
   app.post("/btc/tx", express.text({ type: "*/*" }), h((r) => core.broadcast(String(r.body).trim())));
   // dev conveniences (regtest only): faucet and mining
   app.post("/btc/dev/send", h(async (r) => ({ txid: await core.send(r.body.address, Number(r.body.btc)) })));

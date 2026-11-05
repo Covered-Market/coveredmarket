@@ -7,10 +7,12 @@ export interface Esplora {
   blockHashAt(height: number): Promise<string>;
   block(hash: string): Promise<{ id: string; height: number; merkle_root: string; tx_count: number }>;
   tipHeight(): Promise<number>;
+  /** All txids of a block in order (display hex). */
+  blockTxids(hash: string): Promise<string[]>;
 }
 
 /** The proof shape the contract takes (`Proof` in lib.rs). Hashes in display order. */
-export interface Proof { tx_raw: string; block_hash: string; tx_index: number; merkle_proof: string[] }
+export interface Proof { tx_raw: string; block_hash: string; tx_index: number; merkle_proof: string[]; coinbase_tx_id: string; coinbase_merkle_proof: string[] }
 
 export function esplora(base: string, fetchFn: typeof fetch = fetch): Esplora {
   const j = async (p: string) => { const r = await fetchFn(base + p); if (!r.ok) throw new Error(`${p}: ${r.status}`); return r.json(); };
@@ -21,6 +23,7 @@ export function esplora(base: string, fetchFn: typeof fetch = fetch): Esplora {
     blockHashAt: (h) => t(`/block-height/${h}`),
     block: (hash) => j(`/block/${hash}`),
     tipHeight: async () => Number(await t(`/blocks/tip/height`)),
+    blockTxids: (hash) => j(`/block/${hash}/txids`),
   };
 }
 
@@ -71,13 +74,32 @@ export function merkleRoot(txid: string, pos: number, branch: string[]): string 
   return rev(bytesToHex(h));
 }
 
-/** Fetch everything, verify locally against the block's merkle root, return the contract proof + depth. */
+/** Merkle branch for `pos` in a block's txid list (display-order hex). */
+export function branch(txids: string[], pos: number): string[] {
+  const out: string[] = [];
+  let level = txids.slice();
+  let idx = pos;
+  while (level.length > 1) {
+    if (level.length % 2 === 1) level.push(level[level.length - 1]);
+    out.push(level[idx ^ 1]);
+    const next: string[] = [];
+    for (let i = 0; i < level.length; i += 2) next.push(merkleRoot(level[i], 0, [level[i + 1]]));
+    level = next;
+    idx >>= 1;
+  }
+  return out;
+}
+
+/** Fetch everything, verify locally against the block's merkle root, return the contract proof + depth.
+ *  Includes the coinbase branch the light client's `verify_transaction_inclusion_v2` requires. */
 export async function buildProof(api: Esplora, txid: string): Promise<{ proof: Proof; depth: number; height: number }> {
   const [raw, mp] = await Promise.all([api.txHex(txid), api.merkleProof(txid)]);
   if (txidOf(raw) !== txid) throw new Error("tx hex does not hash to txid");
   const blockHash = await api.blockHashAt(mp.block_height);
-  const [block, tip] = await Promise.all([api.block(blockHash), api.tipHeight()]);
+  const [block, tip, txids] = await Promise.all([api.block(blockHash), api.tipHeight(), api.blockTxids(blockHash)]);
   const root = merkleRoot(txid, mp.pos, mp.merkle);
   if (root !== block.merkle_root) throw new Error(`merkle mismatch: ${root} vs ${block.merkle_root}`);
-  return { proof: { tx_raw: raw, block_hash: blockHash, tx_index: mp.pos, merkle_proof: mp.merkle }, depth: tip - mp.block_height + 1, height: mp.block_height };
+  const cbBranch = branch(txids, 0);
+  if (merkleRoot(txids[0], 0, cbBranch) !== block.merkle_root) throw new Error("coinbase branch does not reach the merkle root");
+  return { proof: { tx_raw: raw, block_hash: blockHash, tx_index: mp.pos, merkle_proof: mp.merkle, coinbase_tx_id: txids[0], coinbase_merkle_proof: cbBranch }, depth: tip - mp.block_height + 1, height: mp.block_height };
 }

@@ -14,6 +14,8 @@ pub struct ProofRef {
     pub block_hash: String,
     pub tx_index: u64,
     pub merkle_proof: Vec<String>,
+    pub coinbase_tx_id: String,
+    pub coinbase_merkle_proof: Vec<String>,
 }
 
 impl ProofRef {
@@ -23,22 +25,40 @@ impl ProofRef {
             block_hash: p.block_hash.clone(),
             tx_index: p.tx_index,
             merkle_proof: p.merkle_proof.clone(),
+            coinbase_tx_id: p.coinbase_tx_id.clone(),
+            coinbase_merkle_proof: p.coinbase_merkle_proof.clone(),
         }
+    }
+
+    /// Borsh of the light client's `ProofArgsV2 { tx_id, tx_block_blockhash, tx_index, merkle_proof,
+    /// coinbase_tx_id, coinbase_merkle_proof, confirmations }`. `H256` is borsh'd in internal byte
+    /// order, i.e. the reverse of the display hex we carry.
+    pub fn borsh_args(&self, confirmations: u64) -> Vec<u8> {
+        fn h(display: &str) -> [u8; 32] { crate::parse_hash_display(display) }
+        let args = ProofArgsV2 {
+            tx_id: h(&self.txid_display),
+            tx_block_blockhash: h(&self.block_hash),
+            tx_index: self.tx_index,
+            merkle_proof: self.merkle_proof.iter().map(|x| h(x)).collect(),
+            coinbase_tx_id: h(&self.coinbase_tx_id),
+            coinbase_merkle_proof: self.coinbase_merkle_proof.iter().map(|x| h(x)).collect(),
+            confirmations,
+        };
+        near_sdk::borsh::to_vec(&args).expect("borsh")
     }
 }
 
-/// Near-One `btc-light-client-contract` inclusion check (argument names follow
-/// its `btc-types`; the exact method of the pinned revision is confirmed on day 1).
-#[ext_contract(ext_btc_client)]
-pub trait BtcClient {
-    fn verify_transaction_inclusion(
-        &self,
-        tx_id: String,
-        tx_block_blockhash: String,
-        tx_index: u64,
-        merkle_proof: Vec<String>,
-        confirmations: u64,
-    ) -> bool;
+/// Mirror of Near-One `btc-types::contract_args::ProofArgsV2` (borsh layout).
+#[derive(near_sdk::borsh::BorshSerialize, near_sdk::borsh::BorshDeserialize, Clone, Debug, PartialEq)]
+#[borsh(crate = "near_sdk::borsh")]
+pub struct ProofArgsV2 {
+    pub tx_id: [u8; 32],
+    pub tx_block_blockhash: [u8; 32],
+    pub tx_index: u64,
+    pub merkle_proof: Vec<[u8; 32]>,
+    pub coinbase_tx_id: [u8; 32],
+    pub coinbase_merkle_proof: Vec<[u8; 32]>,
+    pub confirmations: u64,
 }
 
 #[ext_contract(ext_ft)]

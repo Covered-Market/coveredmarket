@@ -13,6 +13,7 @@ const fake: Esplora = {
   blockHashAt: async () => BLOCK.id,
   block: async () => BLOCK,
   tipHeight: async () => 900_000,
+  blockTxids: async () => [MP.merkle[0], TXID],
 };
 
 describe("proof builder", () => {
@@ -27,6 +28,8 @@ describe("proof builder", () => {
     expect(proof.block_hash).toBe(BLOCK.id);
     expect(proof.tx_index).toBe(1);
     expect(depth).toBe(900_000 - 170 + 1);
+    expect(proof.coinbase_tx_id).toBe(MP.merkle[0]);
+    expect(proof.coinbase_merkle_proof).toEqual([TXID]);
   });
   it("refuses a forged branch", async () => {
     const forged: Esplora = { ...fake, merkleProof: async () => ({ ...MP, merkle: ["00".repeat(32)] }) };
