@@ -28,8 +28,12 @@ export class Core implements Esplora {
       try { await this.rpc("loadwallet", [name]); } catch { await this.rpc("createwallet", [name, true, true, "", false, true]); }
     }
   }
+  private watched = new Set<string>();
+  /** Watch an address; rescans from genesis the first time (regtest/testnet4 chains are small enough). */
   async watch(address: string) {
-    await this.rpc("importdescriptors", [[{ desc: await this.descriptor(address), timestamp: "now", label: "covered" }]], true).catch(() => {});
+    if (this.watched.has(address)) return;
+    await this.rpc("importdescriptors", [[{ desc: await this.descriptor(address), timestamp: 0, label: "covered" }]], true);
+    this.watched.add(address);
   }
   private async descriptor(address: string) { const d = await this.rpc("getdescriptorinfo", [`addr(${address})`]); return d.descriptor; }
 
@@ -68,13 +72,23 @@ export class Core implements Esplora {
     try { const tx = await this.rpc("getrawtransaction", [txid, true]); const h = tx.blockhash ? (await this.rpc("getblockheader", [tx.blockhash])).height : undefined; return { confirmed: !!tx.blockhash, block_height: h }; }
     catch { return null; }
   }
+  /** Esplora-style outspend. If spent, find the spending tx by scanning recent blocks (bounded; fine for regtest). */
   async outspend(txid: string, vout: number) {
     const o = await this.rpc("gettxout", [txid, vout, true]);
-    return { spent: o === null };
+    if (o !== null) return { spent: false };
+    const tip = await this.tipHeight();
+    for (let h = tip; h >= Math.max(0, tip - 500); h--) {
+      const b = await this.rpc("getblock", [await this.blockHashAt(h), 2]);
+      for (const tx of b.tx) if (tx.vin.some((i: any) => i.txid === txid && i.vout === vout)) return { spent: true, txid: tx.txid };
+    }
+    return { spent: true };
   }
   async broadcast(raw: string) { if (!txidOf(raw)) throw new Error("bad tx"); return this.rpc<string>("sendrawtransaction", [raw]); }
-  async mine(n: number, to?: string) { const addr = to ?? (await this.rpc("getnewaddress", [], true)); return this.rpc("generatetoaddress", [n, addr]); }
-  async send(address: string, btc: number) { return this.rpc<string>("sendtoaddress", [address, btc], true); }
+  /** Regtest only: the `miner` wallet the local bootstrap creates and funds. */
+  private miner<T = any>(method: string, params: unknown[] = []) { return new Core({ ...this.cfg, wallet: "miner" }, this.fetchFn).rpc<T>(method, params, true); }
+  async mine(n: number) { const addr = await this.miner<string>("getnewaddress"); return this.rpc("generatetoaddress", [n, addr]); }
+  async send(address: string, btc: number) { return this.miner<string>("sendtoaddress", [address, btc]); }
+  async newAddress() { return this.miner<string>("getnewaddress", ["", "bech32"]); }
 }
 
 /** Merkle branch for `pos` in a block's txid list (display-order hex). */

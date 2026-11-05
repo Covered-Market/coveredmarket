@@ -26,7 +26,7 @@ export async function nearClient(cfg: NearCfg) {
   /** Relay a signed delegate action (NEP-366) built by the user's wallet. */
   const relay = async (signedDelegate: any) => {
     if (!account) throw new Error("relayer key not configured");
-    return account.signAndSendTransaction({ receiverId: signedDelegate.delegateAction.senderId, actions: [actionCreators.signedDelegate(signedDelegate)] });
+    return account.signAndSendTransaction({ receiverId: signedDelegate.delegateAction.senderId, actions: [actionCreators.signedDelegate(signedDelegate)], throwOnFailure: false } as any);
   };
   return { view, call, callAny, relay, provider };
 }

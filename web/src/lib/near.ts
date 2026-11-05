@@ -3,14 +3,14 @@ import { Account } from "@near-js/accounts";
 import { KeyPair, KeyPairEd25519 } from "@near-js/crypto";
 import { JsonRpcProvider } from "@near-js/providers";
 import { KeyPairSigner } from "@near-js/signers";
-import { actionCreators, buildDelegateAction } from "@near-js/transactions";
+import { actionCreators, buildDelegateAction, encodeSignedDelegate } from "@near-js/transactions";
 import { sha256 } from "@noble/hashes/sha256";
 import { base58 } from "@scure/base";
 import type { Clients } from "./verify.js";
 
 /** Runtime configuration, served as /config.json by the web container (written by `covered up` / the cloud bootstrap). */
-export interface Config { network: string; rpc: string; contract: string; usdc: string; esplora: string; explorerBtc: string; explorerNear: string; codeHash: string; signer: string; lightClient: string; minConf: number; helper: string; mode: "local" | "testnet" | "mainnet" }
-const defaults: Config = { network: "testnet", rpc: "https://rpc.testnet.near.org", contract: "covered.testnet", usdc: "usdc.fakes.testnet", esplora: "https://mempool.space/testnet4/api", explorerBtc: "https://mempool.space/testnet4", explorerNear: "https://testnet.nearblocks.io", codeHash: "", signer: "v1.signer-prod.testnet", lightClient: "btc-client.testnet", minConf: 1, helper: "https://helper.testnet.near.org", mode: "testnet" };
+export interface Config { network: string; rpc: string; contract: string; usdc: string; esplora: string; explorerBtc: string; explorerNear: string; codeHash: string; signer: string; lightClient: string; minConf: number; helper: string; accountSuffix: string; mode: "local" | "testnet" | "mainnet" }
+const defaults: Config = { network: "testnet", rpc: "https://rpc.testnet.near.org", contract: "covered.testnet", usdc: "usdc.fakes.testnet", esplora: "https://mempool.space/testnet4/api", explorerBtc: "https://mempool.space/testnet4", explorerNear: "https://testnet.nearblocks.io", codeHash: "", signer: "v1.signer-prod.testnet", lightClient: "btc-client.testnet", minConf: 1, helper: "https://helper.testnet.near.org", accountSuffix: "testnet", mode: "testnet" };
 export const CFG: Config = { ...defaults, ...((window as any).COVERED_CONFIG ?? {}) };
 export async function loadConfig() {
   try { const r = await fetch("/config.json", { cache: "no-store" }); if (r.ok) Object.assign(CFG, await r.json()); } catch {}
@@ -45,7 +45,7 @@ export function loadWallet(): Wallet | null { try { return JSON.parse(localStora
 export function clearWallet() { localStorage.removeItem(LS); }
 
 export async function createWallet(name: string): Promise<Wallet> {
-  const accountId = `${name.toLowerCase().replace(/[^a-z0-9-_]/g, "")}.${CFG.network}`;
+  const accountId = `${name.toLowerCase().replace(/[^a-z0-9-_]/g, "")}.${CFG.accountSuffix || CFG.network}`;
   const kp = KeyPairEd25519.fromRandom();
   const url = CFG.mode === "local" ? "/api/dev/account" : `${CFG.helper}/account`;
   const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ newAccountId: accountId, newAccountPublicKey: kp.getPublicKey().toString() }) });
@@ -67,11 +67,15 @@ export async function call(w: Wallet, receiverId: string, method: string, args: 
     const delegate = buildDelegateAction({ senderId: w.accountId, receiverId, actions: [actionCreators.functionCall(method, args, gas, depositYocto)], nonce: BigInt(ak.nonce) + 1n, maxBlockHeight: BigInt(block.header.height) + 100n, publicKey: KeyPair.fromString(w.key as any).getPublicKey() });
     const [, signedDelegateAction] = await new KeyPairSigner(KeyPair.fromString(w.key as any)).signDelegateAction(delegate);
     void acc;
-    const r = await fetch("/api/relay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(signedDelegateAction, (_k, v) => (typeof v === "bigint" ? v.toString() : v instanceof Uint8Array ? btoa(String.fromCharCode(...v)) : v)) });
-    if (r.ok) return r.json();
-    throw new Error(`relay ${r.status}`);
+    const bytes = encodeSignedDelegate(signedDelegateAction);
+    const r = await fetch("/api/relay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signedDelegate: btoa(String.fromCharCode(...bytes)) }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) return j.value !== undefined && j.value !== "" ? JSON.parse(j.value) : j;
+    if (r.status === 422) throw Object.assign(new Error(`transaction failed: ${JSON.stringify(j.failure)}`), { final: true });
+    throw new Error(`relay ${r.status}: ${j.error ?? ""}`);
   } catch (e) {
-    console.warn("relay failed, sending directly", e);
+    if ((e as any).final) throw e; // the relayed transaction ran and failed: do not resend it
+    console.warn("relay unavailable, sending directly", e);
     return account(w).callFunction({ contractId: receiverId, methodName: method, args, gas, deposit: depositYocto });
   }
 }

@@ -7,3 +7,5 @@ dist/
 infra/cloud/.terraform/
 infra/cloud/*.tfstate*
 infra/cloud/terraform.tfvars
+e2e/artifacts/
+e2e/node_modules/

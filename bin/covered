@@ -7,13 +7,19 @@ need() { command -v "$1" >/dev/null || { echo "missing: $1 ($2)"; exit 1; }; }
 cmd=${1:-help}; shift || true
 case "$cmd" in
   up)        # full local stack: sandbox + regtest + contracts + relayer + web
-    need docker "https://docs.docker.com/get-docker/"; [ -f .env ] || cp .env.example .env
+    need docker "https://docs.docker.com/get-docker/"; touch .env
     # phase 1: chain, bitcoin, wasm, bootstrap (writes ids and keys into .env); phase 2: relayer + web read that .env
-    docker compose "${LOCAL[@]}" up --build bootstrap "$@"
-    docker compose "${LOCAL[@]}" up -d --build
+    docker compose "${LOCAL[@]}" up -d --build bootstrap "$@"
+    code=$(docker compose "${LOCAL[@]}" wait bootstrap)
+    if [ "$code" != "0" ]; then docker compose "${LOCAL[@]}" logs bootstrap contracts near-sandbox bitcoind | tail -80; echo "bootstrap failed ($code)"; exit 1; fi
+    docker compose "${LOCAL[@]}" up -d --build relayer web config
+    for i in $(seq 1 60); do curl -fsS localhost/api/health >/dev/null 2>&1 && curl -fsS localhost/config.json >/dev/null 2>&1 && break; sleep 2
+      [ "$i" = 60 ] && { docker compose "${LOCAL[@]}" logs relayer web config | tail -80; echo "stack did not come up"; exit 1; }; done
     echo; echo "Covered is at http://localhost  (NEAR sandbox :3030, bitcoind :18443). Demo users and keys: bin/covered keys" ;;
   down)      docker compose "${LOCAL[@]}" down "$@" ;;
-  reset)     docker compose "${LOCAL[@]}" down -v; sed -i.bak '/# --- covered local bootstrap ---/,$d' .env 2>/dev/null || true; echo "state wiped; run: bin/covered up" ;;
+  reset)     docker compose "${LOCAL[@]}" down -v; rm -f .env; echo "state wiped; run: bin/covered up" ;;
+  e2e-stack) # full product run against the local stack: API flows (KEPT, EXERCISED) + UI + Verify; screenshots in e2e/artifacts
+    (cd e2e && npm ci --silent && npx playwright install chromium >/dev/null && node run.mjs) ;;
   logs)      docker compose "${LOCAL[@]}" logs -f --tail=100 "$@" ;;
   ps)        docker compose "${LOCAL[@]}" ps ;;
   keys)      docker compose "${LOCAL[@]}" run --rm --no-deps -v covered_config:/config alpine cat /config/demo-keys.txt ;;
@@ -50,6 +56,7 @@ covered — one entry point
     test               L0: contract, relayer, web unit tests
     build              wasm for the contracts (needs rustup wasm32 target + cargo-near)
     e2e                L1: sandbox integration tests
+    e2e-stack          against a running `up`: both contract lifecycles through relayer, bitcoind and UI, then Verify
   cloud (DigitalOcean, one VM, Caddy TLS on your domain)
     provision          terraform apply from infra/cloud/terraform.tfvars
     deploy [ip] [ref]  ssh in, pull the ref, compose up --build
