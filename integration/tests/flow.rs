@@ -107,7 +107,7 @@ async fn create_and_fund(e: &Env, size: u64, strike: u128, premium: u128) -> Res
     let block = "00".repeat(32);
     e.lc.call("set_included").args_json(json!({ "tx_id": txid, "block_hash": block, "depth": 6 })).transact().await?.into_result()?;
     let ok: bool = e.anyone.call(e.covered.id(), "confirm_deposit")
-        .args_json(json!({ "serial": serial, "proof": { "tx_raw": raw, "block_hash": block, "tx_index": 0, "merkle_proof": [] }}))
+        .args_json(json!({ "serial": serial, "proof": { "tx_raw": raw, "block_hash": block, "tx_index": 0, "merkle_proof": [], "coinbase_tx_id": "00".repeat(32), "coinbase_merkle_proof": [] }}))
         .max_gas().transact().await?.json()?;
     assert!(ok);
     let view: serde_json::Value = e.covered.view("get_offer").args_json(json!({ "serial": serial })).await?.json()?;
@@ -173,7 +173,7 @@ async fn flow_kept() -> Result<()> {
     let block = "11".repeat(32);
     e.lc.call("set_included").args_json(json!({ "tx_id": tx.compute_txid().to_string(), "block_hash": block, "depth": 1 })).transact().await?.into_result()?;
     e.anyone.call(e.covered.id(), "confirm_spend")
-        .args_json(json!({ "serial": s, "proof": { "tx_raw": hex::encode(&raw), "block_hash": block, "tx_index": 0, "merkle_proof": [] }}))
+        .args_json(json!({ "serial": s, "proof": { "tx_raw": hex::encode(&raw), "block_hash": block, "tx_index": 0, "merkle_proof": [], "coinbase_tx_id": "00".repeat(32), "coinbase_merkle_proof": [] }}))
         .max_gas().transact().await?.into_result()?;
     assert_eq!(state(&e, s).await?["state"], "Kept");
     // seller claims real tokens
@@ -216,7 +216,7 @@ async fn flow_exercised_with_escrow() -> Result<()> {
     let block = "22".repeat(32);
     e.lc.call("set_included").args_json(json!({ "tx_id": tx.compute_txid().to_string(), "block_hash": block, "depth": 1 })).transact().await?.into_result()?;
     e.anyone.call(e.covered.id(), "confirm_spend")
-        .args_json(json!({ "serial": s, "proof": { "tx_raw": hex::encode(&raw), "block_hash": block, "tx_index": 0, "merkle_proof": [] }}))
+        .args_json(json!({ "serial": s, "proof": { "tx_raw": hex::encode(&raw), "block_hash": block, "tx_index": 0, "merkle_proof": [], "coinbase_tx_id": "00".repeat(32), "coinbase_merkle_proof": [] }}))
         .max_gas().transact().await?.into_result()?;
     assert_eq!(state(&e, s).await?["state"], "Exercised");
     let claimable: U128 = e.covered.view("get_claimable").args_json(json!({ "account": e.seller.id() })).await?.json()?;

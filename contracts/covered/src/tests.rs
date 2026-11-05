@@ -132,7 +132,7 @@ fn deposit_tx(c: &Contract, serial: u64, value: u64) -> (String, [u8; 32]) {
 }
 
 fn proof_for(raw: &str) -> Proof {
-    Proof { tx_raw: raw.into(), block_hash: "00".repeat(32), tx_index: 3, merkle_proof: vec!["11".repeat(32)] }
+    Proof { tx_raw: raw.into(), block_hash: "00".repeat(32), tx_index: 3, merkle_proof: vec!["11".repeat(32)], coinbase_tx_id: "22".repeat(32), coinbase_merkle_proof: vec!["33".repeat(32)] }
 }
 
 /// Fund an offer: confirm_deposit then the callback with the light client saying yes.
@@ -534,7 +534,7 @@ fn outpoint_cannot_be_reused_as_collateral() {
     // the same outpoint offered to a second offer's callback is refused (A12)
     let b = create(&mut c, 200_000_000, 150_000_000_000, 6_000_000_000);
     set(&me(), T0 + 50);
-    let pref = ProofRef { txid_display: btc::display_hex(&txid), block_hash: "00".repeat(32), tx_index: 0, merkle_proof: vec![] };
+    let pref = ProofRef { txid_display: btc::display_hex(&txid), block_hash: "00".repeat(32), tx_index: 0, merkle_proof: vec![], coinbase_tx_id: "00".repeat(32), coinbase_merkle_proof: vec![] };
     assert!(!c.on_deposit_verified(b, Outpoint { txid, vout: 1, value_sats: 200_000_000 }, pref, Ok(true)));
     assert_eq!(c.offer(b).state, State::Created);
 }
@@ -629,4 +629,18 @@ fn print_vectors_for_web() {
         "address_regtest": c.get_address(s),
     });
     std::fs::write(concat!(env!("CARGO_MANIFEST_DIR"), "/../../web/src/vectors.json"), serde_json::to_string_pretty(&v).unwrap()).unwrap();
+}
+
+#[test]
+fn light_client_args_match_upstream_borsh_layout() {
+    // ProofArgsV2 borsh: 32 + 32 + 8 + (4 + 32n) + 32 + (4 + 32m) + 8, hashes in internal order.
+    let p = ProofRef { txid_display: format!("{}01", "00".repeat(31)), block_hash: "ab".repeat(32), tx_index: 7, merkle_proof: vec!["11".repeat(32)], coinbase_tx_id: "22".repeat(32), coinbase_merkle_proof: vec![] };
+    let b = p.borsh_args(6);
+    assert_eq!(b.len(), 32 + 32 + 8 + 4 + 32 + 32 + 4 + 8);
+    assert_eq!(b[0], 0x01, "display hex is reversed into internal order");
+    assert_eq!(&b[64..72], &7u64.to_le_bytes());
+    assert_eq!(&b[72..76], &1u32.to_le_bytes());
+    assert_eq!(&b[b.len() - 8..], &6u64.to_le_bytes());
+    let back: ext::ProofArgsV2 = near_sdk::borsh::from_slice(&b).unwrap();
+    assert_eq!(back.tx_index, 7);
 }

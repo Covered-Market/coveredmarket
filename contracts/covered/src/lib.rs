@@ -13,7 +13,7 @@ pub mod events;
 pub mod ext;
 
 use btc::{Network, Outpoint};
-use ext::{ext_btc_client, ext_ft, ProofRef, SignatureResponse};
+use ext::{ext_ft, ProofRef, SignatureResponse};
 use near_sdk::json_types::{U128, U64};
 use near_sdk::store::{IterableSet, LookupMap, LookupSet, Vector};
 use near_sdk::{
@@ -140,6 +140,11 @@ pub struct Proof {
     pub tx_index: u64,
     /// Merkle branch, display order hex each.
     pub merkle_proof: Vec<String>,
+    /// The block's coinbase txid and its Merkle branch (required by the light client's v2 check).
+    #[serde(default)]
+    pub coinbase_tx_id: String,
+    #[serde(default)]
+    pub coinbase_merkle_proof: Vec<String>,
 }
 
 #[near(serializers = [json])]
@@ -788,10 +793,14 @@ impl Contract {
         let raw = hex::decode(&proof.tx_raw).unwrap_or_else(|_| env::panic_str("tx_raw must be hex"));
         btc::parse_tx(&raw).unwrap_or_else(|| env::panic_str("tx_raw does not parse"))
     }
+    /// Near-One light client `verify_transaction_inclusion_v2(ProofArgsV2)`, args borsh-encoded.
     fn lc_verify(&self, p: &ProofRef, confirmations: u64) -> Promise {
-        ext_btc_client::ext(self.params.light_client.clone())
-            .with_static_gas(GAS_LC_VERIFY)
-            .verify_transaction_inclusion(p.txid_display.clone(), p.block_hash.clone(), p.tx_index, p.merkle_proof.clone(), confirmations)
+        Promise::new(self.params.light_client.clone()).function_call(
+            "verify_transaction_inclusion_v2".to_string(),
+            p.borsh_args(confirmations),
+            NearToken::from_yoctonear(0),
+            GAS_LC_VERIFY,
+        )
     }
     fn sign_promise(&self, path: &str, sighash: [u8; 32]) -> Promise {
         let args = ext::sign_args(self.params.sign_format, path, &sighash);

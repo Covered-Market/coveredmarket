@@ -5,7 +5,8 @@
  * on a watch-only wallet named `covered` (created on start).
  */
 import type { Esplora } from "./proof.js";
-import { txidOf, merkleRoot } from "./proof.js";
+import { txidOf, branch } from "./proof.js";
+export { branch };
 
 export interface CoreCfg { url: string; user: string; pass: string; wallet?: string }
 
@@ -50,6 +51,7 @@ export class Core implements Esplora {
   async blockHashAt(height: number) { return this.rpc<string>("getblockhash", [height]); }
   async block(hash: string) { const b = await this.rpc("getblock", [hash, 1]); return { id: b.hash, height: b.height, merkle_root: b.merkleroot, tx_count: b.nTx }; }
   async tipHeight() { return this.rpc<number>("getblockcount"); }
+  async blockTxids(hash: string) { return (await this.rpc("getblock", [hash, 1])).tx as string[]; }
 
   // ---- web-app routes ----
   async addressTxs(address: string) {
@@ -89,21 +91,4 @@ export class Core implements Esplora {
   async mine(n: number) { const addr = await this.miner<string>("getnewaddress"); return this.rpc("generatetoaddress", [n, addr]); }
   async send(address: string, btc: number) { return this.miner<string>("sendtoaddress", [address, btc]); }
   async newAddress() { return this.miner<string>("getnewaddress", ["", "bech32"]); }
-}
-
-/** Merkle branch for `pos` in a block's txid list (display-order hex). */
-export function branch(txids: string[], pos: number): string[] {
-  const out: string[] = [];
-  let level = txids.slice();
-  let idx = pos;
-  while (level.length > 1) {
-    if (level.length % 2 === 1) level.push(level[level.length - 1]);
-    const sib = level[idx ^ 1];
-    out.push(sib);
-    const next: string[] = [];
-    for (let i = 0; i < level.length; i += 2) next.push(merkleRoot(level[i], 0, [level[i + 1]]));
-    level = next;
-    idx >>= 1;
-  }
-  return out;
 }
