@@ -1,0 +1,21 @@
+name: testnet
+# L2 against NEAR testnet + Bitcoin testnet4 with the real MPC signer and light client.
+on:
+  push:
+    branches: ["e2e/testnet**"]
+  workflow_dispatch:
+concurrency:
+  group: testnet-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: cd e2e && npm ci && node probe-testnet.mjs | tee probe.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: probe, path: e2e/probe.txt }
