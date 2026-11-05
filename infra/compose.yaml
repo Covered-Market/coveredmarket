@@ -20,7 +20,7 @@ services:
     build: ../web
     restart: unless-stopped
     environment:
-      DOMAIN: ${DOMAIN:-}
+      SITE_ADDRESS: ${DOMAIN:-:80}
     volumes:
       - config:/config:ro
       - caddy_data:/data
