@@ -128,10 +128,13 @@ async fn state(e: &Env, serial: u64) -> Result<serde_json::Value> {
 }
 
 async fn fast_forward_to(e: &Env, t: u64) -> Result<()> {
-    // sandbox blocks are ~1 s apart; fast_forward(n) advances n blocks
-    let now = now_s(&e.worker).await?;
-    if t > now { e.worker.fast_forward(t - now + 2).await?; }
-    Ok(())
+    // fast_forward(n) advances n blocks; block time is not exactly 1 s, so loop until the chain clock passes `t`
+    for _ in 0..20 {
+        let now = now_s(&e.worker).await?;
+        if now >= t { return Ok(()); }
+        e.worker.fast_forward((t - now).max(5)).await?;
+    }
+    anyhow::bail!("could not fast-forward to {t}")
 }
 
 #[tokio::test]
@@ -196,8 +199,11 @@ async fn flow_exercised_with_escrow() -> Result<()> {
         .args_json(json!({ "receiver_id": e.covered.id(), "amount": "300000000007", "msg": json!({ "serial": s, "exercise": true }).to_string() }))
         .deposit(NearToken::from_yoctonear(1)).max_gas().transact().await?.into_result()?;
     let v = state(&e, s).await?;
-    assert_eq!(v["state"], "Signed", "depth ok → committed → mock signs in the same chain");
+    assert_eq!(v["state"], "Committed", "depth ok → committed; signature is a separate transaction");
     assert_eq!(v["commitment_reason"], "Exercise");
+    e.anyone.call(e.covered.id(), "request_signature").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
+    let v = state(&e, s).await?;
+    assert_eq!(v["state"], "Signed");
     let after: U128 = e.usdc.view("ft_balance_of").args_json(json!({ "account_id": e.buyer.id() })).await?.json()?;
     assert_eq!(before.0 - after.0, 300_000_000_000, "excess 7 units refunded by the token contract");
     let acc: serde_json::Value = e.covered.view("get_accounting").await?.json()?;

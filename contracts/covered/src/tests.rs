@@ -386,9 +386,12 @@ fn flow_exercised() {
     // depth ok → committed to buyer
     set(&me(), expiry + 11);
     match c.on_exercise_depth(s, U128(7), U128(strike_total + 7), Ok(true)) {
-        PromiseOrValue::Promise(_) => {}
-        _ => panic!("expected promise chain"),
+        PromiseOrValue::Value(v) => assert_eq!(v.0, 7, "excess returned; commitment made; signature requested separately"),
+        _ => panic!("expected value"),
     }
+    assert_eq!(c.offer(s).retry_after_s, Some(expiry + 11), "exercise signature may be requested at once");
+    set(&accounts(3), expiry + 11);
+    let _ = c.request_signature(s);
     let o = c.offer(s);
     assert_eq!(o.state, State::Committed);
     let cm = o.commitment.as_ref().unwrap();

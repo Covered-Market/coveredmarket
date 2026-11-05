@@ -542,15 +542,10 @@ impl Contract {
             events::emit("exercise_refused", serial, serde_json::json!({ "reason": "collateral depth" }));
             return PromiseOrValue::Value(paid);
         }
-        let p = self.commit_and_sign(serial, Reason::Exercise);
-        PromiseOrValue::Promise(p.then(
-            Self::ext(env::current_account_id()).with_static_gas(Gas::from_tgas(5)).return_excess(excess),
-        ))
-    }
-
-    #[private]
-    pub fn return_excess(&self, excess: U128) -> U128 {
-        excess
+        // Commit now; the signature is requested in its own transaction (`request_signature`,
+        // permissionless) because a `sign` call does not fit inside the token's call chain.
+        self.commit(serial, Reason::Exercise);
+        PromiseOrValue::Value(excess)
     }
 
     /// After the window: anyone settles an un-exercised offer back to the seller.
@@ -567,7 +562,10 @@ impl Contract {
         require!(offer.state == State::Committed, "nothing to sign");
         let c = offer.commitment.as_ref().unwrap();
         require!(now_s() >= offer.retry_after_s.unwrap_or(0), "retry not due yet");
-        self.sign_promise(&offer.path, c.sighash)
+        let (path, sighash) = (offer.path.clone(), c.sighash);
+        self.offer_mut(serial).retry_after_s = Some(now_s() + RETRY_DELAY_S);
+        events::emit("signature_requested", serial, serde_json::json!({ "sighash": hex::encode(sighash) }));
+        self.sign_promise(&path, sighash)
             .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SIGN).on_signed(serial))
     }
 
@@ -805,8 +803,16 @@ impl Contract {
         )
     }
 
-    /// Build the commitment (once), store it, request the signature.
     fn commit_and_sign(&mut self, serial: u64, reason: Reason) -> Promise {
+        self.commit(serial, reason);
+        let offer = self.offer(serial);
+        let sighash = offer.commitment.as_ref().unwrap().sighash;
+        self.sign_promise(&offer.path, sighash)
+            .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SIGN).on_signed(serial))
+    }
+
+    /// Build the commitment (once) and store it. Signature requests always use this stored sighash.
+    fn commit(&mut self, serial: u64, reason: Reason) {
         let fee = self.params.fee_sats;
         let offer = self.offer_mut(serial);
         require!(offer.commitment.is_none(), "already committed");
@@ -830,15 +836,13 @@ impl Contract {
         };
         offer.commitment = Some(c);
         offer.state = State::Committed;
-        offer.retry_after_s = Some(now_s() + RETRY_DELAY_S);
-        let path = offer.path.clone();
+        // Exercise: signature may be requested immediately; withdraw/settle request it in the same tx and retry after a delay.
+        offer.retry_after_s = Some(if reason == Reason::Exercise { now_s() } else { now_s() + RETRY_DELAY_S });
         events::emit(
-            "signature_requested",
+            "committed",
             serial,
             serde_json::json!({ "reason": format!("{:?}", reason), "txid": btc::display_hex(&u.txid), "sighash": hex::encode(u.sighash) }),
         );
-        self.sign_promise(&path, u.sighash)
-            .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SIGN).on_signed(serial))
     }
 
     /// Verify the MPC's signature against the derived key for the committed
