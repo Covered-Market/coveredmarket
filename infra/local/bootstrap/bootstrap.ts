@@ -30,7 +30,7 @@ async function create(name: string, near: bigint, kp = KeyPairEd25519.fromRandom
 }
 async function deploy(name: string, wasm: string, initMethod: string, args: Record<string, unknown>) {
   const a = await create(name, 100n);
-  await a.account.signAndSendTransaction({ receiverId: a.id, actions: [actionCreators.deployContract(readFileSync(`/wasm/${wasm}.wasm`)), actionCreators.functionCall(initMethod, args, 100n * 10n ** 12n, 0n)] });
+  await a.account.signAndSendTransaction({ receiverId: a.id, actions: [actionCreators.deployContract(readFileSync(`/wasm/${wasm.replace(/-/g, "_")}.wasm`)), actionCreators.functionCall(initMethod, args, 100n * 10n ** 12n, 0n)] });
   return a;
 }
 const view = async (c: string, m: string, args = {}) => JSON.parse(Buffer.from(((await provider.query({ request_type: "call_function", account_id: c, method_name: m, args_base64: Buffer.from(JSON.stringify(args)).toString("base64"), finality: "final" })) as any).result).toString());

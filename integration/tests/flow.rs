@@ -19,6 +19,7 @@ const ROOT_SCALAR_HEX: &str = "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0
 const DAY: u64 = 86_400;
 
 fn wasm(name: &str) -> Vec<u8> {
+    let name = name.replace('-', "_"); // cargo-near uses the crate's snake_case name
     let p = format!("{}/../target/near/{name}/{name}.wasm", env!("CARGO_MANIFEST_DIR"));
     std::fs::read(&p).unwrap_or_else(|_| panic!("build first: cargo near build (missing {p})"))
 }
