@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = ["contracts/covered", "contracts/mock-signer", "contracts/mock-btc-client", "integration"]
+
+[workspace.dependencies]
+near-sdk = "5.30"
+bitcoin = { version = "0.32", default-features = false, features = ["std", "serde"] }
+k256 = { version = "0.13", default-features = false, features = ["ecdsa", "arithmetic", "std"] }
+sha2 = "0.10"
+hex = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true
