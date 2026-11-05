@@ -1,5 +1,5 @@
 # NEAR sandbox node (the same neard-sandbox binary near-workspaces uses): one validator, fast blocks.
-FROM node:22-bookworm-slim
+FROM node:22-trixie-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates wget && rm -rf /var/lib/apt/lists/* && useradd -m near
 USER near
 WORKDIR /home/near

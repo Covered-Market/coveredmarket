@@ -16,7 +16,7 @@ A Bitcoin holder sells a call. The coins stay at a Bitcoin address only the NEAR
 ### Prerequisites
 - Docker 24+ with Compose v2 (that is all for the local stack)
 - For tests on the host: Rust 1.85+, Node 22
-- For `build`/`e2e` on the host: `rustup target add wasm32-unknown-unknown && cargo install cargo-near`
+- For `build`/`e2e` on the host: `rustup target add wasm32-unknown-unknown` and cargo-near (`curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/latest/download/cargo-near-installer.sh | sh`)
 - For the cloud: Terraform 1.6+, a DigitalOcean account, a domain
 
 ### Run everything locally — one command
