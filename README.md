@@ -45,7 +45,7 @@ Local parameters (set in `infra/local/bootstrap/bootstrap.ts`): `min_conf 1`, `f
 
 ### Tests
 ```
-bin/covered test        # L0: contract (28), relayer (13), web (8) — no chain needed
+bin/covered test        # L0: contract (30), relayer (14), web (9) — no chain needed
 bin/covered e2e         # L1: builds wasm and runs the sandbox flows in integration/tests/flow.rs
 bin/covered up && bin/covered e2e-stack
                         # L1+: the whole product on the composed stack, see below
@@ -55,6 +55,8 @@ bin/covered up && bin/covered e2e-stack
 - **KEPT**: create offer → real regtest deposit → relayer builds the Merkle proof and gets the offer Funded → buyer pays the premium in USDC → window closes (sandbox fast-forward) → relayer settles → signer signs → relayer broadcasts → mined → relayer proves the spend → **Kept**, coins at the seller's refund address.
 - **EXERCISED**: same until expiry → buyer pays the strike inside the window → relayer requests the signature → broadcast → mined → **Exercised**, coins at the buyer's address; the seller claims premiums + strike; `claimable + escrow == token balance`.
 - **UI**: market, sell, deposit, contracts, try and both certificates in Chromium; **Verify** must show 7/7 verified for each. Screenshots land in `e2e/artifacts/`.
+
+**L2 on live NEAR testnet** (`e2e/testnet.ts`, workflow `testnet.yml`, runs on `e2e/testnet*` branches and on demand): creates throwaway faucet accounts, deploys `covered` wired to the **real MPC signer**, and checks that (1) each deposit address equals what the signer's `derived_public_key` gives for the contract, (2) a withdrawal and (3) a full sell → buy → expiry → exercise → claim are signed by the **real MPC** through the contract and the signed transactions verify offline, and (4) the **real light client** accepts the relayer's proof of a real testnet3 transaction and rejects a tampered one. The deposits in (2)–(3) are proven through a mock light client, because a real deposit needs testnet BTC; everything else is the live network. Transcript and signed transactions are uploaded as the `testnet-l2` artifact.
 
 CI: `.github/workflows/ci.yml` (unit tests, wasm, sandbox flows, images, Terraform/Compose validation) on every push and PR; `.github/workflows/stack.yml` runs `up` + `e2e-stack` on `main`, version tags and on demand, and uploads the screenshots. Deploys happen only on version tags.
 
@@ -92,9 +94,9 @@ scripts/                    regtest round trip, txoutproof converter, testnet co
 3. A signature is accepted only if it verifies against the derived key for the committed sighash.
 4. USDC enters only via `ft_on_transfer` from the pinned token with `sender_id` as the acting party; it leaves only via `claim` / `reclaim_strike` to the owner of the balance. `get_accounting()` equals the token balance.
 
-## Pinned external interfaces (confirm against the deployed versions)
-- `v1.signer` / `v1.signer-prod.testnet`: `sign` argument format selectable at init (`sign_format` 1 or 2); response `{big_r:{affine_point}, s:{scalar}, recovery_id}`; derivation prefix is a parameter.
-- Light client: `verify_transaction_inclusion(tx_id, tx_block_blockhash, tx_index, merkle_proof, confirmations) -> bool` (Near-One `btc-light-client-contract` argument names).
-- USDC: Circle's NEAR USDC, 6 decimals; set per network in `params.usdc`.
+## Pinned external interfaces (checked against the live testnet, 5 Nov 2026)
+- **Signer** `v1.signer-prod.testnet` (3.18) / `v1.signer`: `sign({request:{payload_v2:{Ecdsa:<hex>}, path, domain_id:0}})` = `sign_format 2` (the legacy `payload`/`key_version` form is `1`), 1 yoctoNEAR deposit, ≥15 Tgas (we attach 150). Response `{scheme, big_r:{affine_point}, s:{scalar}, recovery_id}`. Derivation: `derived = root + SHA3-256("near-mpc-recovery v0.1.0 epsilon derivation:" ‖ predecessor ‖ "," ‖ path)·G` — **SHA3**, not SHA-256; the live vector is a test in `derive.rs` and `crypto.test.ts`. Root key from `public_key({domain_id:0})` as `secp256k1:<base58 x‖y>`.
+- **Light client** `btc-client-v4.testnet` (follows Bitcoin **testnet3**) / `btc-client.bridge.near`: `verify_transaction_inclusion_v2(ProofArgsV2) -> bool` with **borsh** arguments `{tx_id, tx_block_blockhash, tx_index: u64, merkle_proof: Vec<H256>, coinbase_tx_id, coinbase_merkle_proof, confirmations: u64}`, hashes in internal byte order. The contract (`ProofRef::borsh_args`) and the relayer (`lcArgsV2`) produce byte-identical arguments (shared test vector).
+- **USDC**: Circle's NEAR USDC, 6 decimals (`17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1` on mainnet). On testnet it cannot be minted, so the testnet deployment uses `mock-usdc`.
 
 Unaudited. Not a price guarantee. The MPC threshold, the light client's honesty and our own code are the trust assumptions, and the app says so on every page.
