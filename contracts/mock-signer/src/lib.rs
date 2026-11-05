@@ -28,6 +28,7 @@ impl MockSigner {
         let r = Scalar::from_repr(self.root.into()).unwrap();
         hex::encode((ProjectivePoint::GENERATOR * r).to_affine().to_encoded_point(false).as_bytes())
     }
+    /// Makes `sign` panic until cleared (a panic reverts the counter, so this is sticky; clear with 0).
     pub fn set_fail_next(&mut self, n: u32) { self.fail_next = n; }
     pub fn set_wrong_key_next(&mut self, n: u32) { self.wrong_key_next = n; }
     pub fn calls(&self) -> u64 { self.calls }
