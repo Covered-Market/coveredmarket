@@ -1,5 +1,5 @@
 # Builds the four contracts to wasm with cargo-near (non-reproducible is fine for local).
-FROM rust:1.85-bookworm AS build
+FROM rust:bookworm AS build
 RUN rustup target add wasm32-unknown-unknown && curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/latest/download/cargo-near-installer.sh | sh
 WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
