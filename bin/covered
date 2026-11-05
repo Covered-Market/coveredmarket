@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# The one entry point. `bin/covered help`.
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "$ROOT"
+LOCAL=(-f infra/compose.yaml -f infra/compose.local.yaml)
+need() { command -v "$1" >/dev/null || { echo "missing: $1 ($2)"; exit 1; }; }
+cmd=${1:-help}; shift || true
+case "$cmd" in
+  up)        # full local stack: sandbox + regtest + contracts + relayer + web
+    need docker "https://docs.docker.com/get-docker/"; [ -f .env ] || cp .env.example .env
+    # phase 1: chain, bitcoin, wasm, bootstrap (writes ids and keys into .env); phase 2: relayer + web read that .env
+    docker compose "${LOCAL[@]}" up --build bootstrap "$@"
+    docker compose "${LOCAL[@]}" up -d --build
+    echo; echo "Covered is at http://localhost  (NEAR sandbox :3030, bitcoind :18443). Demo users and keys: bin/covered keys" ;;
+  down)      docker compose "${LOCAL[@]}" down "$@" ;;
+  reset)     docker compose "${LOCAL[@]}" down -v; sed -i.bak '/# --- covered local bootstrap ---/,$d' .env 2>/dev/null || true; echo "state wiped; run: bin/covered up" ;;
+  logs)      docker compose "${LOCAL[@]}" logs -f --tail=100 "$@" ;;
+  ps)        docker compose "${LOCAL[@]}" ps ;;
+  keys)      docker compose "${LOCAL[@]}" run --rm --no-deps -v covered_config:/config alpine cat /config/demo-keys.txt ;;
+  btc)       # regtest helpers: btc send <address> <btc> | btc mine [n] | btc cli <args…>
+    sub=${1:-}; shift || true
+    case "$sub" in
+      send) curl -sS -X POST localhost/btc/dev/send -H 'content-type: application/json' -d "{\"address\":\"$1\",\"btc\":$2}"; echo; curl -sS -X POST localhost/btc/dev/mine -H 'content-type: application/json' -d '{"n":1}'; echo ;;
+      mine) curl -sS -X POST localhost/btc/dev/mine -H 'content-type: application/json' -d "{\"n\":${1:-1}}"; echo ;;
+      cli)  docker compose "${LOCAL[@]}" exec bitcoind bitcoin-cli -regtest -rpcuser=covered -rpcpassword=covered "$@" ;;
+      *) echo "btc send <addr> <btc> | btc mine [n] | btc cli <args>"; exit 1 ;;
+    esac ;;
+  test)      cargo test -p covered && (cd relayer && npm test) && (cd web && npm test) ;;
+  build)     for c in covered mock-signer mock-btc-client mock-usdc; do cargo near build non-reproducible-wasm --manifest-path contracts/$c/Cargo.toml; done ;;
+  e2e)       "$0" build && cargo test -p integration -- --test-threads=1 ;;
+  provision) # create the cloud VM + DNS from infra/cloud/terraform.tfvars
+    need terraform "https://developer.hashicorp.com/terraform/install"
+    (cd infra/cloud && terraform init -input=false && terraform apply -input=false "$@") ;;
+  deploy)    # update a running cloud VM to the current git ref: bin/covered deploy [host] [ref]
+    host=${1:-$(cd infra/cloud && terraform output -raw ip 2>/dev/null)}; ref=${2:-$(git rev-parse --abbrev-ref HEAD)}
+    ssh -o StrictHostKeyChecking=accept-new "deploy@$host" "cd /opt/covered && git fetch --all && git checkout -q $ref && git pull -q --ff-only || true; docker compose -f infra/compose.yaml up -d --build --remove-orphans && docker image prune -f" ;;
+  destroy)   (cd infra/cloud && terraform destroy "$@") ;;
+  help|*)    cat <<'H'
+covered — one entry point
+
+  local
+    up                 start everything locally (sandbox, regtest, contracts, relayer, web) → http://localhost
+    down | reset       stop | stop and wipe chain state
+    logs [svc] | ps    follow logs | status
+    keys               demo users (astrid, marcus) and their keys
+    btc send A X       send X BTC to address A on regtest and mine a block
+    btc mine [n]       mine n blocks
+    btc cli …          bitcoin-cli passthrough
+  tests
+    test               L0: contract, relayer, web unit tests
+    build              wasm for the contracts (needs rustup wasm32 target + cargo-near)
+    e2e                L1: sandbox integration tests
+  cloud (DigitalOcean, one VM, Caddy TLS on your domain)
+    provision          terraform apply from infra/cloud/terraform.tfvars
+    deploy [ip] [ref]  ssh in, pull the ref, compose up --build
+    destroy            tear the VM and DNS down
+H
+    ;;
+esac

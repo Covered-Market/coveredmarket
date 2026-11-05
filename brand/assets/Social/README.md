@@ -1,0 +1,1 @@
+Vault-ground templates with text as outlines: avatar 400, X header 1500×500, OG image 1200×630 (plus a Paper variant), 1080 square, video title and end cards 1920×1080. Replace the muted fact line per post; keep the frame, lockup and rosette.

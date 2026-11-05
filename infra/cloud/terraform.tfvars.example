@@ -1,0 +1,23 @@
+do_token      = "dop_v1_..."
+domain        = "covered.example"
+ssh_key_name  = "my-laptop"
+repo          = "https://github.com/COVERED_ORG/covered.git"
+git_ref       = "main"
+deploy_pubkey = "ssh-ed25519 AAAA... github-actions-deploy"
+env_file      = <<EOT
+MODE=testnet
+NEAR_NETWORK=testnet
+NEAR_RPC=https://rpc.testnet.near.org
+COVERED_ID=covered.testnet
+USDC_ID=usdc.fakes.testnet
+SIGNER_ID=v1.signer-prod.testnet
+LIGHT_CLIENT_ID=btc-client.testnet
+RELAYER_ID=relayer.testnet
+RELAYER_KEY=ed25519:...
+BTC_BACKEND=esplora
+ESPLORA=https://mempool.space/testnet4/api
+EXPLORER_BTC=https://mempool.space/testnet4
+EXPLORER_NEAR=https://testnet.nearblocks.io
+MIN_CONF=1
+CODE_HASH=
+EOT

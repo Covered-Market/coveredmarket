@@ -8,6 +8,8 @@ export interface Services {
   broadcast(rawHex: string): Promise<string>;
   addressTxs(address: string): Promise<{ txid: string; status: { confirmed: boolean; block_height?: number }; vout: { scriptpubkey_address: string; value: number }[] }[]>;
   log(msg: string): void;
+  /** Local mode only: feed the mock light client before submitting a proof. */
+  beforeProof?(txid: string, blockHash: string, depth: number): Promise<void>;
 }
 
 export async function tick(s: Services, nowS = Math.floor(Date.now() / 1000)) {
@@ -32,8 +34,8 @@ export async function tick(s: Services, nowS = Math.floor(Date.now() / 1000)) {
   for (const a of plan(offers, params, chain, nowS)) {
     try {
       switch (a.kind) {
-        case "confirm_deposit": { const { proof } = await buildProof(s.esplora, a.txid); await s.near.call("confirm_deposit", { serial: a.serial, proof }); break; }
-        case "confirm_spend": { const { proof } = await buildProof(s.esplora, a.txid); await s.near.call("confirm_spend", { serial: a.serial, proof }); break; }
+        case "confirm_deposit": { const { proof, depth } = await buildProof(s.esplora, a.txid); await s.beforeProof?.(a.txid, proof.block_hash, depth); await s.near.call("confirm_deposit", { serial: a.serial, proof }); break; }
+        case "confirm_spend": { const { proof, depth } = await buildProof(s.esplora, a.txid); await s.beforeProof?.(a.txid, proof.block_hash, depth); await s.near.call("confirm_spend", { serial: a.serial, proof }); break; }
         case "settle": await s.near.call("settle", { serial: a.serial }); break;
         case "request_signature": await s.near.call("request_signature", { serial: a.serial }); break;
         case "broadcast": { const id = await s.broadcast(a.raw); s.log(`broadcast ${a.serial}: ${id} (${txidOf(a.raw)})`); break; }

@@ -1,0 +1,1 @@
+Engraved textures drawn by code: guilloche rosette and band (ink on paper, gilt on vault), coupon edge, hatch, microtext. One per surface, 25–55% opacity, never under body text. Single-ink files use `ink`.

@@ -1,0 +1,44 @@
+# Base stack: what runs in the cloud. One VM, two containers, Caddy does TLS.
+# `covered up` layers compose.local.yaml on top for the all-local stack.
+name: covered
+services:
+  relayer:
+    build: ../relayer
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      PORT: "8787"
+    volumes:
+      - config:/config
+    expose: ["8787"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8787/api/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 10
+  web:
+    build: ../web
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:-}
+    volumes:
+      - config:/config:ro
+      - caddy_data:/data
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      relayer:
+        condition: service_healthy
+  # Writes /config/config.json for the web app from .env on every start.
+  config:
+    image: alpine:3.20
+    env_file: ../.env
+    volumes:
+      - config:/config
+    command: >
+      sh -c 'printf "{\"mode\":\"%s\",\"network\":\"%s\",\"rpc\":\"%s\",\"contract\":\"%s\",\"usdc\":\"%s\",\"esplora\":\"%s\",\"explorerBtc\":\"%s\",\"explorerNear\":\"%s\",\"codeHash\":\"%s\",\"signer\":\"%s\",\"lightClient\":\"%s\",\"minConf\":%s,\"helper\":\"%s\"}"
+      "$${MODE:-testnet}" "$${NEAR_NETWORK}" "$${WEB_NEAR_RPC:-$${NEAR_RPC}}" "$${COVERED_ID}" "$${USDC_ID}" "$${WEB_ESPLORA:-$${ESPLORA}}" "$${EXPLORER_BTC:-https://mempool.space/testnet4}" "$${EXPLORER_NEAR:-https://testnet.nearblocks.io}" "$${CODE_HASH:-}" "$${SIGNER_ID:-v1.signer-prod.testnet}" "$${LIGHT_CLIENT_ID:-}" "$${MIN_CONF:-1}" "$${HELPER:-https://helper.testnet.near.org}" > /config/config.json && cat /config/config.json'
+volumes:
+  config:
+  caddy_data:

@@ -42,8 +42,8 @@ async fn setup() -> Result<Env> {
     let lc = worker.dev_deploy(&wasm("mock-btc-client")).await?;
     lc.call("new").transact().await?.into_result()?;
     // stock NEP-141 from near-workspaces test assets or a vendored fungible token wasm
-    let usdc = worker.dev_deploy(&std::fs::read(format!("{}/fixtures/fungible_token.wasm", env!("CARGO_MANIFEST_DIR")))?).await?;
-    usdc.call("new_default_meta").args_json(json!({ "owner_id": usdc.id(), "total_supply": "1000000000000000" })).transact().await?.into_result()?;
+    let usdc = worker.dev_deploy(&wasm("mock-usdc")).await?;
+    usdc.call("new").transact().await?.into_result()?;
     let covered = worker.dev_deploy(&wasm("covered")).await?;
     covered
         .call("new")
@@ -62,7 +62,7 @@ async fn setup() -> Result<Env> {
         a.call(usdc.id(), "storage_deposit").args_json(json!({})).deposit(NearToken::from_millinear(10)).transact().await?.into_result()?;
     }
     covered.as_account().call(usdc.id(), "storage_deposit").args_json(json!({})).deposit(NearToken::from_millinear(10)).transact().await?.into_result()?;
-    usdc.call("ft_transfer").args_json(json!({ "receiver_id": buyer.id(), "amount": "500000000000" })).deposit(NearToken::from_yoctonear(1)).transact().await?.into_result()?;
+    usdc.call("mint").args_json(json!({ "account_id": buyer.id(), "amount": "500000000000" })).transact().await?.into_result()?;
     Ok(Env { worker, covered, signer, lc, usdc, seller, buyer, anyone })
 }
 
