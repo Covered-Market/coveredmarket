@@ -269,7 +269,7 @@ If the operator disappears: the frontend keeps working from any static host; any
 | `Funded` | `withdraw(serial)` by seller | — | `Committed{to: seller, reason: Withdraw}` | commitment built and stored; signature requested |
 | `Funded` | `ft_on_transfer(sender, amount, msg{serial, btc_script})` from USDC | `amount ≥ premium`; `now < expiry − buy_cutoff`; `btc_script` is P2WPKH or P2WSH for this network | `Sold` | `buyer = sender`, `buyer_script` stored, `claimable[seller] += premium`, excess returned. Final in this receipt |
 | `Sold` | `ft_on_transfer(sender, amount, msg{serial, exercise})` from USDC | `sender == buyer`; `amount ≥ strike_total`; `expiry ≤ now < expiry + grace`; no settlement committed | `ExercisePending` | `escrow[serial] = strike_total`, excess returned; a promise re-checks collateral depth on the light client |
-| `ExercisePending` | depth callback (`#[private]`) | depth ≥ `min_conf` | `Committed{to: buyer, reason: Exercise}` | commitment built; signature requested |
+| `ExercisePending` | depth callback (`#[private]`) | depth ≥ `min_conf` | `Committed{to: buyer, reason: Exercise}` | commitment built; the signature is requested by anyone via `request_signature` in its own transaction (a `sign` call does not fit inside the token's call chain) |
 | `ExercisePending` | depth callback | depth < `min_conf` or unavailable | `Sold` | escrow moved to `claimable[buyer]` (refund); event `exercise_refused` |
 | `Sold` | `settle(serial)` by anyone | `now ≥ expiry + grace` and state is exactly `Sold` | `Committed{to: seller, reason: Expiry}` | commitment built; signature requested |
 | `Committed` | `request_signature(serial)` by anyone | `now ≥ retry_after` | `Committed` | re-requests the **same** committed sighash; never rebuilds |
