@@ -22,5 +22,5 @@ runcmd:
   - git clone --branch ${git_ref} ${repo} /opt/covered
   - mv /opt/covered.env /opt/covered/.env
   - chown -R deploy:deploy /opt/covered
-  - cd /opt/covered && docker compose -f infra/compose.yaml up -d --build
+  - cd /opt/covered && docker compose --env-file .env -f infra/compose.yaml up -d --build
   - echo "covered up at https://${domain}" > /var/log/covered-bootstrap.log

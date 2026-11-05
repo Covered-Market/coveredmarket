@@ -23,7 +23,7 @@ jobs:
         run: bin/covered e2e-stack
       - name: logs on failure
         if: failure()
-        run: docker compose -f infra/compose.yaml -f infra/compose.local.yaml logs --tail=200
+        run: docker compose --env-file .env -f infra/compose.yaml -f infra/compose.local.yaml logs --tail=200
       - uses: actions/upload-artifact@v4
         if: always()
         with:
