@@ -1,6 +1,8 @@
 name: ci
 on:
-  push: { branches: [main] }
+  push:
+    branches: [main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 concurrency:
@@ -19,7 +21,7 @@ jobs:
       - run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/latest/download/cargo-near-installer.sh | sh
       - run: bin/covered build
       - run: cargo test -p integration -- --test-threads=1 --nocapture   # near-workspaces downloads near-sandbox
-        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         env:
           NEAR_RPC_TIMEOUT_SECS: "120"
           RUST_LOG: near_workspaces=debug,near_sandbox_utils=debug,workspaces=debug
@@ -54,15 +56,16 @@ jobs:
       - run: cp .env.example .env && docker compose -f infra/compose.yaml -f infra/compose.local.yaml config -q && bash -n bin/covered
   local-stack:
     # Builds the local images (sandbox, contract builder, bootstrap) so a broken Dockerfile fails here, not on a laptop.
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     needs: [infra]
     steps:
       - uses: actions/checkout@v4
       - run: cp .env.example .env && docker compose -f infra/compose.yaml -f infra/compose.local.yaml build near-sandbox bootstrap contracts
   deploy:
-    # Pushes to main redeploy the cloud VM when the secrets exist (DEPLOY_HOST, DEPLOY_SSH_KEY).
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # A version tag (v0.1.0, …) redeploys the cloud VM when the secrets exist (DEPLOY_HOST, DEPLOY_SSH_KEY).
+    # Merges to main only run CI; deploying is a deliberate `git tag vX.Y.Z && git push --tags`.
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     needs: [contracts, images, infra]
     steps:
@@ -74,4 +77,4 @@ jobs:
         run: |
           if [ -z "$HOST" ]; then echo "no DEPLOY_HOST secret; skipping"; exit 0; fi
           mkdir -p ~/.ssh && echo "$KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
-          bin/covered deploy "$HOST" main
+          bin/covered deploy "$HOST" "${GITHUB_REF_NAME}"

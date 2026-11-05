@@ -58,7 +58,7 @@ The production shape is deliberately the simplest thing: **one VM, two container
 3. Generate a deploy key for CI: `ssh-keygen -t ed25519 -f deploy_key -N ""`.
 4. `cp infra/cloud/terraform.tfvars.example infra/cloud/terraform.tfvars` and fill it in: token, domain, SSH key name, repo URL, the deploy public key, and the production `.env` block (contract ids, relayer account + key, Esplora URL — see `.env.example`).
 5. `bin/covered provision`. Terraform creates the droplet, DNS and firewall; cloud-init installs Docker, clones the repo, writes `/opt/covered/.env` and runs `docker compose up`. Caddy obtains the certificate as soon as DNS resolves. `terraform output url` is your site.
-6. Redeploys: `bin/covered deploy` (ssh, pull, `compose up --build`), or push to `main` with repository secrets `DEPLOY_HOST` (the IP) and `DEPLOY_SSH_KEY` (the deploy private key) and CI does the same.
+6. Redeploys: `bin/covered deploy` (ssh, pull, `compose up --build`), or push a version tag (`git tag v0.1.0 && git push --tags`) with repository secrets `DEPLOY_HOST` (the IP) and `DEPLOY_SSH_KEY` (the deploy private key) and CI deploys that tag. Merges to `main` only run CI; branches → PR → `main` → tag.
 7. `bin/covered destroy` removes everything.
 
 Deploying the **contract** to testnet/mainnet is a separate, deliberate step (`scripts/deploy-testnet.sh`): build, deploy with init params, then delete the full-access key on camera and put the code hash in `.env` as `CODE_HASH` so Verify check 1 can confirm it.
