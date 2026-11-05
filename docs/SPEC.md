@@ -566,6 +566,8 @@ Gate: the three full flows (KEPT, EXERCISED, WITHDRAWN) run end to end on regtes
 
 ### L2 — NEAR testnet + Bitcoin testnet4 (days 3–5)
 
+> **Pinned on 5 Nov 2026 (live probe):** the public testnet light client `btc-client-v4.testnet` follows Bitcoin **testnet3**, not testnet4, so L2 runs on testnet3 (same `tb1` addresses; network variant `Testnet4` = hrp `tb`). Its method is `verify_transaction_inclusion_v2` with **borsh** `ProofArgsV2`, which adds the coinbase txid and its Merkle branch. The signer's epsilon is **SHA3-256** of the prefix, predecessor, comma and path; `sign` takes `payload_v2`/`domain_id` with a 1 yoctoNEAR deposit. Open questions 1–2 are closed by these; `e2e/testnet.ts` checks each against the live network.
+
 What changes: real `v1.signer-prod.testnet`; the Bitcoin light client either the public testnet instance or our own deployment of Near-One’s contract with its relayer pointed at testnet4; relayer and indexer deployed; frontend wired to testnet.
 
 Harness: `scripts/testnet-flow.ts` drives the whole flow from a funded testnet4 wallet with `min_conf = 1` and a 10-minute expiry; transcripts saved.
