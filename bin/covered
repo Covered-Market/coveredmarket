@@ -32,7 +32,7 @@ case "$cmd" in
       *) echo "btc send <addr> <btc> | btc mine [n] | btc cli <args>"; exit 1 ;;
     esac ;;
   test)      cargo test -p covered && (cd relayer && npm test) && (cd web && npm test) ;;
-  build)     for c in covered mock-signer mock-btc-client mock-usdc; do cargo near build non-reproducible-wasm --manifest-path contracts/$c/Cargo.toml; done ;;
+  build)     set -e; for c in covered mock-signer mock-btc-client mock-usdc; do cargo near build non-reproducible-wasm --manifest-path contracts/$c/Cargo.toml; done ;;
   e2e)       "$0" build && cargo test -p integration -- --test-threads=1 ;;
   provision) # create the cloud VM + DNS from infra/cloud/terraform.tfvars
     need terraform "https://developer.hashicorp.com/terraform/install"
