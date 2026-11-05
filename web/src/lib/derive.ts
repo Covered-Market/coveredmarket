@@ -1,8 +1,9 @@
 /** Chain Signatures epsilon derivation, bech32 P2WPKH, hashing. Must match contracts/covered/src/derive.rs. */
 import { sha256 } from "@noble/hashes/sha256";
+import { sha3_256 } from "@noble/hashes/sha3";
 import { ripemd160 } from "@noble/hashes/ripemd160";
 import * as secp from "@noble/secp256k1";
-import { bech32 } from "@scure/base";
+import { base58, bech32 } from "@scure/base";
 
 export const DEFAULT_PREFIX = "near-mpc-recovery v0.1.0 epsilon derivation:";
 export const hex = {
@@ -13,16 +14,25 @@ export const sha256d = (b: Uint8Array): Uint8Array => sha256(sha256(b));
 export const hash160 = (b: Uint8Array): Uint8Array => ripemd160(sha256(b));
 const te = new TextEncoder();
 
+/** SHA3-256, as the live MPC signer does (confirmed against v1.signer-prod.testnet). */
 export function epsilon(prefix: string, predecessor: string, path: string): bigint {
-  const h = sha256(te.encode(`${prefix}${predecessor},${path}`));
+  const h = sha3_256(te.encode(`${prefix}${predecessor},${path}`));
   return BigInt("0x" + hex.to(h));
 }
 
 /** Compressed 33-byte derived key: root + epsilon·G. */
 export function derivePubkey(rootKeyHex: string, prefix: string, predecessor: string, path: string): Uint8Array {
-  const root = secp.ProjectivePoint.fromHex(rootKeyHex.replace(/^secp256k1:/, ""));
+  const root = secp.ProjectivePoint.fromHex(parseRootKey(rootKeyHex));
   const eps = epsilon(prefix, predecessor, path) % secp.CURVE.n;
   return root.add(secp.ProjectivePoint.BASE.multiply(eps)).toRawBytes(true);
+}
+
+/** Accepts hex (33/65 bytes) or the signer's `secp256k1:<base58 of 64-byte x||y>` form. */
+export function parseRootKey(k: string): string {
+  const body = k.replace(/^secp256k1:/, "");
+  if (/^[0-9a-fA-F]+$/.test(body) && (body.length === 66 || body.length === 130)) return body;
+  const b = base58.decode(body);
+  return (b.length === 64 ? "04" : "") + hex.to(b);
 }
 
 export type Net = "Mainnet" | "Testnet4" | "Regtest";

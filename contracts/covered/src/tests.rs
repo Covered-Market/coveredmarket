@@ -621,6 +621,8 @@ fn print_vectors_for_web() {
         "unsigned_tx": hex::encode(&cm.unsigned_tx),
         "sighash": hex::encode(cm.sighash),
         "txid": btc::display_hex(&cm.txid),
+        "lc_args_proof": { "txid": format!("{}01", "00".repeat(31)), "block_hash": "ab".repeat(32), "tx_index": 7, "merkle_proof": ["11".repeat(32), "12".repeat(32)], "coinbase_tx_id": "22".repeat(32), "coinbase_merkle_proof": ["33".repeat(32)], "confirmations": 6 },
+        "lc_args_hex": hex::encode(ProofRef { txid_display: format!("{}01", "00".repeat(31)), block_hash: "ab".repeat(32), tx_index: 7, merkle_proof: vec!["11".repeat(32), "12".repeat(32)], coinbase_tx_id: "22".repeat(32), coinbase_merkle_proof: vec!["33".repeat(32)] }.borsh_args(6)),
         "root_key_hex": root_key_hex(),
         "prefix": derive::DEFAULT_PREFIX,
         "predecessor": "covered.test",

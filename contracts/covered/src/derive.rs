@@ -1,5 +1,6 @@
-//! Chain Signatures key derivation (the "epsilon" scheme used by chainsig.js
-//! and the MPC signer): `derived = root + H(prefix || predecessor || "," || path) * G`.
+//! Chain Signatures key derivation, as the live MPC signer does it:
+//! `derived = root + SHA3-256(prefix || predecessor || "," || path) * G`.
+//! (SHA3-256, not SHA-256 — confirmed against `v1.signer-prod.testnet`; see the test vector below.)
 //!
 //! The prefix string is a contract parameter so it can be pinned to whatever
 //! the deployed signer version uses (open question 2 in the spec).
@@ -8,7 +9,7 @@
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::elliptic_curve::PrimeField;
 use k256::{AffinePoint, ProjectivePoint, Scalar};
-use sha2::{Digest, Sha256};
+use sha3::{Digest, Sha3_256};
 
 pub const DEFAULT_PREFIX: &str = "near-mpc-recovery v0.1.0 epsilon derivation:";
 
@@ -38,7 +39,7 @@ pub fn parse_root_key(s: &str) -> Option<[u8; 65]> {
 }
 
 pub fn epsilon(prefix: &str, predecessor: &str, path: &str) -> [u8; 32] {
-    let mut h = Sha256::new();
+    let mut h = Sha3_256::new();
     h.update(prefix.as_bytes());
     h.update(predecessor.as_bytes());
     h.update(b",");
@@ -113,6 +114,17 @@ mod tests {
         // a different predecessor (A1: the operator) gives a different key
         let d2 = derive_pubkey(&root65, DEFAULT_PREFIX, "covered-ops.near", "astrid.near/CV-37").unwrap();
         assert_ne!(d, d2);
+    }
+
+    /// Recorded from the live testnet signer (v1.signer-prod.testnet, 5 Nov 2026):
+    /// `derived_public_key { path: "probe/CV-1", predecessor: "covered-probe.testnet", domain_id: 0 }`.
+    #[test]
+    fn matches_live_testnet_signer() {
+        let root = parse_root_key("secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3").unwrap();
+        let want = parse_root_key("secp256k1:5g57Q1tvBYESE2hT4BD9dP7X7uUri9LA5XYuhMZG1LjPH73MrMnyMZhAsaXtonLXwc2TCYkAgdBj4kZNmKXK9s7M").unwrap();
+        let got = derive_pubkey(&root, DEFAULT_PREFIX, "covered-probe.testnet", "probe/CV-1").unwrap();
+        let want_c = k256::PublicKey::from_sec1_bytes(&want).unwrap().to_encoded_point(true);
+        assert_eq!(&got[..], want_c.as_bytes());
     }
 
     #[test]

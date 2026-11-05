@@ -19,6 +19,16 @@ describe("derivation matches the contract", () => {
   });
 });
 
+describe("derivation matches the live testnet signer", () => {
+  it("v1.signer-prod.testnet derived_public_key(probe/CV-1, covered-probe.testnet)", async () => {
+    const { base58 } = await import("@scure/base");
+    const want = "04" + hex.to(base58.decode("5g57Q1tvBYESE2hT4BD9dP7X7uUri9LA5XYuhMZG1LjPH73MrMnyMZhAsaXtonLXwc2TCYkAgdBj4kZNmKXK9s7M"));
+    const got = derivePubkey("secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3", vectors.prefix, "covered-probe.testnet", "probe/CV-1");
+    const secp = await import("@noble/secp256k1");
+    expect(hex.to(secp.ProjectivePoint.fromHex(hex.to(got)).toRawBytes(false))).toBe(want);
+  });
+});
+
 describe("BIP-143 matches the contract", () => {
   it("rebuilds the unsigned tx, txid and sighash", () => {
     const r = buildSpend({

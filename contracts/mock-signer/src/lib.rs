@@ -5,7 +5,7 @@ use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::elliptic_curve::PrimeField;
 use k256::{ProjectivePoint, Scalar};
 use near_sdk::{env, near, PanicOnDefault};
-use sha2::{Digest, Sha256};
+use sha3::{Digest, Sha3_256};
 
 const PREFIX: &str = "near-mpc-recovery v0.1.0 epsilon derivation:";
 
@@ -61,7 +61,7 @@ impl MockSigner {
 
 impl MockSigner {
     fn derive(&self, pred: &str, path: &str) -> k256::ecdsa::SigningKey {
-        let mut h = Sha256::new();
+        let mut h = Sha3_256::new();
         h.update(PREFIX.as_bytes()); h.update(pred.as_bytes()); h.update(b","); h.update(path.as_bytes());
         let eps = Scalar::from_repr(h.finalize()).unwrap();
         let r = Scalar::from_repr(self.root.into()).unwrap();

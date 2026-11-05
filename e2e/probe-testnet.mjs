@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 const RPC = process.env.NEAR_RPC ?? "https://rpc.testnet.near.org";
 const SIGNER = process.env.SIGNER_ID ?? "v1.signer-prod.testnet";
 const LC = process.env.LIGHT_CLIENT_ID ?? "btc-client-v4.testnet";
-const ESPLORA = process.env.ESPLORA ?? "https://mempool.space/testnet4/api";
+const ESPLORA = process.env.ESPLORA ?? "https://mempool.space/testnet/api";
 const USDCS = (process.env.USDC_CANDIDATES ?? "usdc.fakes.testnet,3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af").split(",");
 const p = new JsonRpcProvider({ url: RPC });
 const out = {};
@@ -34,7 +34,7 @@ show("lc.acl_get_super_admins", await jview(LC, "acl_get_super_admins", { skip: 
 const codeHash = (await p.query({ request_type: "view_account", account_id: LC, finality: "final" })).code_hash;
 show("lc.code_hash", codeHash);
 
-// ── a real testnet4 inclusion proof, borsh-encoded ProofArgsV2, checked by the live light client
+// ── a real testnet3 inclusion proof (btc-client-v4.testnet follows testnet3), borsh-encoded ProofArgsV2, checked by the live light client
 const j = async (path) => { const r = await fetch(ESPLORA + path); if (!r.ok) throw new Error(path + " " + r.status); return r.headers.get("content-type")?.includes("json") ? r.json() : r.text(); };
 const tip = Number(await j("/blocks/tip/height"));
 const h = Math.min(tip - 10, Number(out["lc.get_last_block_height"]) - 10);
