@@ -36,11 +36,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build relayer && docker build web
+  infra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: cd infra/cloud && terraform fmt -check -diff && terraform init -backend=false -input=false && terraform validate
+      - run: cp .env.example .env && docker compose -f infra/compose.yaml -f infra/compose.local.yaml config -q && bash -n bin/covered
+  local-stack:
+    # Builds the local images (sandbox, contract builder, bootstrap) so a broken Dockerfile fails here, not on a laptop.
+    runs-on: ubuntu-latest
+    needs: [infra]
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env && docker compose -f infra/compose.yaml -f infra/compose.local.yaml build near-sandbox bootstrap contracts
   deploy:
     # Pushes to main redeploy the cloud VM when the secrets exist (DEPLOY_HOST, DEPLOY_SSH_KEY).
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: [contracts, images]
+    needs: [contracts, images, infra]
     steps:
       - uses: actions/checkout@v4
       - name: deploy over ssh
