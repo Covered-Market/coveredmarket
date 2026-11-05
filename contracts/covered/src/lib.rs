@@ -83,6 +83,9 @@ pub struct Params {
     pub min_lead_s: u64,
     pub escrow_timeout_s: u64,
     pub min_size_sats: u64,
+    /// Expiries must satisfy `expiry % expiry_step_s == expiry_offset_s` (production: 86400 / 28800 = daily at 08:00 UTC).
+    pub expiry_step_s: u64,
+    pub expiry_offset_s: u64,
     /// Signer root public key (`secp256k1:...` or hex).
     pub mpc_root_key: String,
     pub derivation_prefix: String,
@@ -225,6 +228,7 @@ impl Contract {
         let root_key = derive::parse_root_key(&params.mpc_root_key).expect("bad mpc_root_key");
         require!(params.sign_format == 1 || params.sign_format == 2, "sign_format must be 1 or 2");
         require!(params.fee_sats > 0 && params.min_size_sats > params.fee_sats + DUST_SATS, "bad fee/min_size");
+        require!(params.expiry_step_s > 0 && params.expiry_offset_s < params.expiry_step_s, "bad expiry grid");
         Self {
             params,
             root_key,
@@ -251,7 +255,7 @@ impl Contract {
         require!(terms.size_sats.0 >= p.min_size_sats, "size below minimum");
         require!(terms.strike_units.0 > 0 && terms.premium_units.0 > 0, "strike and premium must be > 0");
         require!(terms.expiry_s.0 >= now + p.min_lead_s, "expiry too soon");
-        require!(terms.expiry_s.0 % 86_400 == 8 * 3600, "expiry must be 08:00 UTC");
+        require!(terms.expiry_s.0 % p.expiry_step_s == p.expiry_offset_s, "expiry not on the allowed grid (production: 08:00 UTC)");
         let refund_script = btc::script_from_address(&terms.refund_address, p.network)
             .unwrap_or_else(|| env::panic_str("refund_address must be a v0 witness address for this network"));
         strike_total_units(terms.size_sats.0, terms.strike_units.0);

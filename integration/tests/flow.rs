@@ -50,8 +50,8 @@ async fn setup() -> Result<Env> {
         .call("new")
         .args_json(json!({ "params": {
             "signer": signer.id(), "light_client": lc.id(), "usdc": usdc.id(), "usdc_decimals": 6,
-            "network": "Regtest", "min_conf": 1, "fee_sats": 1000, "grace_s": 7200, "buy_cutoff_s": 3600,
-            "min_lead_s": DAY, "escrow_timeout_s": 7 * DAY, "min_size_sats": 100000,
+            "network": "Regtest", "min_conf": 1, "fee_sats": 1000, "grace_s": 600, "buy_cutoff_s": 0,
+            "min_lead_s": 120, "escrow_timeout_s": 7 * DAY, "min_size_sats": 100000, "expiry_step_s": 60, "expiry_offset_s": 0,
             "mpc_root_key": root, "derivation_prefix": "near-mpc-recovery v0.1.0 epsilon derivation:",
             "sign_format": 2, "sign_deposit": "50000000000000000000000"
         }}))
@@ -75,10 +75,9 @@ fn addr_from_secret(b: u8) -> String {
     covered::btc::address_for_script(&covered::btc::p2wpkh_script(&pk), covered::btc::Network::Regtest)
 }
 
-fn next_0800(now_s: u64, lead: u64) -> u64 {
-    let mut e = (now_s / DAY) * DAY + 8 * 3600;
-    while e < now_s + lead { e += DAY; }
-    e
+/// Next expiry on the sandbox grid (whole minutes) at least `lead` seconds ahead.
+fn next_expiry(now_s: u64, lead: u64) -> u64 {
+    ((now_s + lead) / 60 + 1) * 60
 }
 
 async fn now_s(w: &Worker<Sandbox>) -> Result<u64> {
@@ -100,7 +99,7 @@ async fn create_and_fund(e: &Env, size: u64, strike: u128, premium: u128) -> Res
     let now = now_s(&e.worker).await?;
     let refund = addr_from_secret(9);
     let serial: u64 = e.seller.call(e.covered.id(), "create_offer")
-        .args_json(json!({ "terms": { "size_sats": U64(size), "strike_units": U128(strike), "premium_units": U128(premium), "expiry_s": U64(next_0800(now, DAY)), "refund_address": refund }}))
+        .args_json(json!({ "terms": { "size_sats": U64(size), "strike_units": U128(strike), "premium_units": U128(premium), "expiry_s": U64(next_expiry(now, 120)), "refund_address": refund }}))
         .deposit(NearToken::from_millinear(100)).transact().await?.json()?;
     let view: serde_json::Value = e.covered.view("get_offer").args_json(json!({ "serial": serial })).await?.json()?;
     let script = covered::btc::script_from_address(view["address"].as_str().unwrap(), covered::btc::Network::Regtest).unwrap();
@@ -148,13 +147,14 @@ async fn flow_kept() -> Result<()> {
     // settle too early is refused
     let r = e.anyone.call(e.covered.id(), "settle").args_json(json!({ "serial": s })).max_gas().transact().await?;
     assert!(r.is_failure());
-    fast_forward_to(&e, expiry + 7_200).await?;
+    // (sandbox grace is 7200 s; fast-forward in blocks ≈ seconds)
+    fast_forward_to(&e, expiry + 600).await?;
     // mock signer fails once: stays Committed with retry
     e.signer.call("set_fail_next").args_json(json!({ "n": 1 })).transact().await?.into_result()?;
     e.anyone.call(e.covered.id(), "settle").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
     assert_eq!(state(&e, s).await?["state"], "Committed");
     let sighash1 = state(&e, s).await?["commitment_sighash"].clone();
-    fast_forward_to(&e, expiry + 7_200 + 700).await?;
+    fast_forward_to(&e, expiry + 600 + 700).await?;
     e.anyone.call(e.covered.id(), "request_signature").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
     let v = state(&e, s).await?;
     assert_eq!(v["state"], "Signed");

@@ -34,6 +34,8 @@ fn params() -> Params {
         min_lead_s: DAY,
         escrow_timeout_s: 7 * DAY,
         min_size_sats: 100_000,
+        expiry_step_s: 86_400,
+        expiry_offset_s: 8 * 3600,
         mpc_root_key: root_key_hex(),
         derivation_prefix: derive::DEFAULT_PREFIX.into(),
         sign_format: 2,
@@ -232,7 +234,7 @@ fn create_offer_derives_unique_addresses() {
 }
 
 #[test]
-#[should_panic(expected = "expiry must be 08:00 UTC")]
+#[should_panic(expected = "expiry not on the allowed grid")]
 fn create_offer_rejects_non_0800_expiry() {
     let mut c = new_contract();
     set_dep(&seller(), T0, NearToken::from_near(1));

@@ -8,7 +8,7 @@ WASM=target/near/covered/covered.wasm
 near contract deploy "$ACC" use-file "$WASM" with-init-call new json-args "{\"params\":{
   \"signer\":\"$SIGNER\",\"light_client\":\"$LC\",\"usdc\":\"$USDC\",\"usdc_decimals\":6,\"network\":\"Testnet4\",
   \"min_conf\":1,\"fee_sats\":300,\"grace_s\":600,\"buy_cutoff_s\":0,\"min_lead_s\":300,\"escrow_timeout_s\":3600,
-  \"min_size_sats\":100000,\"mpc_root_key\":\"$ROOT\",\"derivation_prefix\":\"near-mpc-recovery v0.1.0 epsilon derivation:\",
+  \"min_size_sats\":100000,\"expiry_step_s\":60,\"expiry_offset_s\":0,\"mpc_root_key\":\"$ROOT\",\"derivation_prefix\":\"near-mpc-recovery v0.1.0 epsilon derivation:\",
   \"sign_format\":2,\"sign_deposit\":\"50000000000000000000000\"}}" prepaid-gas '100 Tgas' attached-deposit '0 NEAR' network-config testnet sign-with-keychain send
 echo "code hash: $(sha256sum "$WASM" | cut -d' ' -f1 | xxd -r -p | base58 2>/dev/null || sha256sum "$WASM")"
 echo "Now, on camera: near account delete-keys $ACC public-keys <full-access key> network-config testnet"
