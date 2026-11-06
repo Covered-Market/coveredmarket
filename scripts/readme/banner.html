@@ -1,0 +1,44 @@
+<!doctype html>
+<!-- README banner. Rendered to docs/readme/banner-{paper,vault}.png by scripts/readme/build.mjs.
+     Open with ?theme=paper or ?theme=vault. 1280×360 CSS px, captured at 2×. -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: Fraunces; src: url(../../brand/fonts/Fraunces-Variable.woff2) format("woff2"); font-weight: 100 900; }
+  @font-face { font-family: Fraunces; src: url(../../brand/fonts/Fraunces-Italic-Variable.woff2) format("woff2"); font-style: italic; font-weight: 100 900; }
+  @font-face { font-family: "Instrument Sans"; src: url(../../brand/fonts/InstrumentSans-Variable.woff2) format("woff2"); font-weight: 100 900; }
+  @font-face { font-family: "Spline Sans Mono"; src: url(../../brand/fonts/SplineSansMono-Variable.woff2) format("woff2"); font-weight: 100 900; }
+
+  :root { --paper: #F2EAD6; --raised: #FAF5E8; --ink: #132A23; --muted: #4F5F57; --intaglio: #1F4F40; --gilt: #B88A2E; --gilt-ink: #7A5A15; --rule: rgba(19,42,35,.22); }
+  :root[data-theme="vault"] { --paper: #0F211B; --raised: #163229; --ink: #EDE4CC; --muted: #A7B3AA; --intaglio: #4A9A7E; --gilt: #D9B257; --gilt-ink: #E2C06D; --rule: rgba(237,228,204,.20); }
+
+  html, body { margin: 0; width: 1280px; height: 360px; overflow: hidden; background: var(--paper); color: var(--ink); }
+  .frame { position: absolute; inset: 20px; border: 1px solid var(--rule); }
+  .rosette { position: absolute; right: -250px; top: -150px; width: 660px; opacity: .38; -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 38%); mask-image: linear-gradient(90deg, transparent 0%, #000 38%); }
+  :root[data-theme="vault"] .rosette { opacity: .5; }
+  .lockup { position: absolute; left: 64px; top: 58px; height: 60px; }
+  h1 { position: absolute; left: 62px; top: 150px; margin: 0; font: italic 400 60px/1 Fraunces; letter-spacing: -.5px; font-variation-settings: "opsz" 144; }
+  p { position: absolute; left: 64px; top: 236px; margin: 0; font: 400 21px/1.3 "Instrument Sans"; color: var(--muted); }
+  p b { color: var(--ink); font-weight: 600; }
+  .serial { position: absolute; left: 64px; bottom: 44px; font: 500 12.5px/1 "Spline Sans Mono"; letter-spacing: 1.6px; color: var(--gilt-ink); text-transform: uppercase; }
+  .stamp { position: absolute; right: 64px; bottom: 40px; font: 600 13px/1 "Spline Sans Mono"; letter-spacing: 2.4px; color: var(--intaglio); border: 1.5px solid var(--intaglio); padding: 7px 12px; background: var(--paper); }
+</style>
+</head>
+<body>
+  <div class="frame"></div>
+  <img class="rosette" id="rosette" alt="">
+  <img class="lockup" id="lockup" alt="Covered">
+  <h1>Income on Bitcoin you still hold.</h1>
+  <p>Sell covered calls on <b>native Bitcoin</b>. No custodian, no bridge, no wrapper.</p>
+  <div class="serial">No. CV-1 · exercised on Bitcoin testnet3 · 6 Nov 2026 11:10 UTC</div>
+  <div class="stamp">BUILT ON NEAR</div>
+<script>
+  const vault = new URLSearchParams(location.search).get("theme") === "vault";
+  document.documentElement.dataset.theme = vault ? "vault" : "paper";
+  const A = "../../brand/assets/";
+  document.getElementById("lockup").src = A + (vault ? "Logos/covered-lockup-on-vault.svg" : "Logos/covered-lockup.svg");
+  document.getElementById("rosette").src = A + (vault ? "Patterns/guilloche-rosette-gilt-on-vault.svg" : "Patterns/guilloche-rosette.svg");
+</script>
+</body>
+</html>
