@@ -151,6 +151,15 @@ if ((await view("get_account_offers", { account: astrid.id })).length !== offers
 await page.screenshot({ path: `${ART}sell-relayed.png`, fullPage: true });
 log(`UI sell → create_offer relayed as a meta-transaction (relayer count ${relayedBefore} → ${relayedAfter}); now ${page.url().split("#")[1]}`);
 
+// The demo faucet pays this deposit from the deposit page (regtest miner locally; a server-held key on testnet),
+// and the relayer proves it to the contract.
+const uiSerial = Number(page.url().match(/#\/deposit\/(\d+)/)[1]);
+await page.getByRole("button", { name: "Send it from the demo faucet" }).click();
+await until("faucet tx shown", async () => (await page.locator("text=Sent by the demo faucet").count()) > 0, 30_000);
+await until(`CV-${uiSerial} Funded via the faucet`, async () => (await view("get_offer", { serial: uiSerial })).state === "Funded", 120_000);
+await page.screenshot({ path: `${ART}deposit-faucet.png`, fullPage: true });
+log(`UI deposit: demo faucet paid CV-${uiSerial}, relayer proved it, offer Funded`);
+
 for (const [s, name] of [[k.serial, "kept"], [x.serial, "exercised"]]) {
   await page.goto(`${WEB}/#/c/${s}`); await page.reload(); await page.waitForTimeout(2000);
   await page.getByRole("button", { name: "Verify" }).click();

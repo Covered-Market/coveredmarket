@@ -10,17 +10,37 @@ services:
       PORT: "8787"
     volumes:
       - config:/config
+      - relayer_data:/data
     expose: ["8787"]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8787/api/health"]
       interval: 15s
       timeout: 3s
       retries: 10
+  # Mainnet runs beside testnet on the same VM once .env.mainnet names a contract (`bin/covered serve`
+  # enables the profile). Until then the mainnet site says it is not live yet.
+  relayer-mainnet:
+    profiles: ["mainnet"]
+    build: ../relayer
+    restart: unless-stopped
+    env_file:
+      - path: ../.env.mainnet
+        required: false
+    environment:
+      PORT: "8787"
+    expose: ["8787"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8787/api/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 10
+  # One Caddy, two sites: the primary network on $DOMAIN, mainnet on $MAINNET_DOMAIN. TLS is automatic.
   web:
     build: ../web
     restart: unless-stopped
     environment:
       SITE_ADDRESS: ${DOMAIN:-:80}
+      MAINNET_ADDRESS: ${MAINNET_DOMAIN:-http://mainnet.localhost}
     volumes:
       - config:/config:ro
       - caddy_data:/data
@@ -30,15 +50,33 @@ services:
     depends_on:
       relayer:
         condition: service_healthy
-  # Writes /config/config.json for the web app from .env on every start.
+      config:
+        condition: service_completed_successfully
+  # The app's runtime config per network, written from the .env files on every start.
   config:
     image: alpine:3.20
     env_file: ../.env
+    environment:
+      SWITCH_HOST: ${MAINNET_DOMAIN:-}
     volumes:
       - config:/config
-    command: >
-      sh -c 'printf "{\"mode\":\"%s\",\"network\":\"%s\",\"rpc\":\"%s\",\"contract\":\"%s\",\"usdc\":\"%s\",\"esplora\":\"%s\",\"explorerBtc\":\"%s\",\"explorerNear\":\"%s\",\"codeHash\":\"%s\",\"signer\":\"%s\",\"lightClient\":\"%s\",\"minConf\":%s,\"helper\":\"%s\",\"accountSuffix\":\"%s\"}"
-      "$${MODE:-testnet}" "$${NEAR_NETWORK}" "$${WEB_NEAR_RPC:-$${NEAR_RPC}}" "$${COVERED_ID}" "$${USDC_ID}" "$${WEB_ESPLORA:-$${ESPLORA}}" "$${EXPLORER_BTC:-https://mempool.space/testnet}" "$${EXPLORER_NEAR:-https://testnet.nearblocks.io}" "$${CODE_HASH:-}" "$${SIGNER_ID:-v1.signer-prod.testnet}" "$${LIGHT_CLIENT_ID:-}" "$${MIN_CONF:-1}" "$${HELPER:-/api}" "$${ACCOUNT_SUFFIX:-$${NEAR_NETWORK}}" > /config/config.json && cat /config/config.json'
+      - ./write-config.sh:/write-config.sh:ro
+    command: ["sh", "-c", "/write-config.sh /config/primary.json && /write-config.sh /config/config.json >/dev/null && MODE=mainnet COVERED_ID= /write-config.sh /config/mainnet.json"]
+  config-mainnet:
+    profiles: ["mainnet"]
+    image: alpine:3.20
+    env_file:
+      - path: ../.env.mainnet
+        required: false
+    environment:
+      SWITCH_HOST: ${DOMAIN:-}
+    volumes:
+      - config:/config
+      - ./write-config.sh:/write-config.sh:ro
+    depends_on:
+      config: { condition: service_completed_successfully }
+    command: ["/write-config.sh", "/config/mainnet.json"]
 volumes:
   config:
+  relayer_data:
   caddy_data:

@@ -1,5 +1,6 @@
 /** Build and locally verify a light-client inclusion proof from mempool.space (or any Esplora API). */
 import { sha256 } from "@noble/hashes/sha256";
+import { failoverFetch } from "./failover.js";
 
 export interface Esplora {
   txHex(txid: string): Promise<string>;
@@ -14,9 +15,10 @@ export interface Esplora {
 /** The proof shape the contract takes (`Proof` in lib.rs). Hashes in display order. */
 export interface Proof { tx_raw: string; block_hash: string; tx_index: number; merkle_proof: string[]; coinbase_tx_id: string; coinbase_merkle_proof: string[] }
 
-export function esplora(base: string, fetchFn: typeof fetch = fetch): Esplora {
-  const j = async (p: string) => { const r = await fetchFn(base + p); if (!r.ok) throw new Error(`${p}: ${r.status}`); return r.json(); };
-  const t = async (p: string) => { const r = await fetchFn(base + p); if (!r.ok) throw new Error(`${p}: ${r.status}`); return (await r.text()).trim(); };
+export function esplora(base: string | string[], fetchFn: typeof fetch = fetch): Esplora {
+  const get = failoverFetch(base, fetchFn);
+  const j = async (p: string) => { const r = await get(p); if (!r.ok) throw new Error(`${p}: ${r.status}`); return r.json(); };
+  const t = async (p: string) => { const r = await get(p); if (!r.ok) throw new Error(`${p}: ${r.status}`); return (await r.text()).trim(); };
   return {
     txHex: (id) => t(`/tx/${id}/hex`),
     merkleProof: (id) => j(`/tx/${id}/merkle-proof`),

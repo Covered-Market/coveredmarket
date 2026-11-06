@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@hot-labs/near-connect": "^0.12.0",
     "@near-js/accounts": "^2.0.0",
     "@near-js/crypto": "^2.0.0",
     "@near-js/providers": "^2.0.0",
