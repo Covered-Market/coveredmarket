@@ -1,0 +1,75 @@
+name: cloud
+# Provision / deploy / destroy the one-VM deployment on DigitalOcean. Needs two repository secrets:
+#   DO_TOKEN        a DigitalOcean API token (read + write)
+#   DEPLOY_SSH_KEY  private half of a deploy key: ssh-keygen -t ed25519 -f deploy_key -N "" && gh secret set DEPLOY_SSH_KEY < deploy_key
+# Terraform state is carried between runs as the `tfstate` artifact (it holds no secrets: env_file stays empty,
+# the VM writes its own .env). Pushing a tag v* redeploys the current VM.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: apply (create/update + deploy), deploy (code only) or destroy
+        type: choice
+        options: [apply, deploy, destroy]
+        default: apply
+      domain:
+        description: optional domain (nameservers at DigitalOcean); empty = <ip>.sslip.io
+        type: string
+        default: ""
+  push:
+    tags: ["v*"]
+concurrency:
+  group: cloud
+  cancel-in-progress: false
+permissions:
+  contents: read
+  actions: read
+jobs:
+  cloud:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ACTION: ${{ inputs.action || 'deploy' }}
+      TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
+      TF_VAR_domain: ${{ inputs.domain }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_wrapper: false }
+      - name: secrets present
+        run: |
+          [ -n "$TF_VAR_do_token" ] || { echo "::error::add the DO_TOKEN repository secret"; exit 1; }
+          [ -n "${{ secrets.DEPLOY_SSH_KEY }}" ] || { echo "::error::add the DEPLOY_SSH_KEY repository secret"; exit 1; }
+      - name: deploy key
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          echo "TF_VAR_deploy_pubkey=$(ssh-keygen -y -f ~/.ssh/deploy)" >> "$GITHUB_ENV"
+          echo "DEPLOY_KEY=$HOME/.ssh/deploy" >> "$GITHUB_ENV"
+      - name: restore terraform state
+        run: |
+          id=$(gh run list -R "$GITHUB_REPOSITORY" --workflow cloud.yml --json databaseId,conclusion --jq '[.[] | select(.conclusion=="success" or .conclusion=="failure")][].databaseId' | head -20 | while read r; do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$r/artifacts" --jq '.artifacts[] | select(.name=="tfstate" and (.expired|not)) | .workflow_run.id' | head -1; done | head -1)
+          if [ -n "$id" ]; then gh run download "$id" -R "$GITHUB_REPOSITORY" -n tfstate -D infra/cloud && echo "state from run $id"; else echo "no previous state"; fi
+      - run: cd infra/cloud && terraform init -input=false
+      - name: apply
+        if: env.ACTION == 'apply'
+        run: cd infra/cloud && terraform apply -input=false -auto-approve
+      - name: destroy
+        if: env.ACTION == 'destroy'
+        run: cd infra/cloud && terraform destroy -input=false -auto-approve
+      - name: deploy
+        if: env.ACTION != 'destroy'
+        run: bin/covered deploy
+      - name: save terraform state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfstate
+          path: infra/cloud/terraform.tfstate
+          if-no-files-found: ignore
+          retention-days: 90
+      - name: summary
+        if: env.ACTION != 'destroy'
+        run: cd infra/cloud && echo "### $(terraform output -raw url)" >> "$GITHUB_STEP_SUMMARY" && terraform output

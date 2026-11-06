@@ -60,21 +60,31 @@ bin/covered up && bin/covered e2e-stack
 
 CI: `.github/workflows/ci.yml` (unit tests, wasm, sandbox flows, images, Terraform/Compose validation) on every push and PR; `.github/workflows/stack.yml` runs `up` + `e2e-stack` on `main`, version tags and on demand, and uploads the screenshots. Deploys happen only on version tags.
 
-### Deploy to the cloud — one command after one file
-The production shape is deliberately the simplest thing: **one VM, two containers** (`web` = Caddy serving the static app with automatic TLS and proxying `/api` and `/btc`; `relayer`), plus a tiny `config` job that turns `.env` into the app's `config.json`. Bitcoin data comes from a public Esplora (mempool.space) and NEAR from a public RPC; no node of our own is needed for testnet or mainnet.
+### Deploy to the cloud — one command
+The production shape is deliberately the simplest thing: **one VM, two containers** (`web` = Caddy serving the static app with automatic TLS and proxying `/api` and `/btc`; `relayer`), plus a tiny `config` job that turns `.env` into the app's `config.json`. Bitcoin data comes from a public Esplora (mempool.space) and NEAR from a public RPC (FastNEAR); no node of our own.
 
-1. Buy the domain. At the registrar, point its nameservers at `ns1.digitalocean.com`, `ns2.digitalocean.com`, `ns3.digitalocean.com` (Terraform creates the zone and the A/CNAME records).
-2. In DigitalOcean: create an API token and upload your laptop's SSH key (note its name).
-3. Generate a deploy key for CI: `ssh-keygen -t ed25519 -f deploy_key -N ""`.
-4. `cp infra/cloud/terraform.tfvars.example infra/cloud/terraform.tfvars` and fill it in: token, domain, SSH key name, repo URL, the deploy public key, and the production `.env` block (contract ids, relayer account + key, Esplora URL — see `.env.example`).
-5. `bin/covered provision`. Terraform creates the droplet, DNS and firewall; cloud-init installs Docker, clones the repo, writes `/opt/covered/.env` and runs `docker compose up`. Caddy obtains the certificate as soon as DNS resolves. `terraform output url` is your site.
-6. Redeploys: `bin/covered deploy` (ssh, pull, `compose up --build`), or push a version tag (`git tag v0.1.0 && git push --tags`) with repository secrets `DEPLOY_HOST` (the IP) and `DEPLOY_SSH_KEY` (the deploy private key) and CI deploys that tag. Merges to `main` only run CI; branches → PR → `main` → tag.
-7. `bin/covered destroy` removes everything.
+**What you need:** a DigitalOcean API token and a deploy key. **No domain needed** — without one the site is served at `https://<ip-with-dashes>.sslip.io` with a real certificate. **No contract setup needed on testnet** — on its first start the VM creates throwaway faucet accounts, builds the wasm, deploys `covered` against the real MPC signer (`v1.signer-prod.testnet`) and the real Bitcoin light client (`btc-client-v4.testnet`, Bitcoin testnet3), deploys a mock USDC anyone can mint, **deletes the contract's only key**, and writes everything (ids, relayer key, code hash) into the VM's `.env`. Visitors get a wallet and 100,000 test USDC from `/api/account` (faucet helper, rate-limited).
+
+From GitHub (nothing to install):
+```
+ssh-keygen -t ed25519 -f deploy_key -N ""
+gh secret set DO_TOKEN                      # paste the DigitalOcean token
+gh secret set DEPLOY_SSH_KEY < deploy_key
+gh workflow run cloud.yml -f action=apply   # ~15 min the first time (wasm build on the VM); the URL is in the run summary
+```
+From your laptop (Terraform 1.6+): `cp infra/cloud/terraform.tfvars.example infra/cloud/terraform.tfvars`, fill in `do_token` and `deploy_pubkey`, then `bin/covered provision`.
+
+- **Redeploy:** `gh workflow run cloud.yml -f action=deploy`, push a tag `v*`, or `bin/covered deploy` — ships the committed tree over ssh (`git archive`, so the repo can stay private) and runs `bin/covered serve` on the VM. The VM's `.env`, and so the deployed contract, is kept.
+- **Add or change the domain later:** point its nameservers at `ns1/ns2/ns3.digitalocean.com`, then `gh workflow run cloud.yml -f action=apply -f domain=example.com` (or set `domain` in tfvars and `bin/covered provision`). Terraform only adds the DNS zone and records — the VM is kept (`ignore_changes`) — and the deploy step restarts Caddy on the new name, which fetches a certificate as soon as DNS resolves. Old sslip.io links stop working; nothing else changes.
+- **Fresh contracts:** delete `COVERED_ID` from `/opt/covered/.env` on the VM and redeploy.
+- **Tear down:** `gh workflow run cloud.yml -f action=destroy` or `bin/covered destroy`.
+
+CI keeps the Terraform state as the `tfstate` artifact of the `cloud` workflow (no secrets in it). Use either the workflow or your laptop for a given deployment, not both. `testnet.yml`'s `cloud-rehearsal` job runs the VM's exact start-up (`bin/covered serve`) on a clean runner against live testnet and creates a visitor wallet through it.
 
 Deploying the **contract** to testnet/mainnet is a separate, deliberate step (`scripts/deploy-testnet.sh`): build, deploy with init params, then delete the full-access key on camera and put the code hash in `.env` as `CODE_HASH` so Verify check 1 can confirm it.
 
 ## Configuration
-Everything is read from `.env` (local: appended by the bootstrap; cloud: written by cloud-init from `terraform.tfvars`). Keys: `MODE` (local|testnet|mainnet), `NEAR_NETWORK`, `NEAR_RPC`, `COVERED_ID`, `USDC_ID`, `SIGNER_ID`, `LIGHT_CLIENT_ID`, `RELAYER_ID`, `RELAYER_KEY`, `BTC_BACKEND` (esplora|core), `ESPLORA`, `EXPLORER_BTC`, `EXPLORER_NEAR`, `MIN_CONF`, `CODE_HASH`, `DOMAIN` (cloud only). The web app reads the same values from `/config.json` at load, so one image serves every environment.
+Everything is read from `.env` (local: written by the bootstrap; cloud: written by the testnet bootstrap on first start, or supplied as `env_file`). Keys: `MODE` (local|testnet|mainnet), `ACCOUNT_FAUCET`/`USDC_MINT` (testnet wallet faucet), `NEAR_NETWORK`, `NEAR_RPC`, `COVERED_ID`, `USDC_ID`, `SIGNER_ID`, `LIGHT_CLIENT_ID`, `RELAYER_ID`, `RELAYER_KEY`, `BTC_BACKEND` (esplora|core), `ESPLORA`, `EXPLORER_BTC`, `EXPLORER_NEAR`, `MIN_CONF`, `CODE_HASH`, `DOMAIN` (cloud only). The web app reads the same values from `/config.json` at load, so one image serves every environment.
 
 ## Layout
 ```
@@ -84,7 +94,8 @@ integration/                near-workspaces flows  relayer/          service + D
 web/                        app + Dockerfile       brand/            design system and assets
 infra/compose.yaml          cloud stack            infra/compose.local.yaml  local overlay
 infra/local/                sandbox image, contract builder image, bootstrap
-infra/cloud/                Terraform + cloud-init docs/SPEC.md      the specification
+infra/cloud/                Terraform, cloud-init, testnet first-start bootstrap   infra/compose.testnet.yaml  its overlay
+docs/SPEC.md                the specification
 scripts/                    regtest round trip, txoutproof converter, testnet contract deploy
 ```
 

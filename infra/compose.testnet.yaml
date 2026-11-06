@@ -1,0 +1,22 @@
+# Cloud first start on testnet: build the wasm and run the testnet bootstrap once (`bin/covered serve`).
+services:
+  contracts:
+    restart: "no"
+    build:
+      context: ..
+      dockerfile: infra/local/contracts.Dockerfile
+    volumes:
+      - wasm:/out
+    command: ["sh", "-c", "cp /build/target/near/*/*.wasm /out/ && ls -la /out"]
+  bootstrap-testnet:
+    restart: "no"
+    build: ./cloud/bootstrap
+    depends_on:
+      contracts: { condition: service_completed_successfully }
+    volumes:
+      - wasm:/wasm:ro
+      - ../.env:/env/.env
+    environment:
+      NEAR_RPC: ${NEAR_RPC:-https://rpc.testnet.fastnear.com}
+volumes:
+  wasm:
