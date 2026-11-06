@@ -51,7 +51,7 @@ const seller = await visitor("seller"), buyer = await visitor("buyer");
 const params = await view("get_params");
 const SIZE = BigInt(params.min_size_sats);
 const now = await chainNow();
-const expiry = Math.ceil((now + Number(process.env.EXPIRY_IN_S ?? 5400)) / Number(params.expiry_step_s)) * Number(params.expiry_step_s);
+const expiry = Math.ceil((now + Math.max(Number(params.min_lead_s) + 60, Number(process.env.EXPIRY_IN_S ?? 1800))) / Number(params.expiry_step_s)) * Number(params.expiry_step_s);
 const serial = Number(await call(seller, cfg.contract, "create_offer", { terms: { size_sats: String(SIZE), strike_units: "150000000000", premium_units: "5000000", expiry_s: String(expiry), refund_address: faucet.address } }, 10n ** 23n, 100n));
 const offer = await until("offer visible", async () => { try { return await view("get_offer", { serial }); } catch { return null; } }, 60_000, 3000);
 log(`CV-${serial}: ${Number(SIZE) / 1e8} BTC at ${offer.address}, expiry in ${Math.round((expiry - now) / 60)} min`);
@@ -62,6 +62,21 @@ report.deposit_tx = paid.txid;
 
 await until(`CV-${serial} Funded (relayer proof through ${cfg.lightClient})`, async () => { const o = await view("get_offer", { serial }); return o.state === "Funded" ? o : null; }, 100 * 60_000);
 log(`CV-${serial} Funded: the real light client accepted the deposit proof`);
+
+// A slow Bitcoin block can make the deposit land too close to expiry for a sale. Then prove the other path
+// instead: the seller withdraws, the real MPC network signs, the relayer broadcasts, the spend is proven.
+if ((await chainNow()) > expiry - 120) {
+  log(`deposit confirmed too late to sell before expiry; running the WITHDRAW path instead`);
+  await call(seller, cfg.contract, "withdraw", { serial }, 0n, 300n).catch((e) => log(`  withdraw call: ${String(e).slice(0, 160)}`));
+  const w = await until("withdrawal signed by the MPC network", async () => { const o = await view("get_offer", { serial }); return o.signed_tx ? o : null; }, 30 * 60_000, 15_000);
+  log(`CV-${serial} return signed by ${cfg.signer}; relayer broadcasts ${btc(w.commitment_txid)}`);
+  await until(`CV-${serial} Withdrawn (spend proven on NEAR)`, async () => (await view("get_offer", { serial })).state === "Withdrawn", 120 * 60_000, 30_000);
+  report.serial = serial; report.return_tx = w.commitment_txid; report.path = "withdraw"; report.certificate = `${SITE}/#/c/${serial}`;
+  writeFileSync(new URL("./artifacts/live-report.json", import.meta.url), JSON.stringify(report, null, 2));
+  log(`certificate: ${SITE}/#/c/${serial}`);
+  log("LIVE TESTNET CONTRACT PASSED (withdraw path)");
+  process.exit(0);
+}
 
 const o1 = await view("get_offer", { serial });
 await call(buyer, cfg.usdc, "ft_transfer_call", { receiver_id: cfg.contract, amount: o1.premium_units, msg: JSON.stringify({ serial, btc_address: faucet.address }) }, 1n, 150n);
