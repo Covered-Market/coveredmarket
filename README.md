@@ -88,11 +88,13 @@ Contract: [`covered-app-mw4qlyb3.testnet`](https://testnet.nearblocks.io/address
 
 The [testnet site](https://178-62-225-161.sslip.io/#/try) uses test coins and test USDC with no value.
 
-1. **Get a wallet.** Connect a NEAR wallet, or take a quick test wallet with 100,000 test USDC.
+1. **Connect a wallet.** Any NEAR wallet set to testnet (Meteor, Intear, Nightly, …), named or implicit account. You get 100,000 test USDC and a little tNEAR automatically; the relayer pays gas.
 2. **Sell a call.** 0.001 tBTC, a strike above the reference price, the shortest expiry.
 3. **Deposit.** Press *Send it from the demo faucet*, or pay from your own testnet3 wallet. Watch the light client prove it.
 4. **Buy it yourself** from a second browser profile.
 5. **Watch it settle.** Exercise by paying the strike, or let the window pass. Then press **Verify**.
+
+**Testing without a wallet extension (automated and AI testing).** Add `?testwallet=seller` or `?testwallet=buyer` to the testnet URL, for example `/?testwallet=seller#/sell`. That tab then uses a key generated in the browser, for an implicit account the relayer creates and funds. Each role has its own key, so two tabs can play seller and buyer. A *Test wallet* badge shows in the header; `?testwallet=reset` deletes the keys. It works only on testnet and is never shown otherwise.
 
 ## Run it yourself
 

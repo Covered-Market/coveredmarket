@@ -54,7 +54,7 @@ CI: `.github/workflows/ci.yml` (unit tests, wasm, sandbox flows, images, Terrafo
 
 ## Configuration
 
-Everything is read from `.env` (local: written by the bootstrap; cloud: written by the testnet bootstrap on first start, or supplied as `env_file`). Keys: `MODE` (local|testnet|mainnet), `ACCOUNT_FAUCET`/`USDC_MINT` (testnet wallet faucet), `NEAR_NETWORK`, `NEAR_RPC`, `COVERED_ID`, `USDC_ID`, `SIGNER_ID`, `LIGHT_CLIENT_ID`, `RELAYER_ID`, `RELAYER_KEY`, `BTC_BACKEND` (esplora|core), `ESPLORA`, `EXPLORER_BTC`, `EXPLORER_NEAR`, `MIN_CONF`, `CODE_HASH`, `DOMAIN` (cloud only). The web app reads the same values from `/config.json` at load, so one image serves every environment.
+Everything is read from `.env` (local: written by the bootstrap; cloud: written by the testnet bootstrap on first start, or supplied as `env_file`). Keys: `MODE` (local|testnet|mainnet), `ACCOUNT_FAUCET`/`USDC_MINT` (testnet account and test-funds faucet; `TEST_FUNDS_PER_HOUR`, `TEST_FUNDS_PER_DAY` set its limits), `NEAR_NETWORK`, `NEAR_RPC`, `COVERED_ID`, `USDC_ID`, `SIGNER_ID`, `LIGHT_CLIENT_ID`, `RELAYER_ID`, `RELAYER_KEY`, `BTC_BACKEND` (esplora|core), `ESPLORA`, `EXPLORER_BTC`, `EXPLORER_NEAR`, `MIN_CONF`, `CODE_HASH`, `DOMAIN` (cloud only). The web app reads the same values from `/config.json` at load, so one image serves every environment.
 
 ## Layout
 
