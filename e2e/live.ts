@@ -39,9 +39,10 @@ const tag = Date.now().toString(36);
 async function visitor(role: string) {
   const kp = KeyPairEd25519.fromRandom(), id = `live-${role}-${tag}.testnet`;
   const j = await get("/api/account", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ newAccountId: id, newAccountPublicKey: kp.getPublicKey().toString() }) });
-  await sleep(3000);
-  log(`${role}: ${id} with ${j.usdc} test USDC`);
-  return { id, acc: new Account(id, p, new KeyPairSigner(kp)) };
+  const real = j.accountId ?? id; // the site may make it as a sub-account of its relayer
+  await until(`${real} exists on chain`, async () => { try { await p.query({ request_type: "view_access_key", account_id: real, public_key: kp.getPublicKey().toString(), finality: "optimistic" }); return true; } catch { return null; } }, 60_000, 2000);
+  log(`${role}: ${real} with ${j.usdc} test USDC`);
+  return { id: real, acc: new Account(real, p, new KeyPairSigner(kp)) };
 }
 type V = Awaited<ReturnType<typeof visitor>>;
 const call = (v: V, contractId: string, methodName: string, args: object, deposit = 0n, gas = 300n) => v.acc.callFunction({ contractId, methodName, args, deposit, gas: gas * TGAS });
