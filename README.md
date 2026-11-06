@@ -110,6 +110,7 @@ bin/covered keys                  # the demo users, astrid and marcus, and their
 bin/covered btc send <addr> 0.01  # pay a deposit address on regtest and mine a block
 bin/covered logs relayer          # watch proofs, settlement and broadcasts
 bin/covered reset                 # wipe chain state and start over
+bin/covered rescue <kit> <addr>   # the seller's exit: sweep a deposit with only Bitcoin, after its timelock
 ```
 
 **Tests**
@@ -132,9 +133,11 @@ Covered is **unaudited** software. Testnet is live; mainnet is not. Read the con
 |---|---|
 | NEAR's MPC signing network signs only for the contract that asks, and a threshold of its nodes is honest | **Us.** We cannot move coins. The relayer and the site only relay proofs, pay gas and broadcast transactions the contract already signed. Every contract method is public. |
 | The Bitcoin light client follows the real chain | **A price feed.** Nobody's price decides who gets the coins. |
-| The contract code, which has no access keys and no upgrade method | **The buyer.** Coins go to the buyer only in the receipt where the full strike is paid. |
+| The contract code, which has no access keys and no upgrade method; mainnet offers are capped at 0.01 BTC while it is unaudited | **The buyer.** Coins go to the buyer only in the receipt where the full strike is paid. |
 
-- [Security model](docs/SECURITY-MODEL.md): guarantees, what is not guaranteed, the seven Verify checks, the invariants to read first.
+If NEAR or its signing network ever stopped, you would not be stuck: every deposit address has a timelocked exit to a rescue key that only you hold, which you sweep with nothing but Bitcoin (`bin/covered rescue`).
+
+- [Security model](docs/SECURITY-MODEL.md): guarantees, what is not guaranteed, mainnet readiness, the seven Verify checks, the invariants to read first.
 - **Found a problem?** Report it privately through [GitHub security advisories](https://github.com/bedeho/covered/security/advisories/new). Bounties up to **$2,000**, paid in USDC or BTC. See [SECURITY.md](SECURITY.md).
 
 ## Built with
@@ -146,10 +149,10 @@ Covered is **unaudited** software. Testnet is live; mainnet is not. Read the con
 | Read | For |
 |---|---|
 | [SPEC.md](docs/SPEC.md) | The full product and technical specification |
-| [SECURITY-MODEL.md](docs/SECURITY-MODEL.md) | What you trust, what is guaranteed, pinned external interfaces |
+| [SECURITY-MODEL.md](docs/SECURITY-MODEL.md) | What you trust, what is guaranteed, mainnet readiness, pinned external interfaces |
 | [DEVELOPING.md](docs/DEVELOPING.md) | Local stack, the life of a contract, tests, CI, configuration, layout |
 | [DEPLOY.md](docs/DEPLOY.md) | The cloud deployment, networks, wallets, faucet, domains |
 | [SECURITY.md](SECURITY.md) | How to report a vulnerability, and the bounty |
 | [brand/](brand/BRAND.md) | The design system: tokens, components, logos, fonts |
 
-<p align="center"><sub>Covered is unaudited. It is not a price guarantee, not investment advice, and not an offer of options to the public. Signatures come from NEAR's MPC network; if that network stops, settlement stops with it.</sub></p>
+<p align="center"><sub>Covered is unaudited. It is not a price guarantee, not investment advice, and not an offer of options to the public. Signatures come from NEAR's MPC network; if that network stops, settlement waits for it or for the seller's timelocked exit.</sub></p>

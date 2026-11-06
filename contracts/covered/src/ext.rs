@@ -61,6 +61,12 @@ pub struct ProofArgsV2 {
     pub confirmations: u64,
 }
 
+/// NEP-145 storage management (registering a payee with the token).
+#[ext_contract(ext_storage)]
+pub trait StorageManagement {
+    fn storage_deposit(&mut self, account_id: Option<AccountId>, registration_only: Option<bool>);
+}
+
 #[ext_contract(ext_ft)]
 pub trait FungibleToken {
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);

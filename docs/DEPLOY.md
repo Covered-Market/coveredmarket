@@ -38,4 +38,4 @@ CI keeps the Terraform state as the `tfstate` artifact of the `cloud` workflow (
 
 ## The contract
 
-Deploying the **contract** to testnet/mainnet is a separate, deliberate step (`scripts/deploy-testnet.sh`): build, deploy with init params, then delete the full-access key on camera and put the code hash in `.env` as `CODE_HASH` so Verify check 1 can confirm it.
+Testnet: the VM deploys and locks its own on first start (above); `gh workflow run cloud.yml -f action=reset-contract` swaps in a fresh one after a contract change (the demo faucet's key and coins are kept). Mainnet: `scripts/deploy-mainnet.ts` with a funded account — read-only preflight, deploy with the reviewed `params/mainnet.json`, **`selftest_sign` against the real MPC before anything is locked** (it stops with the key still present if the signature does not verify), then delete the key and write `.env.mainnet`. Parameters for every network live in `params/{local,testnet,mainnet}.json`; every deployer and the sandbox tests read them.

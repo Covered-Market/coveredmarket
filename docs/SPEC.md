@@ -694,3 +694,18 @@ Each item has an owner-less default so work never blocks; the default stands unl
 - [Omni Bridge implementation details](https://docs.near.org/chain-abstraction/omnibridge/implementation-details): Bitcoin requires full transaction signing; light-client trust model.
 - [Near-One/btc-light-client-contract](https://github.com/Near-One/btc-light-client-contract): contract, relayer and merkle tools.
 - [Covered design canvas](https://claude.ai/artifact/4az4t9r5WgTNMnXLEpy5ES) and [design system](https://claude.ai/artifact/1gormfHod4MU3fRZuTRF2m); project docs *Covered — Demo Brief* and *Covered — Brand Identity*.
+
+
+## Addendum — mainnet hardening (6 Nov 2026)
+
+These changes supersede the corresponding parts above where they differ.
+
+**Deposit address.** P2WSH of `OP_IF <mpc_key> OP_CHECKSIG OP_ELSE <unlock_s> OP_CHECKLOCKTIMEVERIFY OP_DROP <rescue_key> OP_CHECKSIG OP_ENDIF`, with `unlock_s = expiry + grace + rescue_delay_s` (an absolute time, fixed per offer). The MPC branch is the only one the contract uses; its witness is `[sig, 0x01, witness_script]` and the BIP-143 scriptCode is the witness script. The rescue branch is the seller's exit if NEAR or the signing network stops: after `unlock_s` the seller's rescue key, generated in the browser and saved as a rescue kit at creation, sweeps the coins with only Bitcoin. `commit` is refused once `now + rescue_delay_s/2 >= unlock_s`, so a settlement always has half the delay to confirm before the exit opens; a buyer who paid the strike and was never delivered recovers it with `reclaim_strike`. Verify check 2 re-derives the full script.
+
+**Fees.** Settlements signal RBF (sequence 0xfffffffd). `bump_fee(serial)` — anyone, once a signed settlement is unproven `fee_bump_after_s` after its last signature — rebuilds the same spend (same outpoint, same single recipient) with double the fee, up to `max_fee_sats`, and requests a new signature. Earlier versions stay valid; `confirm_spend` accepts any version (invariant G5 now reads: the commitment's outpoint and recipient are written once; only the fee may rise, within the cap).
+
+**USDC.** `claim` calls `storage_deposit(account, registration_only)` on the token before `ft_transfer`, paid from a `usdc_storage_deposit` reserve (0.00125 NEAR) charged at `create_offer`.
+
+**Caps and depth.** `max_size_sats` per deployment; `min_conf` 3 on mainnet. All parameters per network live in `params/*.json`.
+
+**Signing check.** `selftest_sign()` signs a constant under the reserved path `covered/selftest` and verifies it against the derived key on chain; the mainnet deploy aborts before deleting the key if it fails.

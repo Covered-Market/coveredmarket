@@ -5,6 +5,7 @@ import { runChecks, type CheckResult } from "../lib/verify";
 import { stampFor, useOffer, useParams } from "./hooks";
 import { btcAddr, btcTx, Ext, nearAcct, OnChainRecord } from "../Explorer";
 import { BlockWait } from "../ChainClock";
+import { downloadKit, loadKit } from "../lib/rescue";
 
 export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | null }) {
   const { Certificate, Button, Countdown, StatTile, SettlementTimeline, Notice, Figure, Stamp } = C();
@@ -42,6 +43,7 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
           <Button href={`${CFG.explorerNear}/address/${CFG.contract}`}>NEAR contract</Button>
           {isSeller && offer.state === "Funded" && <Button variant="danger" disabled={busy} onClick={() => act("withdraw", { serial })}>Withdraw coins</Button>}
           {isSeller && offer.state === "Created" && <Button href={`#/deposit/${serial}`}>Deposit instructions</Button>}
+          {isSeller && loadKit(serial) && <Button onClick={() => downloadKit(loadKit(serial)!.kit)}>Rescue kit</Button>}
           {isBuyer && offer.state === "Sold" && windowOpen && <Button variant="primary" disabled={busy} onClick={() => act("ft_transfer_call", { receiver_id: CFG.contract, amount: offer.strike_total_units, msg: JSON.stringify({ serial, exercise: true }) }, CFG.usdc, 1n)}>Exercise · pay {usd(offer.strike_total_units)}</Button>}
           {isBuyer && offer.escrow_units !== "0" && <Button disabled={busy} onClick={() => act("reclaim_strike", { serial })}>Reclaim strike</Button>}
           {offer.state === "Sold" && now >= expiry + grace && <Button disabled={busy || !wallet} onClick={() => act("settle", { serial })}>Settle</Button>}
@@ -79,6 +81,7 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
           [offer.commitment_reason === "Exercise" ? "Delivery tx" : "Return tx", offer.commitment_txid, btcTx],
           ["Paid to", offer.commitment_to_address, btcAddr],
           ["Seller refund address", offer.refund_address, btcAddr],
+          ["Seller's exit unlocks", (offer as any).unlock_s ? new Date(Number((offer as any).unlock_s) * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC" : null, () => btcAddr(offer.address)],
           ["Seller", offer.seller, nearAcct],
           ["Buyer", offer.buyer, nearAcct],
           ["Contract", CFG.contract, nearAcct],

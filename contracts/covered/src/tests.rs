@@ -40,7 +40,22 @@ fn params() -> Params {
         derivation_prefix: derive::DEFAULT_PREFIX.into(),
         sign_format: 2,
         sign_deposit: NearToken::from_millinear(50),
+        max_size_sats: 1_000_000_000,
+        max_fee_sats: 16_000,
+        fee_bump_after_s: 3_600,
+        rescue_delay_s: 30 * DAY,
+        usdc_storage_deposit: NearToken::from_micronear(1_250),
     }
+}
+
+/// The seller's rescue key (scalar 12) and its compressed public key, hex.
+const RESCUE_SCALAR: [u8; 32] = [12u8; 32];
+fn rescue_hex() -> String {
+    let s = Scalar::from_repr(RESCUE_SCALAR.into()).unwrap();
+    hex::encode((ProjectivePoint::GENERATOR * s).to_affine().to_encoded_point(true).as_bytes())
+}
+fn terms(size: u64, strike: u128, premium: u128, expiry: u64) -> OfferTerms {
+    OfferTerms { size_sats: U64(size), strike_units: U128(strike), premium_units: U128(premium), expiry_s: U64(expiry), refund_address: seller_addr(), rescue_pubkey: rescue_hex() }
 }
 
 fn ctx(pred: AccountId, t: u64, deposit: NearToken) -> VMContextBuilder {
@@ -101,13 +116,7 @@ fn new_contract() -> Contract {
 
 fn create(c: &mut Contract, size: u64, strike: u128, premium: u128) -> u64 {
     set_dep(&seller(), T0, NearToken::from_near(1));
-    c.create_offer(OfferTerms {
-        size_sats: U64(size),
-        strike_units: U128(strike),
-        premium_units: U128(premium),
-        expiry_s: U64(expiry_after(T0, DAY)),
-        refund_address: seller_addr(),
-    })
+    c.create_offer(terms(size, strike, premium, expiry_after(T0, DAY)))
 }
 
 /// A fake deposit transaction paying `value` to the offer's address, plus a change output.
@@ -205,12 +214,11 @@ fn assert_witness_valid(c: &Contract, serial: u64) {
     assert_eq!(tx.output.len(), 1);
     assert_eq!(tx.output[0].value.to_sat(), cm.amount_sats);
     assert_eq!(tx.output[0].script_pubkey.to_bytes(), cm.to_script);
-    let der = &tx.input[0].witness[0];
-    let secp = bitcoin::secp256k1::Secp256k1::verification_only();
-    let sig = bitcoin::secp256k1::ecdsa::Signature::from_der(&der[..der.len() - 1]).unwrap();
-    let pk = bitcoin::secp256k1::PublicKey::from_slice(&tx.input[0].witness[1]).unwrap();
-    assert_eq!(&tx.input[0].witness[1][..], &o.derived_pubkey[..]);
-    secp.verify_ecdsa(&bitcoin::secp256k1::Message::from_digest(cm.sighash), &sig, &pk).unwrap();
+    assert_eq!(tx.input[0].witness.len(), 3, "[sig, 0x01, witness_script]");
+    assert_eq!(&tx.input[0].witness[1][..], &[1u8][..], "MPC branch");
+    assert_eq!(&tx.input[0].witness[2][..], &o.witness_script[..]);
+    // Bitcoin Core's own interpreter must accept it as a spend of the deposit output.
+    bitcoinconsensus::verify(&o.script_pubkey, cm.outpoint.value_sats, raw, None, 0).expect("settlement must satisfy Bitcoin's script rules");
 }
 
 fn accounting_ok(c: &Contract, token_balance: u128) {
@@ -228,7 +236,10 @@ fn create_offer_derives_unique_addresses() {
     assert_ne!(c.get_address(a), c.get_address(b));
     assert!(c.get_address(a).starts_with("bcrt1q"));
     assert_eq!(c.offer(a).path, format!("{}/CV-1", seller()));
-    assert_eq!(c.derive_address(c.offer(a).path.clone()), c.get_address(a));
+    assert_eq!(c.derive_key(c.offer(a).path.clone()), hex::encode(&c.offer(a).derived_pubkey));
+    let v = c.get_offer(a).unwrap();
+    assert_eq!(v.unlock_s.0, v.expiry_s.0 + 7_200 + 30 * DAY, "exit unlocks after expiry + grace + rescue delay");
+    assert_eq!(hex::encode(btc::p2wsh_script(&hex::decode(&v.witness_script).unwrap())), hex::encode(&c.offer(a).script_pubkey));
     let v = c.get_offer(a).unwrap();
     assert_eq!(v.strike_total_units.0, 300_000_000_000);
 }
@@ -238,7 +249,7 @@ fn create_offer_derives_unique_addresses() {
 fn create_offer_rejects_non_0800_expiry() {
     let mut c = new_contract();
     set_dep(&seller(), T0, NearToken::from_near(1));
-    c.create_offer(OfferTerms { size_sats: U64(200_000), strike_units: U128(1), premium_units: U128(1), expiry_s: U64(expiry_after(T0, DAY) + 60), refund_address: seller_addr() });
+    c.create_offer(terms(200_000, 1, 1, expiry_after(T0, DAY) + 60));
 }
 
 #[test]
@@ -246,7 +257,7 @@ fn create_offer_rejects_non_0800_expiry() {
 fn create_offer_rejects_short_lead() {
     let mut c = new_contract();
     set_dep(&seller(), T0, NearToken::from_near(1));
-    c.create_offer(OfferTerms { size_sats: U64(200_000), strike_units: U128(1), premium_units: U128(1), expiry_s: U64(expiry_after(T0, 0)), refund_address: seller_addr() });
+    c.create_offer(terms(200_000, 1, 1, expiry_after(T0, 0)));
 }
 
 #[test]
@@ -254,7 +265,7 @@ fn create_offer_rejects_short_lead() {
 fn create_offer_rejects_mainnet_address_on_regtest() {
     let mut c = new_contract();
     set_dep(&seller(), T0, NearToken::from_near(1));
-    c.create_offer(OfferTerms { size_sats: U64(200_000), strike_units: U128(1), premium_units: U128(1), expiry_s: U64(expiry_after(T0, DAY)), refund_address: "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq".into() });
+    c.create_offer(OfferTerms { refund_address: "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq".into(), ..terms(200_000, 1, 1, expiry_after(T0, DAY)) });
 }
 
 #[test]
@@ -605,17 +616,35 @@ fn sign_args_formats() {
 fn print_vectors_for_web() {
     let mut c = new_contract();
     let s = create(&mut c, 200_000_000, 150_000_000_000, 6_000_000_000);
-    let o = c.offer(s);
     fund(&mut c, s);
     set(&seller(), T0 + 200);
     let _ = c.withdraw(s);
+    sign_committed(&mut c, s, T0 + 210);
     let o = c.offer(s);
     let cm = o.commitment.as_ref().unwrap();
+    let rescue_raw = {
+        use bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
+        let u = btc::build_rescue(&cm.outpoint, &o.witness_script, &o.refund_script, 2_000, o.unlock_s).unwrap();
+        let sig = Secp256k1::new().sign_ecdsa(&Message::from_digest(u.sighash), &SecretKey::from_slice(&RESCUE_SCALAR).unwrap()).serialize_compact();
+        let raw = btc::finalize_rescue(&u, &sig, &o.witness_script);
+        bitcoinconsensus::verify(&o.script_pubkey, cm.outpoint.value_sats, &raw, None, 0).unwrap();
+        hex::encode(raw)
+    };
     let v = serde_json::json!({
         "collateral_txid": btc::display_hex(&cm.outpoint.txid),
         "collateral_vout": cm.outpoint.vout,
         "collateral_value_sats": cm.outpoint.value_sats,
         "collateral_script": hex::encode(&o.script_pubkey),
+        "witness_script": hex::encode(&o.witness_script),
+        "rescue_pubkey": hex::encode(&o.rescue_pubkey),
+        "unlock_s": o.unlock_s,
+        "expiry_s": o.expiry_s,
+        "grace_s": 7_200,
+        "rescue_delay_s": 30 * DAY,
+        "signed_tx": hex::encode(cm.signed_tx.as_ref().unwrap()),
+        "rescue_private_key": hex::encode(RESCUE_SCALAR),
+        "rescue_fee_sats": 2_000,
+        "rescue_raw": rescue_raw,
         "to_script": hex::encode(&cm.to_script),
         "fee_sats": 1000,
         "unsigned_tx": hex::encode(&cm.unsigned_tx),
@@ -645,4 +674,123 @@ fn light_client_args_match_upstream_borsh_layout() {
     assert_eq!(&b[b.len() - 8..], &6u64.to_le_bytes());
     let back: ext::ProofArgsV2 = near_sdk::borsh::from_slice(&b).unwrap();
     assert_eq!(back.tx_index, 7);
+}
+
+// ───────────────────────────── mainnet readiness ─────────────────────────────
+
+fn spend_proof(raw: &[u8]) -> Proof { proof_for(&hex::encode(raw)) }
+fn panics<F: FnOnce() -> R, R>(f: F) -> bool { std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).is_err() }
+
+#[test]
+#[should_panic(expected = "size above this deployment's cap")]
+fn size_cap_enforced() {
+    let mut c = new_contract();
+    set_dep(&seller(), T0, NearToken::from_near(1));
+    c.create_offer(terms(1_000_000_001, 1, 1, expiry_after(T0, DAY)));
+}
+
+#[test]
+#[should_panic(expected = "attach storage deposit")]
+fn creation_deposit_must_cover_the_payout_registration_reserve() {
+    let mut c = new_contract();
+    // enough for the bytes, not for bytes + the 0.00125 NEAR reserve
+    set_dep(&seller(), T0, NearToken::from_micronear(1_000));
+    c.create_offer(terms(200_000_000, 1, 1, expiry_after(T0, DAY)));
+}
+
+#[test]
+#[should_panic(expected = "rescue_pubkey must be a 33-byte compressed public key")]
+fn rescue_key_must_be_a_real_point() {
+    let mut c = new_contract();
+    set_dep(&seller(), T0, NearToken::from_near(1));
+    c.create_offer(OfferTerms { rescue_pubkey: format!("02{}", "00".repeat(32)), ..terms(200_000_000, 1, 1, expiry_after(T0, DAY)) });
+}
+
+#[test]
+fn rescue_branch_of_a_real_offer_spends_with_the_sellers_key_after_unlock() {
+    use bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
+    let mut c = new_contract();
+    let s = create(&mut c, 200_000_000, 150_000_000_000, 6_000_000_000);
+    let txid = fund(&mut c, s);
+    let o = c.offer(s).clone();
+    let collateral = Outpoint { txid, vout: 1, value_sats: o.size_sats };
+    let sk = SecretKey::from_slice(&RESCUE_SCALAR).unwrap();
+    let u = btc::build_rescue(&collateral, &o.witness_script, &o.refund_script, 2_000, o.unlock_s).unwrap();
+    let sig = Secp256k1::new().sign_ecdsa(&Message::from_digest(u.sighash), &sk).serialize_compact();
+    let raw = btc::finalize_rescue(&u, &sig, &o.witness_script);
+    bitcoinconsensus::verify(&o.script_pubkey, o.size_sats, &raw, None, 0).expect("seller's exit is a valid spend at unlock");
+    let early = btc::build_rescue(&collateral, &o.witness_script, &o.refund_script, 2_000, o.unlock_s - 1).unwrap();
+    let raw = btc::finalize_rescue(&early, &Secp256k1::new().sign_ecdsa(&Message::from_digest(early.sighash), &sk).serialize_compact(), &o.witness_script);
+    assert!(bitcoinconsensus::verify(&o.script_pubkey, o.size_sats, &raw, None, 0).is_err(), "not before unlock");
+}
+
+#[test]
+fn fee_bump_resigns_the_same_spend_and_any_version_settles() {
+    let mut c = new_contract();
+    let s = create(&mut c, 200_000_000, 150_000_000_000, 6_000_000_000);
+    fund(&mut c, s);
+    set(&seller(), T0 + 200);
+    let _ = c.withdraw(s);
+    sign_committed(&mut c, s, T0 + 210);
+    assert_witness_valid(&c, s);
+    let v1 = c.offer(s).commitment.clone().unwrap();
+    assert_eq!(v1.fee_sats, 1_000);
+    // not before fee_bump_after_s
+    set(&accounts(3), T0 + 210 + 3_599);
+    assert!(panics(|| c.bump_fee(s)));
+    // anyone, after: doubles the fee, same input and recipient, back to Committed
+    set(&accounts(3), T0 + 210 + 3_600);
+    let _ = c.bump_fee(s);
+    let o = c.offer(s).clone();
+    let v2 = o.commitment.clone().unwrap();
+    assert_eq!(o.state, State::Committed);
+    assert_eq!((v2.fee_sats, v2.amount_sats), (2_000, 200_000_000 - 2_000));
+    assert_eq!((v2.outpoint.clone(), v2.to_script.clone()), (v1.outpoint.clone(), v1.to_script.clone()));
+    assert_eq!(v2.prior_txids, vec![v1.txid]);
+    assert!(v2.signed_tx.is_none());
+    // the new version cannot be confirmed before it is signed; the old one can
+    set(&accounts(3), T0 + 4_000);
+    assert!(panics(|| c.confirm_spend(s, spend_proof(&bitcoin::consensus::serialize(&bitcoin::consensus::deserialize::<bitcoin::Transaction>(&v2.unsigned_tx).unwrap())))));
+    // sign v2; bump to the cap (16,000) and no further
+    sign_committed(&mut c, s, T0 + 4_010);
+    assert_witness_valid(&c, s);
+    for (i, want) in [4_000u64, 8_000, 16_000].iter().enumerate() {
+        let t = T0 + 10_000 * (i as u64 + 1);
+        set(&accounts(3), t);
+        let _ = c.bump_fee(s);
+        assert_eq!(c.offer(s).commitment.as_ref().unwrap().fee_sats, *want);
+        sign_committed(&mut c, s, t + 1);
+    }
+    set(&accounts(3), T0 + 100_000);
+    assert!(panics(|| c.bump_fee(s)), "fee already at the cap");
+    // the FIRST version confirming finalises the offer
+    let _ = c.confirm_spend(s, spend_proof(v1.signed_tx.as_ref().unwrap()));
+    set(&me(), T0 + 100_001);
+    assert!(c.on_spend_verified(s, Ok(true)));
+    assert_eq!(c.offer(s).state, State::Withdrawn);
+}
+
+#[test]
+fn no_new_settlement_once_the_exit_is_near() {
+    let mut c = new_contract();
+    let s = create(&mut c, 200_000_000, 150_000_000_000, 6_000_000_000);
+    fund(&mut c, s);
+    buy(&mut c, s, 6_000_000_000, T0 + 100);
+    let unlock = c.offer(s).unlock_s;
+    // settle is allowed long after the window, up to half the rescue delay before the unlock
+    set(&accounts(3), unlock - 15 * DAY);
+    assert!(panics(|| c.settle(s)), "too close to the rescue unlock");
+    set(&accounts(3), unlock - 15 * DAY - 1);
+    let _ = c.settle(s);
+    assert_eq!(c.offer(s).state, State::Committed);
+}
+
+#[test]
+fn selftest_accepts_only_a_signature_by_the_derived_key() {
+    let mut c = new_contract();
+    let digest: [u8; 32] = near_sdk::env::sha256_array(b"covered selftest");
+    set(&me(), T0);
+    assert!(c.on_selftest_signed(Ok(mpc_sign("covered/selftest", &digest, true))));
+    assert!(!c.on_selftest_signed(Ok(mpc_sign("covered/selftest", &digest, false))));
+    assert!(!c.on_selftest_signed(Ok(mpc_sign("alice.near/CV-1", &digest, true))), "another path's key is not accepted");
 }

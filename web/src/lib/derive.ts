@@ -57,3 +57,28 @@ export function scriptFromAddress(addr: string, net: Net): Uint8Array {
 export function deriveAddress(rootKeyHex: string, prefix: string, predecessor: string, path: string, net: Net): string {
   return addressFromScript(p2wpkhScript(derivePubkey(rootKeyHex, prefix, predecessor, path)), net);
 }
+
+/** Minimal script number encoding (as Bitcoin's CScriptNum), for the CLTV lock time. */
+export function scriptNum(n: number): Uint8Array {
+  if (n === 0) return new Uint8Array();
+  const out: number[] = []; let v = Math.abs(n);
+  while (v > 0) { out.push(v & 0xff); v = Math.floor(v / 256); }
+  if (out[out.length - 1] & 0x80) out.push(n < 0 ? 0x80 : 0); else if (n < 0) out[out.length - 1] |= 0x80;
+  return new Uint8Array(out);
+}
+
+/**
+ * The deposit witness script. Must match contracts/covered/src/btc.rs `deposit_witness_script`:
+ *   OP_IF <mpc> OP_CHECKSIG OP_ELSE <unlock_s> OP_CLTV OP_DROP <rescue> OP_CHECKSIG OP_ENDIF
+ */
+export function depositWitnessScript(mpc33: Uint8Array, rescue33: Uint8Array, unlockS: number): Uint8Array {
+  const n = scriptNum(unlockS);
+  return new Uint8Array([0x63, 0x21, ...mpc33, 0xac, 0x67, n.length, ...n, 0xb1, 0x75, 0x21, ...rescue33, 0xac, 0x68]);
+}
+export const p2wshScript = (witnessScript: Uint8Array) => new Uint8Array([0x00, 0x20, ...sha256(witnessScript)]);
+/** The deposit address for an offer: P2WSH of the script above. */
+export function depositAddress(rootKeyHex: string, prefix: string, predecessor: string, path: string, rescue33: Uint8Array, unlockS: number, net: Net): { address: string; witnessScript: Uint8Array; mpc33: Uint8Array } {
+  const mpc33 = derivePubkey(rootKeyHex, prefix, predecessor, path);
+  const witnessScript = depositWitnessScript(mpc33, rescue33, unlockS);
+  return { address: addressFromScript(p2wshScript(witnessScript), net), witnessScript, mpc33 };
+}

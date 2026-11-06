@@ -12,7 +12,7 @@ Given an honest MPC threshold in `v1.signer`, a correct `covered` contract and a
 |---|---|
 | NEAR's MPC signing network (`v1.signer`) signs only for the contract that asks, and a threshold of its nodes is honest | A colluding threshold could sign any spend from any derived address. This is the assumption every Chain Signatures product makes. |
 | The Bitcoin light client (`btc-client.bridge.near`, `btc-client-v4.testnet`) follows the heaviest chain | A fake deposit could be "proven". The buyer would lose the premium; there are no coins to steal. |
-| Our contract code | A bug could lock or misdirect collateral. It is unaudited. Read it. |
+| Our contract code | A bug could misdirect collateral. It is unaudited, and mainnet offers are capped at 0.01 BTC. Read it. |
 | NEAR runs the code as deployed | Guaranteed by the contract having no access keys and no upgrade method. Verify check 1 shows both. |
 
 What you are **not** trusting: us. The relayer and the website only relay proofs, pay gas and broadcast transactions that are already signed. Every contract method is public, so anyone can do those jobs.
@@ -20,7 +20,7 @@ What you are **not** trusting: us. The relayer and the website only relay proofs
 ## Guarantees
 
 - **No third-party spend.** No person, server or key outside the MPC threshold can sign for a deposit address. The operator cannot move coins.
-- **Coins return.** Unsold, the seller can withdraw. Sold and not exercised, anyone can settle after the window, and the coins go back to the seller.
+- **Coins return.** Unsold, the seller can withdraw. Sold and not exercised, anyone can settle after the window, and the coins go back to the seller. If NEAR or the MPC network stops, the seller's own rescue key can sweep them on Bitcoin after the timelock.
 - **Exercise is payment.** Coins go to the buyer only in the same receipt where the buyer paid at least the full strike, inside the window.
 - **Purchase is final.** The premium is credited to the seller in the receipt that records the buyer.
 - **One spend per deposit.** A settlement is committed once, before the first signature request, and never replaced.
@@ -29,7 +29,7 @@ What you are **not** trusting: us. The relayer and the website only relay proofs
 ## Not guaranteed
 
 - Safety against a colluding MPC threshold or a bug in `v1.signer`.
-- Liveness if the signer, the light client or the contract's NEAR reserve stops. On `main` there is no Bitcoin-only exit yet; a timelocked seller's exit is in progress.
+- Timely settlement if the signer, the light client or the contract's NEAR reserve stops. The coins are not stuck forever: after a timelock (30 days past the exercise window on mainnet) the seller sweeps them with a rescue key and nothing but Bitcoin. See *the seller's exit* below.
 - Atomic settlement: USDC for BTC is conditional and asynchronous. The strike waits in escrow until delivery confirms.
 - A price. The reference price on screen is for display; no price feed decides an outcome.
 - Privacy, or an audit.
@@ -46,12 +46,27 @@ Every certificate page has a **Verify** button. It reads only public Bitcoin and
 6. The committed transaction and its signature match the rules below.
 7. The settlement transaction is confirmed on Bitcoin.
 
+## Mainnet readiness
+What stands between this code and real money, and how each is handled:
+
+| Risk | Handling | Checked by |
+|---|---|---|
+| Mainnet services differ from testnet | Read-only probe of `v1.signer` (3.17), `btc-client.bridge.near` and Circle USDC: our SHA3 derivation equals the signer's own `derived_public_key`; our borsh proof of a real mainnet tx is accepted, tampered and over-deep ones refused; USDC is 6 decimals and needs 0.00125 NEAR registration | `mainnet-probe.yml` (on change + weekly) |
+| The real `sign` call | `selftest_sign()`: the contract has the MPC sign a constant under a reserved path and verifies it on chain. The mainnet deploy stops before locking if it fails | `e2e/testnet.ts` against `v1.signer-prod.testnet`; `scripts/deploy-mainnet.ts` |
+| NEAR or the MPC network stops | **The seller's exit.** Every deposit address is P2WSH of `IF <mpc> CHECKSIG ELSE <unlock> CLTV DROP <rescue> CHECKSIG ENDIF`. After `unlock = expiry + grace + rescue_delay` (30 days on mainnet) the seller's own rescue key sweeps the coins with nothing but Bitcoin (`bin/covered rescue kit.json <address>`). The rescue key is made in the browser and saved as a kit when the offer is created. No settlement may be committed in the last half of the rescue delay | contract tests through libbitcoinconsensus (valid at unlock, invalid one second before, wrong keys refused); TS tool pinned byte for byte to the Rust reference; `e2e-stack` sweeps a real regtest deposit (refused before unlock, accepted after) |
+| Bitcoin fees spike after a settlement is signed | Settlements signal RBF. `bump_fee` (anyone, after `fee_bump_after_s`) re-signs the same input to the same single recipient with double the fee, up to `max_fee_sats`; whichever version confirms settles the offer. The relayer bumps stuck settlements automatically | contract + sandbox tests (old version still settles), relayer planner tests |
+| Real USDC pays only registered accounts | `claim` registers the payee first (NEP-145 `storage_deposit`, refunded if already registered), from a 0.00125 NEAR reserve each offer keeps | sandbox test with a seller who never held USDC; `e2e/testnet.ts` |
+| Unaudited code | Per-deployment `max_size_sats` (0.01 BTC on mainnet) | contract test |
+| Reorgs | `min_conf` per network: 3 on mainnet (deposit, exercise re-check and spend proof) | `params/mainnet.json` |
+
+Still not engineering: an audit, and the legal question of offering options to the public.
+
 ## Invariants to read first
 
 In `contracts/covered/src/lib.rs`: `commit_and_sign`, `accept_signature`, `ft_on_transfer`.
 
 1. A commitment (recipient script, unsigned tx, sighash, txid) is written once, before the first `sign`, and never replaced; retries re-request the same sighash.
-2. The committed tx spends exactly the collateral outpoint to exactly one output: the seller's refund script, or the buyer's script only when `reason == Exercise`.
+2. The committed tx spends exactly the collateral outpoint to exactly one output: the seller's refund script, or the buyer's script only when `reason == Exercise`. A fee bump changes only the fee (within `max_fee_sats`), never the input or the recipient.
 3. A signature is accepted only if it verifies against the derived key for the committed sighash.
 4. USDC enters only via `ft_on_transfer` from the pinned token with `sender_id` as the acting party; it leaves only via `claim` / `reclaim_strike` to the owner of the balance. `get_accounting()` equals the token balance.
 

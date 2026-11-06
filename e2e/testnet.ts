@@ -14,7 +14,7 @@ import { KeyPairSigner } from "@near-js/signers";
 import { readFileSync, writeFileSync } from "node:fs";
 import { buildProof, esplora, lcArgsV2, txidOf } from "../relayer/src/btc/proof.ts";
 import { verifySignedTx } from "../web/src/lib/bip143.ts";
-import { addressFromScript, hex, p2wpkhScript, parseRootKey, scriptFromAddress } from "../web/src/lib/derive.ts";
+import { addressFromScript, depositWitnessScript, hex, p2wpkhScript, p2wshScript, parseRootKey, scriptFromAddress } from "../web/src/lib/derive.ts";
 import * as secp from "@noble/secp256k1";
 
 const RPC = process.env.NEAR_RPC ?? "https://rpc.testnet.fastnear.com";
@@ -80,27 +80,31 @@ log("accounts", covered.id, seller.id, buyer.id);
 const rootKey: string = await view(SIGNER, "public_key", { domain_id: 0 });
 await deploy(lc, "mock_btc_client", "new", {});
 await deploy(usdc, "mock_usdc", "new", {});
-await deploy(covered, "covered", "new", { params: {
-  signer: SIGNER, light_client: lc.id, usdc: usdc.id, usdc_decimals: 6, network: "Testnet4", min_conf: 1, fee_sats: 300,
-  grace_s: 180, buy_cutoff_s: 0, min_lead_s: 60, escrow_timeout_s: 3600, min_size_sats: 100000, expiry_step_s: 60, expiry_offset_s: 0,
-  mpc_root_key: rootKey, derivation_prefix: "near-mpc-recovery v0.1.0 epsilon derivation:", sign_format: 2, sign_deposit: "1",
-}});
+// The reviewed testnet parameters, with a shorter window so the exercise runs in a few minutes.
+const { _comment, ...tuned } = JSON.parse(readFileSync(new URL("../params/testnet.json", import.meta.url), "utf8"));
+await deploy(covered, "covered", "new", { params: { ...tuned, grace_s: 180, min_lead_s: 60, signer: SIGNER, light_client: lc.id, usdc: usdc.id, mpc_root_key: rootKey } });
 await call(covered, usdc.id, "storage_deposit", {}, 10n ** 22n, 30n);
-await call(seller, usdc.id, "storage_deposit", {}, 10n ** 22n, 30n);
 await call(usdc, usdc.id, "mint", { account_id: buyer.id, amount: "1000000000000" }, 0n, 30n);
 log("deployed covered with the real signer; root key", rootKey.slice(0, 24) + "…");
+// The deploy-time check the mainnet script relies on: the contract's own sign path, end to end, against the real MPC.
+const selftest = await call(seller, covered.id, "selftest_sign", {}, 0n, 300n);
+if (selftest !== true) throw new Error(`selftest_sign returned ${JSON.stringify(selftest)}`);
+log("selftest_sign: the real MPC signed for the contract and the signature verified on chain");
+report.selftest_sign = true;
 
 async function createFunded(sizeSats: bigint, strike: string, premium: string, leadS = 60) {
   const p0 = await view(covered.id, "get_params");
   const now = await chainNow();
   const expiry = Math.ceil((now + Number(p0.min_lead_s) + leadS) / 60) * 60;
-  const serial: number = Number(await call(seller, covered.id, "create_offer", { terms: { size_sats: String(sizeSats), strike_units: strike, premium_units: premium, expiry_s: String(expiry), refund_address: addrFromSecret(9) } }, 10n ** 23n, 100n));
+  const serial: number = Number(await call(seller, covered.id, "create_offer", { terms: { size_sats: String(sizeSats), strike_units: strike, premium_units: premium, expiry_s: String(expiry), refund_address: addrFromSecret(9), rescue_pubkey: Buffer.from(secp.getPublicKey(new Uint8Array(32).fill(11), true)).toString("hex") } }, 10n ** 23n, 100n));
   const o = await until(`CV-${serial} visible`, async () => { try { return await view(covered.id, "get_offer", { serial }); } catch { return null; } }, 60_000);
   // 1. the address the contract derived = the address the real signer derives for (covered, path)
   const live: string = await view(SIGNER, "derived_public_key", { path: o.path, predecessor: covered.id, domain_id: 0 });
   const livePk = secp.ProjectivePoint.fromHex(parseRootKey(live)).toRawBytes(true);
   if (hex.to(livePk) !== o.derived_pubkey) throw new Error(`derived key mismatch: contract ${o.derived_pubkey} vs signer ${hex.to(livePk)}`);
-  if (addressFromScript(p2wpkhScript(livePk), "Testnet4") !== o.address) throw new Error("address mismatch");
+  // The deposit address is P2WSH of the script with the live MPC key and the seller's exit.
+  const ws = depositWitnessScript(livePk, hex.from(o.rescue_pubkey), Number(o.unlock_s));
+  if (hex.to(ws) !== o.witness_script || addressFromScript(p2wshScript(ws), "Testnet4") !== o.address) throw new Error("address mismatch");
   log(`CV-${serial}: deposit address ${o.address} matches the real signer's derived key`);
   const dep = fakeDeposit(scriptFromAddress(o.address, "Testnet4"), sizeSats, serial);
   await call(lc, lc.id, "set_included", { tx_id: dep.txid, block_hash: "00".repeat(32), depth: 6 }, 0n, 30n);
@@ -118,7 +122,7 @@ async function signedAndValid(serial: number, label: string, by: U) {
     if (x.state === "Committed" && x.retry_after_s && (await chainNow()) >= Number(x.retry_after_s)) { log(`CV-${serial} still Committed; re-requesting the same sighash`); await signing(by, "request_signature", { serial }); }
     return null;
   }, 420_000);
-  const v = verifySignedTx(o.signed_tx, o.commitment_sighash, Buffer.from(o.derived_pubkey, "hex"));
+  const v = verifySignedTx(o.signed_tx, o.commitment_sighash, Buffer.from(o.derived_pubkey, "hex"), Buffer.from(o.witness_script, "hex"));
   if (!v.ok) throw new Error(`${label}: MPC signature does not verify: ${v.reason}`);
   log(`CV-${serial} ${label}: real MPC signature verifies against the derived key; tx ${o.commitment_txid}`);
   report[label] = { serial, txid: o.commitment_txid, sighash: o.commitment_sighash, signed_tx: o.signed_tx };
