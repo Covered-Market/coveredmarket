@@ -119,7 +119,7 @@ if (process.env.ACCOUNT_FAUCET === "1" && cfg.networkId === "testnet") {
         // sub-account of the relayer with a little NEAR (gas is relayed anyway).
         accountId = `${id.replace(/\.testnet$/, "")}.${cfg.relayerId}`;
         if (accountId.length > 64) return res.status(400).json({ error: "name too long" });
-        try { await near.createSubAccount(accountId, pk, 10n ** 23n); }
+        try { await near.createSubAccount(accountId, pk, 5n * 10n ** 23n); } // 0.5 NEAR: an offer attaches a 0.1 NEAR deposit (mostly refunded) plus gas
         catch (e) { return res.status(/exist/i.test(String(e)) ? 409 : 500).json({ error: /exist/i.test(String(e)) ? "that name is taken" : (e as Error).message }); }
       }
       seen.set(ip, [...recent, Date.now()]);
