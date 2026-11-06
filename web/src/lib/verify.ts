@@ -3,7 +3,7 @@
  * verified | failed | unavailable. Clients are injected so this runs offline in tests.
  */
 import { buildSpend, verifySignedTx } from "./bip143.js";
-import { deriveAddress, derivePubkey, hex, scriptFromAddress, type Net } from "./derive.js";
+import { depositAddress, hex, scriptFromAddress, type Net } from "./derive.js";
 
 export type Status = "verified" | "failed" | "unavailable";
 export interface CheckResult { n: number; title: string; status: Status; detail: string }
@@ -11,11 +11,12 @@ export interface CheckResult { n: number; title: string; status: Status; detail:
 export interface Offer {
   serial: number; seller: string; buyer: string | null; size_sats: string; strike_units: string; strike_total_units: string; premium_units: string;
   expiry_s: string; created_s?: string; path: string; derived_pubkey: string; address: string; refund_address: string; buyer_address: string | null;
+  rescue_pubkey: string; unlock_s: string; witness_script: string; commitment_fee_sats?: string | null; prior_txids?: string[];
   collateral_txid: string | null; collateral_vout: number | null; collateral_value_sats: string | null;
   commitment_reason: string | null; commitment_txid: string | null; commitment_sighash: string | null; commitment_to_address: string | null;
   commitment_amount_sats: string | null; committed_at_s: string | null; signed_tx: string | null; escrow_units: string; state: string;
 }
-export interface Params { signer: string; light_client: string; usdc: string; network: Net; fee_sats: number; grace_s: number; mpc_root_key: string; derivation_prefix: string }
+export interface Params { signer: string; light_client: string; usdc: string; network: Net; fee_sats: number; grace_s: number; rescue_delay_s: number; mpc_root_key: string; derivation_prefix: string }
 export interface Accounting { claimable_total: string; escrow_total: string; near_balance: string }
 
 export interface Clients {
@@ -48,11 +49,12 @@ export async function runChecks(c: Clients, offer: Offer, params: Params, nowS: 
     return [ok ? "verified" : "failed", `code ${hash.slice(0, 10)}… ${hash === c.expected.codeHash ? "matches" : "differs from"} README; ${keys} access keys; signer/light client/USDC ${cfgOk ? "as published" : "DIFFER"}`];
   }));
 
-  out.push(await guard(2, "Address derivation", async () => {
-    const pk = hex.to(derivePubkey(params.mpc_root_key, params.derivation_prefix, c.expected.contract, offer.path));
-    const addr = deriveAddress(params.mpc_root_key, params.derivation_prefix, c.expected.contract, offer.path, net);
-    const ok = pk === offer.derived_pubkey && addr === offer.address;
-    return [ok ? "verified" : "failed", `${c.expected.contract} + ${offer.path} → ${addr}`];
+  out.push(await guard(2, "Address derivation and the seller's exit", async () => {
+    const unlock = Number(offer.expiry_s) + params.grace_s + params.rescue_delay_s;
+    const d = depositAddress(params.mpc_root_key, params.derivation_prefix, c.expected.contract, offer.path, hex.from(offer.rescue_pubkey), unlock, net);
+    const ok = hex.to(d.mpc33) === offer.derived_pubkey && d.address === offer.address && hex.to(d.witnessScript) === offer.witness_script && Number(offer.unlock_s) === unlock;
+    const when = new Date(unlock * 1000).toISOString().slice(0, 16).replace("T", " ");
+    return [ok ? "verified" : "failed", `${c.expected.contract} + ${offer.path} → ${d.address}; only that MPC key can spend it, or the seller's own rescue key after ${when} UTC`];
   }));
 
   out.push(await guard(3, "Collateral inclusion and current status", async () => {
@@ -62,7 +64,8 @@ export async function runChecks(c: Clients, offer: Offer, params: Params, nowS: 
     const sp = await c.btc.outspend(offer.collateral_txid, offer.collateral_vout!);
     const final = ["Kept", "Exercised", "Withdrawn"].includes(offer.state) || offer.state === "Signed";
     if (!final && sp.spent) return ["failed", `collateral already spent by ${sp.txid}`];
-    if (final && sp.spent && sp.txid !== offer.commitment_txid) return ["failed", `collateral spent by ${sp.txid}, not the committed ${offer.commitment_txid}`];
+    const versions = [offer.commitment_txid, ...(offer.prior_txids ?? [])];
+    if (final && sp.spent && !versions.includes(sp.txid ?? null)) return ["failed", `collateral spent by ${sp.txid}, not a committed version`];
     return [st.depth >= c.expected.minConf ? "verified" : "failed", `${offer.collateral_value_sats} sats at depth ${st.depth}; ${sp.spent ? "spent by the committed tx" : "unspent"}`];
   }));
 
@@ -93,16 +96,20 @@ export async function runChecks(c: Clients, offer: Offer, params: Params, nowS: 
     const toScript = scriptFromAddress(offer.commitment_to_address!, net);
     const expectedTo = offer.commitment_reason === "Exercise" ? offer.buyer_address : offer.refund_address;
     if (offer.commitment_to_address !== expectedTo) return ["failed", `commitment pays ${offer.commitment_to_address}, expected ${expectedTo}`];
-    const r = buildSpend({ collateralTxid: offer.collateral_txid!, vout: offer.collateral_vout!, valueSats: BigInt(offer.collateral_value_sats!), collateralScript: scriptFromAddress(offer.address, net), toScript, feeSats: BigInt(params.fee_sats) });
+    const ws = hex.from(offer.witness_script);
+    const fee = BigInt(offer.commitment_fee_sats ?? params.fee_sats);
+    const r = buildSpend({ collateralTxid: offer.collateral_txid!, vout: offer.collateral_vout!, valueSats: BigInt(offer.collateral_value_sats!), witnessScript: ws, toScript, feeSats: fee });
     if (r.txid !== offer.commitment_txid || r.sighash !== offer.commitment_sighash) return ["failed", "rebuilt transaction differs from the commitment"];
     if (!offer.signed_tx) return ["verified", `rebuilt ${r.txid.slice(0, 12)}…; not signed yet`];
-    const v = verifySignedTx(offer.signed_tx, r.sighash, hex.from(offer.derived_pubkey));
-    return [v.ok ? "verified" : "failed", v.ok ? `signature verifies against the derived key; pays ${r.amountSats} sats` : v.reason!];
+    const v = verifySignedTx(offer.signed_tx, r.sighash, hex.from(offer.derived_pubkey), ws);
+    const bumped = offer.prior_txids?.length ? `; fee raised ${offer.prior_txids.length}× to ${fee} sats` : "";
+    return [v.ok ? "verified" : "failed", v.ok ? `signature verifies against the derived key; pays ${r.amountSats} sats${bumped}` : v.reason!];
   }));
 
   out.push(await guard(7, "Bitcoin confirmation", async () => {
     if (!offer.commitment_txid) return ["verified", "no settlement yet"];
-    const st = await c.btc.txStatus(offer.commitment_txid);
+    let st = await c.btc.txStatus(offer.commitment_txid);
+    for (const prior of offer.prior_txids ?? []) { if (st?.confirmed) break; const p = await c.btc.txStatus(prior); if (p?.confirmed) st = p; }
     if (!st) return [offer.signed_tx ? "failed" : "verified", offer.signed_tx ? "signed but not seen on Bitcoin; broadcast it" : "not signed yet"];
     return [st.confirmed ? "verified" : "failed", st.confirmed ? `confirmed at depth ${st.depth}` : "in mempool"];
   }));

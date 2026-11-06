@@ -45,12 +45,9 @@ for (const k of ["gas1", "gas2"]) { const g = await account(k); await g.acc.tran
 
 await usdc.acc.signAndSendTransaction({ receiverId: usdc.id, actions: [actionCreators.deployContract(wasm("mock_usdc")), actionCreators.functionCall("new", {}, 100n * TGAS, 0n)] });
 const rootKey: string = await view(SIGNER, "public_key", { domain_id: 0 });
-const params = {
-  signer: SIGNER, light_client: LC, usdc: usdc.id, usdc_decimals: 6, network: "Testnet4", // hrp `tb`: testnet3 and testnet4 alike
-  min_conf: 1, fee_sats: 300, grace_s: 600, buy_cutoff_s: 0, min_lead_s: 300, escrow_timeout_s: 3600, min_size_sats: 100000,
-  expiry_step_s: 60, expiry_offset_s: 0, mpc_root_key: rootKey, derivation_prefix: "near-mpc-recovery v0.1.0 epsilon derivation:",
-  sign_format: 2, sign_deposit: "1",
-};
+// Reviewed parameters for testnet (params/testnet.json; network "Testnet4" = hrp `tb`, testnet3 and testnet4 alike).
+const { _comment, ...tuned } = JSON.parse(readFileSync("/params/testnet.json", "utf8"));
+const params = { ...tuned, signer: SIGNER, light_client: LC, usdc: usdc.id, mpc_root_key: rootKey };
 await covered.acc.signAndSendTransaction({ receiverId: covered.id, actions: [actionCreators.deployContract(wasm("covered")), actionCreators.functionCall("new", { params }, 100n * TGAS, 0n)] });
 await covered.acc.callFunction({ contractId: usdc.id, methodName: "storage_deposit", args: {}, deposit: 10n ** 22n, gas: 30n * TGAS });
 // Lock: the contract keeps no key. From here on only its own code can act for it.

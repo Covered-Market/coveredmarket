@@ -48,6 +48,7 @@ The first valid report of an issue gets the reward. Several reports with one roo
 - The contract: `contracts/covered` (Rust), and any deployed copy we link from this repository.
 - The Verify checks in `web/src/lib/verify.ts`: a check that passes when it should fail.
 - Address derivation and Bitcoin transaction building, in Rust and TypeScript.
+- The seller's exit: the rescue kit made in the browser and `bin/covered rescue`, where a flaw lets anyone but the seller sweep, or stops the seller sweeping after the unlock.
 - The relayer (`relayer/`), where a bug lets it do more than relay, delay or pay gas.
 - The deployed app at the testnet site, for issues that would mislead a user into losing funds.
 

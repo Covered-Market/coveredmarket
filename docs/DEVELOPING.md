@@ -67,5 +67,6 @@ infra/compose.yaml          cloud stack            infra/compose.local.yaml  loc
 infra/local/                sandbox image, contract builder image, bootstrap
 infra/cloud/                Terraform, cloud-init, testnet first-start bootstrap   infra/compose.testnet.yaml  its overlay
 docs/                       SPEC, SECURITY-MODEL, DEVELOPING, DEPLOY; readme/ holds README images
-scripts/                    regtest round trip, txoutproof converter, testnet contract deploy, readme/ image builder
+params/                     per-network contract parameters (local, testnet, mainnet)
+scripts/                    regtest round trip, txoutproof converter, mainnet deploy, readme/ image builder
 ```
