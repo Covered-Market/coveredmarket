@@ -3,6 +3,7 @@ import { btc8, C, dateUtc, usd } from "../ds";
 import { call, CFG, verifyClients, type Wallet } from "../lib/near";
 import { runChecks, type CheckResult } from "../lib/verify";
 import { stampFor, useOffer, useParams } from "./hooks";
+import { btcAddr, btcTx, Ext, nearAcct, OnChainRecord } from "../Explorer";
 
 export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | null }) {
   const { Certificate, Button, Countdown, StatTile, SettlementTimeline, Notice, Figure, Stamp } = C();
@@ -62,7 +63,7 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
         {offer.state === "Sold" && now < expiry + grace && <Countdown totalSeconds={expiry - Number(offer.created_s ?? expiry - 86400) + grace} secondsLeft={Math.max(0, expiry + grace - now)} label={now < expiry ? "Until the exercise window" : "Exercise window closes in"} note={dateUtc(expiry + grace)} />}
         {offer.commitment_reason && (
           <div style={{ display: "flex", alignItems: "center", gap: 16, border: "1px solid var(--rule)", background: "var(--paper-raised)", padding: 20 }}>
-            <div><div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>{offer.commitment_reason === "Exercise" ? "Delivered to the buyer" : "Returned to the seller"}</div><Figure value={Number(offer.commitment_amount_sats) / 1e8} kind="btc" size="xl" /><div className="body-small" style={{ color: "var(--ink-muted)" }}>to {offer.commitment_to_address}; fee {params?.fee_sats ?? "—"} sats borne by the recipient</div></div>
+            <div><div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>{offer.commitment_reason === "Exercise" ? "Delivered to the buyer" : "Returned to the seller"}</div><Figure value={Number(offer.commitment_amount_sats) / 1e8} kind="btc" size="xl" /><div className="body-small" style={{ color: "var(--ink-muted)" }}>to {offer.commitment_to_address && <Ext href={btcAddr(offer.commitment_to_address)}>{offer.commitment_to_address}</Ext>}; fee {params?.fee_sats ?? "—"} sats borne by the recipient</div></div>
           </div>
         )}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -70,6 +71,18 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
           <StatTile label="Strike total" value={Number(offer.strike_total_units) / 1e6} kind="usd" note={offer.escrow_units !== "0" ? "in escrow until delivery confirms" : "paid by the buyer to exercise"} />
         </div>
         <SettlementTimeline steps={steps as any} />
+        <OnChainRecord rows={[
+          ["Deposit address", offer.address, btcAddr],
+          ["Deposit tx", offer.collateral_txid, btcTx],
+          [offer.commitment_reason === "Exercise" ? "Delivery tx" : "Return tx", offer.commitment_txid, btcTx],
+          ["Paid to", offer.commitment_to_address, btcAddr],
+          ["Seller refund address", offer.refund_address, btcAddr],
+          ["Seller", offer.seller, nearAcct],
+          ["Buyer", offer.buyer, nearAcct],
+          ["Contract", CFG.contract, nearAcct],
+          ["Signer", CFG.signer, nearAcct],
+          ["Light client", CFG.lightClient, nearAcct],
+        ]} />
         <Notice>Only {CFG.contract} can ask NEAR's signing network ({CFG.signer}) to spend {offer.address.slice(0, 8)}…. It does so for exactly one transaction, committed on chain before the request. Covered's servers can only relay.</Notice>
       </div>
     </div>

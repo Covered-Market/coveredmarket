@@ -1,5 +1,6 @@
 import express from "express";
 import { Core } from "./btc/core.js";
+import { failoverFetch } from "./btc/failover.js";
 import { esplora, type Esplora } from "./btc/proof.js";
 import { checkDelegate } from "./metatx.js";
 import { decodeSignedDelegate, relayResult, viewOf } from "./near/delegate.js";
@@ -13,7 +14,7 @@ const cfg = {
   relayerId: process.env.RELAYER_ID, relayerKey: process.env.RELAYER_KEY, covered: env("COVERED_ID", "covered.testnet"),
   usdc: env("USDC_ID", "usdc.fakes.testnet"), lightClient: process.env.LIGHT_CLIENT_ID, lightClientMock: process.env.LIGHT_CLIENT_MOCK === "1",
   btcBackend: env("BTC_BACKEND", "esplora") as "esplora" | "core",
-  esplora: env("ESPLORA", "https://mempool.space/testnet/api"),
+  esplora: env("ESPLORA", "https://mempool.space/testnet/api,https://blockstream.info/testnet/api"),
   core: { url: env("BITCOIN_RPC", "http://bitcoind:18443"), user: env("BITCOIN_RPC_USER", "covered"), pass: env("BITCOIN_RPC_PASS", "covered") },
   port: Number(env("PORT", "8787")), tickMs: Number(env("TICK_MS", "30000")),
   fixedSpot: process.env.FIXED_SPOT_USD ? Number(process.env.FIXED_SPOT_USD) : undefined,
@@ -22,6 +23,7 @@ const cfg = {
 const near = await nearClient(cfg);
 const core = cfg.btcBackend === "core" ? new Core(cfg.core) : null;
 if (core) await core.ensureWallet();
+const btcGet = failoverFetch(cfg.esplora);
 const api: Esplora = core ?? esplora(cfg.esplora);
 const app = express();
 app.use(express.json({ limit: "256kb" }));
@@ -101,8 +103,8 @@ app.listen(cfg.port, () => console.log(`relayer on :${cfg.port} → ${cfg.covere
 const services: Services = {
   near,
   esplora: api,
-  broadcast: core ? (raw) => core.broadcast(raw) : async (raw) => { const r = await fetch(`${cfg.esplora}/tx`, { method: "POST", body: raw }); if (!r.ok) throw new Error(await r.text()); return r.text(); },
-  addressTxs: core ? (a) => core.addressTxs(a) : async (a) => (await fetch(`${cfg.esplora}/address/${a}/txs`)).json(),
+  broadcast: core ? (raw) => core.broadcast(raw) : async (raw) => { const r = await btcGet(`/tx`, { method: "POST", body: raw }); if (!r.ok) throw new Error(await r.text()); return r.text(); },
+  addressTxs: core ? (a) => core.addressTxs(a) : async (a) => (await btcGet(`/address/${a}/txs`)).json(),
   log: (m: string) => console.log(new Date().toISOString(), m),
   // In local/sandbox mode the light client is a mock: tell it about inclusions before proving them.
   beforeProof: cfg.lightClientMock && cfg.lightClient ? async (txid, blockHash, depth) => { await near.callAny(cfg.lightClient!, "set_included", { tx_id: txid, block_hash: blockHash, depth }); } : undefined,

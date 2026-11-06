@@ -95,6 +95,15 @@ resource "digitalocean_record" "a" {
   ttl    = 300
 }
 
+resource "digitalocean_record" "wildcard" {
+  count  = var.domain == "" ? 0 : 1
+  domain = digitalocean_domain.root[0].id
+  type   = "A"
+  name   = "*"
+  value  = digitalocean_droplet.vm.ipv4_address
+  ttl    = 300
+}
+
 resource "digitalocean_record" "www" {
   count  = var.domain == "" ? 0 : 1
   domain = digitalocean_domain.root[0].id
@@ -153,6 +162,10 @@ output "site" {
 
 output "url" {
   value = "https://${local.site}"
+}
+
+output "mainnet_url" {
+  value = "https://mainnet.${local.site}"
 }
 
 output "ssh" {

@@ -1,3 +1,4 @@
+import { btcProviders } from "../lib/btc";
 import { C } from "../ds";
 import { CFG, type Wallet } from "../lib/near";
 
@@ -12,7 +13,7 @@ export function Try({ wallet, onCreate }: { wallet: Wallet | null; onCreate: () 
   ];
   const live = [
     ["Contract", CFG.contract, "live"], ["Chain Signatures", CFG.signer, "live"], ["Bitcoin light client", CFG.lightClient, "live"],
-    ["USDC", CFG.usdc, "live"], ["Esplora", CFG.esplora, "live"], ["Reference price", "median of 5 tickers, display only", "live"],
+    ["USDC", CFG.usdc, "live"], ["Bitcoin data", btcProviders(), "live"], ["Reference price", "median of 5 tickers, display only", "live"],
   ];
   return (
     <div style={{ padding: "32px 48px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 56, alignItems: "start" }}>

@@ -40,7 +40,8 @@ case "$cmd" in
     if ! grep -qE '^COVERED_ID=.+' .env; then
       docker compose --env-file .env -f infra/compose.yaml -f infra/compose.testnet.yaml run --rm --build bootstrap-testnet
     fi
-    docker compose --env-file .env -f infra/compose.yaml up -d --build --remove-orphans && docker image prune -f >/dev/null
+    PROFILES=(); grep -qE '^COVERED_ID=.+' .env.mainnet 2>/dev/null && PROFILES=(--profile mainnet)
+    docker compose --env-file .env -f infra/compose.yaml "${PROFILES[@]}" up -d --build --remove-orphans && docker image prune -f >/dev/null
     for i in $(seq 1 90); do curl -fsS localhost/api/health >/dev/null 2>&1 && break; sleep 2; done
     curl -fsS localhost/api/health; echo ;;
   provision) # create or update the VM (+ DNS if a domain is set) from infra/cloud/terraform.tfvars or TF_VAR_*, then deploy
@@ -56,7 +57,8 @@ case "$cmd" in
     for i in $(seq 1 60); do "${SSH[@]}" 'test -f /var/lib/covered-ready && docker info >/dev/null 2>&1' 2>/dev/null && break; sleep 10
       [ "$i" = 60 ] && { echo "VM not ready"; exit 1; }; done
     git archive --format=tar HEAD | "${SSH[@]}" 'cd /opt/covered && find . -mindepth 1 -maxdepth 1 ! -name .env -exec rm -rf {} + && tar -x'
-    "${SSH[@]}" "cd /opt/covered && { [ -z '$site' ] || { sed -i '/^DOMAIN=/d' .env; echo 'DOMAIN=$site' >> .env; }; } && bin/covered serve"
+    mainnet=${MAINNET_SITE:-${site:+mainnet.$site}}
+    "${SSH[@]}" "cd /opt/covered && { [ -z '$site' ] || { sed -i '/^DOMAIN=/d; /^MAINNET_DOMAIN=/d' .env; printf 'DOMAIN=%s\nMAINNET_DOMAIN=%s\n' '$site' '$mainnet' >> .env; }; } && bin/covered serve"
     [ -n "$site" ] && { for i in $(seq 1 60); do curl -fsS "https://$site/api/health" >/dev/null 2>&1 && break; sleep 5; done; echo "live: https://$site"; } ;;
   destroy)   (cd infra/cloud && terraform destroy "$@") ;;
   help|*)    cat <<'H'
