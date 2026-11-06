@@ -23,6 +23,15 @@ const p = new JsonRpcProvider({ url: RPC }, { retries: 8, wait: 1500, backoff: 1
 const TGAS = 10n ** 12n, NEAR = 10n ** 24n;
 const tag = Date.now().toString(36);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** Resend a transaction the network REJECTED for its nonce (it never ran): a load-balanced RPC node a block
+ *  behind can hand out the nonce the previous transaction just used. Any other error is final. */
+async function retryNonce<T>(f: () => Promise<T>, tries = 6): Promise<T> {
+  for (let i = 0; ; i++) {
+    try { return await f(); }
+    catch (e) { if (i + 1 >= tries || !/InvalidNonce|nonce .*must be larger/i.test(String((e as Error)?.message ?? e))) throw e; await new Promise((r) => setTimeout(r, 1500 * (i + 1))); }
+  }
+}
+
 
 // A redeploy funds the new accounts from the existing relayer (sub-accounts of it), so only the very first
 // start needs the testnet faucet — which rate-limits an IP to a handful of accounts per day.
@@ -37,7 +46,7 @@ if (funderId && funderKey) {
 async function sub(prefix: string, near: bigint) {
   const kp = KeyPairEd25519.fromRandom();
   const id = `${prefix}-${tag}.${funderId}`;
-  await funder!.createAccount(id, kp.getPublicKey(), near * NEAR);
+  await retryNonce(() => funder!.createAccount(id, kp.getPublicKey(), near * NEAR));
   await sleep(1500);
   return { id, kp, acc: new Account(id, p, new KeyPairSigner(kp)) };
 }
@@ -67,15 +76,15 @@ if (funder) {
   for (const k of ["gas1", "gas2"]) { const g = await account(k); await g.acc.transfer({ receiverId: relayer.id, amount: 9n * NEAR }); }
 }
 
-await usdc.acc.signAndSendTransaction({ receiverId: usdc.id, actions: [actionCreators.deployContract(wasm("mock_usdc")), actionCreators.functionCall("new", {}, 100n * TGAS, 0n)] });
+await retryNonce(() => usdc.acc.signAndSendTransaction({ receiverId: usdc.id, actions: [actionCreators.deployContract(wasm("mock_usdc")), actionCreators.functionCall("new", {}, 100n * TGAS, 0n)] }));
 const rootKey: string = await view(SIGNER, "public_key", { domain_id: 0 });
 // Reviewed parameters for testnet (params/testnet.json; network "Testnet4" = hrp `tb`, testnet3 and testnet4 alike).
 const { _comment, ...tuned } = JSON.parse(readFileSync("/params/testnet.json", "utf8"));
 const params = { ...tuned, signer: SIGNER, light_client: LC, usdc: usdc.id, mpc_root_key: rootKey };
-await covered.acc.signAndSendTransaction({ receiverId: covered.id, actions: [actionCreators.deployContract(wasm("covered")), actionCreators.functionCall("new", { params }, 100n * TGAS, 0n)] });
-await covered.acc.callFunction({ contractId: usdc.id, methodName: "storage_deposit", args: {}, deposit: 10n ** 22n, gas: 30n * TGAS });
+await retryNonce(() => covered.acc.signAndSendTransaction({ receiverId: covered.id, actions: [actionCreators.deployContract(wasm("covered")), actionCreators.functionCall("new", { params }, 100n * TGAS, 0n)] }));
+await retryNonce(() => covered.acc.callFunction({ contractId: usdc.id, methodName: "storage_deposit", args: {}, deposit: 10n ** 22n, gas: 30n * TGAS }));
 // Lock: the contract keeps no key. From here on only its own code can act for it.
-await covered.acc.signAndSendTransaction({ receiverId: covered.id, actions: [actionCreators.deleteKey(covered.kp.getPublicKey())] });
+await retryNonce(() => covered.acc.signAndSendTransaction({ receiverId: covered.id, actions: [actionCreators.deleteKey(covered.kp.getPublicKey())] }));
 // Reads hit a load-balanced RPC that can trail the node that ran the transaction; wait for it to catch up.
 for (let i = 0; ; i++) {
   const keys: any = await p.query({ request_type: "view_access_key_list", account_id: covered.id, finality: "final" });
