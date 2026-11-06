@@ -16,7 +16,7 @@ export function Try({ wallet, onCreate }: { wallet: Wallet | null; onCreate: () 
     ["USDC", CFG.usdc, "live"], ["Bitcoin data", btcProviders(), "live"], ["Reference price", "median of 5 tickers, display only", "live"],
   ];
   return (
-    <div style={{ padding: "32px 48px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 56, alignItems: "start" }}>
+    <div className="cv-split cv-pad" style={{ padding: "32px 48px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 56, alignItems: "start" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
           <div className="label" style={{ textTransform: "uppercase", color: "var(--gilt-ink)", marginBottom: 8 }}>For judges · no real funds</div>

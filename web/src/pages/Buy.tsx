@@ -21,7 +21,7 @@ export function Buy({ serial, wallet, onCreate }: { serial: number; wallet: Wall
   };
   const strikeTotal = usd(offer.strike_total_units);
   return (
-    <div style={{ padding: "32px 48px", display: "grid", gridTemplateColumns: "380px 1fr", gap: 56, alignItems: "start" }}>
+    <div className="cv-split cv-pad" style={{ padding: "32px 48px", display: "grid", gridTemplateColumns: "380px 1fr", gap: 56, alignItems: "start" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div className="body-small" style={{ color: "var(--ink-muted)" }}>Market / <b style={{ color: "var(--ink)" }}>CV-{serial}</b></div>
         <OfferCard offer={toOfferCard(offer, spot)} />

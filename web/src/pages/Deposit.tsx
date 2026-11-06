@@ -2,6 +2,7 @@ import { btcJson, btcText } from "../lib/btc";
 import { btcAddr, btcTx, Ext } from "../Explorer";
 import { detectBtcWallets } from "../lib/btcwallets";
 import { PayHelpers } from "./PayHelpers";
+import { BlockWait } from "../ChainClock";
 import { useEffect, useState } from "react";
 import { btc8, C } from "../ds";
 import { CFG, type Wallet } from "../lib/near";
@@ -33,7 +34,7 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
     { title: "Proven on NEAR", detail: offer.state === "Created" ? "the relayer submits the proof; anyone can" : "funded", state: offer.state !== "Created" ? ("done" as const) : seen && seen.depth >= minConf ? ("now" as const) : ("todo" as const) },
   ];
   return (
-    <div style={{ padding: "32px 48px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 56 }}>
+    <div className="cv-split cv-pad" style={{ padding: "32px 48px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 56 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
           <div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)", marginBottom: 8 }}>Step 2 of 3 · Deposit · CV-{serial}</div>
@@ -57,6 +58,7 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
         <div style={{ border: "1px solid var(--rule)", background: "var(--paper-raised)", padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
           <Coin amount={Number(offer.size_sats) / 1e8} size="lg" />
           <SettlementTimeline steps={steps} />
+          {offer.state === "Created" && (seen && !seen.confirmed ? <BlockWait blocks={minConf} what="to include your deposit" /> : seen && seen.depth < minConf ? <BlockWait blocks={minConf - seen.depth} what="for the remaining confirmations" /> : seen ? <span className="body-small" style={{ color: "var(--ink-muted)" }}>Confirmed. The relayer submits the proof within a minute, once the light client has the block's header.</span> : null)}
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <Button variant="primary" size="lg" href={`#/c/${serial}`} disabled={offer.state === "Created"}>{offer.state === "Created" ? "Waiting for the proof" : "Open the certificate"}</Button>
