@@ -85,7 +85,7 @@ From your laptop (Terraform 1.6+): `cp infra/cloud/terraform.tfvars.example infr
 
 CI keeps the Terraform state as the `tfstate` artifact of the `cloud` workflow (no secrets in it). Use either the workflow or your laptop for a given deployment, not both. `testnet.yml`'s `cloud-rehearsal` job runs the VM's exact start-up (`bin/covered serve`) on a clean runner against live testnet and creates a visitor wallet through it.
 
-Deploying the **contract** to testnet/mainnet is a separate, deliberate step (`scripts/deploy-testnet.sh`): build, deploy with init params, then delete the full-access key on camera and put the code hash in `.env` as `CODE_HASH` so Verify check 1 can confirm it.
+**Contracts.** Testnet: the VM deploys and locks its own on first start (above); `gh workflow run cloud.yml -f action=reset-contract` swaps in a fresh one after a contract change (the demo faucet's key and coins are kept). Mainnet: `scripts/deploy-mainnet.ts` with a funded account — read-only preflight, deploy with the reviewed `params/mainnet.json`, **`selftest_sign` against the real MPC before anything is locked** (it stops with the key still present if the signature does not verify), then delete the key and write `.env.mainnet`. Parameters for every network live in `params/{local,testnet,mainnet}.json`; every deployer and the sandbox tests read them.
 
 ## Configuration
 Everything is read from `.env` (local: written by the bootstrap; cloud: written by the testnet bootstrap on first start, or supplied as `env_file`). Keys: `MODE` (local|testnet|mainnet), `ACCOUNT_FAUCET`/`USDC_MINT` (testnet wallet faucet), `NEAR_NETWORK`, `NEAR_RPC`, `COVERED_ID`, `USDC_ID`, `SIGNER_ID`, `LIGHT_CLIENT_ID`, `RELAYER_ID`, `RELAYER_KEY`, `BTC_BACKEND` (esplora|core), `ESPLORA`, `EXPLORER_BTC`, `EXPLORER_NEAR`, `MIN_CONF`, `CODE_HASH`, `DOMAIN` (cloud only). The web app reads the same values from `/config.json` at load, so one image serves every environment.
@@ -103,9 +103,24 @@ docs/SPEC.md                the specification
 scripts/                    regtest round trip, txoutproof converter, testnet contract deploy
 ```
 
+## Mainnet readiness
+What stands between this code and real money, and how each is handled:
+
+| Risk | Handling | Checked by |
+|---|---|---|
+| Mainnet services differ from testnet | Read-only probe of `v1.signer` (3.17), `btc-client.bridge.near` and Circle USDC: our SHA3 derivation equals the signer's own `derived_public_key`; our borsh proof of a real mainnet tx is accepted, tampered and over-deep ones refused; USDC is 6 decimals and needs 0.00125 NEAR registration | `mainnet-probe.yml` (on change + weekly) |
+| The real `sign` call | `selftest_sign()`: the contract has the MPC sign a constant under a reserved path and verifies it on chain. The mainnet deploy stops before locking if it fails | `e2e/testnet.ts` against `v1.signer-prod.testnet`; `scripts/deploy-mainnet.ts` |
+| NEAR or the MPC network stops | **The seller's exit.** Every deposit address is P2WSH of `IF <mpc> CHECKSIG ELSE <unlock> CLTV DROP <rescue> CHECKSIG ENDIF`. After `unlock = expiry + grace + rescue_delay` (30 days on mainnet) the seller's own rescue key sweeps the coins with nothing but Bitcoin (`bin/covered rescue kit.json <address>`). The rescue key is made in the browser and saved as a kit when the offer is created. No settlement may be committed in the last half of the rescue delay | contract tests through libbitcoinconsensus (valid at unlock, invalid one second before, wrong keys refused); TS tool pinned byte for byte to the Rust reference; `e2e-stack` sweeps a real regtest deposit (refused before unlock, accepted after) |
+| Bitcoin fees spike after a settlement is signed | Settlements signal RBF. `bump_fee` (anyone, after `fee_bump_after_s`) re-signs the same input to the same single recipient with double the fee, up to `max_fee_sats`; whichever version confirms settles the offer. The relayer bumps stuck settlements automatically | contract + sandbox tests (old version still settles), relayer planner tests |
+| Real USDC pays only registered accounts | `claim` registers the payee first (NEP-145 `storage_deposit`, refunded if already registered), from a 0.00125 NEAR reserve each offer keeps | sandbox test with a seller who never held USDC; `e2e/testnet.ts` |
+| Unaudited code | Per-deployment `max_size_sats` (0.01 BTC on mainnet) | contract test |
+| Reorgs | `min_conf` per network: 3 on mainnet (deposit, exercise re-check and spend proof) | `params/mainnet.json` |
+
+Still not engineering: an audit, and the legal question of offering options to the public.
+
 ## Invariants to read first (`contracts/covered/src/lib.rs`: `commit_and_sign`, `accept_signature`, `ft_on_transfer`)
 1. A commitment (recipient script, unsigned tx, sighash, txid) is written once, before the first `sign`, and never replaced; retries re-request the same sighash.
-2. The committed tx spends exactly the collateral outpoint to exactly one output: the seller's refund script, or the buyer's script only when `reason == Exercise`.
+2. The committed tx spends exactly the collateral outpoint to exactly one output: the seller's refund script, or the buyer's script only when `reason == Exercise`. A fee bump changes only the fee (within `max_fee_sats`), never the input or the recipient.
 3. A signature is accepted only if it verifies against the derived key for the committed sighash.
 4. USDC enters only via `ft_on_transfer` from the pinned token with `sender_id` as the acting party; it leaves only via `claim` / `reclaim_strike` to the owner of the balance. `get_accounting()` equals the token balance.
 

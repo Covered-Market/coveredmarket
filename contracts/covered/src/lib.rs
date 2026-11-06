@@ -24,9 +24,12 @@ use near_sdk::{
 const GAS_LC_VERIFY: Gas = Gas::from_tgas(30);
 const GAS_SIGN: Gas = Gas::from_tgas(150);
 const GAS_FT_TRANSFER: Gas = Gas::from_tgas(15);
+const GAS_STORAGE_DEPOSIT: Gas = Gas::from_tgas(10);
 const GAS_CB_SMALL: Gas = Gas::from_tgas(15);
 const GAS_CB_SIGN: Gas = Gas::from_tgas(30);
 const RETRY_DELAY_S: u64 = 600;
+/// Reserved derivation path for `selftest_sign`; offers use `<seller>/CV-<serial>`.
+const SELFTEST_PATH: &str = "covered/selftest";
 const DUST_SATS: u64 = 546;
 
 #[near(serializers = [json, borsh])]
@@ -53,7 +56,9 @@ pub enum Reason {
     Recovery,
 }
 
-/// Written once before the first signature request; never replaced (G5).
+/// Written once before the first signature request (G5). Its outpoint and recipient never change.
+/// Only the fee may rise, via `bump_fee`, within `max_fee_sats`: each bump is a new version of the same
+/// spend; earlier versions stay valid (any one of them confirming settles the offer).
 #[near(serializers = [json, borsh])]
 #[derive(Clone, Debug)]
 pub struct Commitment {
@@ -66,6 +71,10 @@ pub struct Commitment {
     pub txid: [u8; 32],
     pub signed_tx: Option<Vec<u8>>,
     pub committed_at_s: u64,
+    pub fee_sats: u64,
+    /// Txids of earlier, signed versions (lower fees).
+    pub prior_txids: Vec<[u8; 32]>,
+    pub signed_at_s: Option<u64>,
 }
 
 #[near(serializers = [json, borsh])]
@@ -92,6 +101,17 @@ pub struct Params {
     /// 1 = `{payload, path, key_version}`, 2 = `{payload_v2: {Ecdsa}, path, domain_id}`.
     pub sign_format: u8,
     pub sign_deposit: NearToken,
+    /// Largest offer this deployment accepts (a deploy-time cap while the code is unaudited).
+    pub max_size_sats: u64,
+    /// Fee bumps double the settlement fee up to this many sats.
+    pub max_fee_sats: u64,
+    /// A signed settlement may be bumped this long after its last signature if still unproven.
+    pub fee_bump_after_s: u64,
+    /// The seller's exit unlocks this long after expiry + grace (absolute time, fixed per offer).
+    pub rescue_delay_s: u64,
+    /// NEAR attached to `storage_deposit` when paying an account the token has not seen
+    /// (Circle USDC: 0.00125 NEAR). Reserved from each offer's creation deposit.
+    pub usdc_storage_deposit: NearToken,
 }
 
 #[near(serializers = [json, borsh])]
@@ -108,6 +128,11 @@ pub struct Offer {
     pub created_s: u64,
     pub path: String,
     pub derived_pubkey: Vec<u8>,
+    /// The seller's rescue key (compressed) and when its branch unlocks (Unix time).
+    pub rescue_pubkey: Vec<u8>,
+    pub unlock_s: u64,
+    pub witness_script: Vec<u8>,
+    /// P2WSH of `witness_script`: the deposit address.
     pub script_pubkey: Vec<u8>,
     pub refund_script: Vec<u8>,
     pub buyer_script: Option<Vec<u8>>,
@@ -128,6 +153,9 @@ pub struct OfferTerms {
     pub expiry_s: U64,
     /// Seller's own address; coins return here. bech32 for the configured network.
     pub refund_address: String,
+    /// Compressed public key (hex) of the seller's rescue key: after `unlock_s` it alone can move the
+    /// coins, without NEAR. Keep its private half offline (the app's rescue kit).
+    pub rescue_pubkey: String,
 }
 
 #[near(serializers = [json])]
@@ -170,6 +198,9 @@ pub struct OfferView {
     pub created_s: U64,
     pub path: String,
     pub derived_pubkey: String,
+    pub rescue_pubkey: String,
+    pub unlock_s: U64,
+    pub witness_script: String,
     pub address: String,
     pub refund_address: String,
     pub buyer_address: Option<String>,
@@ -182,6 +213,9 @@ pub struct OfferView {
     pub commitment_to_address: Option<String>,
     pub commitment_amount_sats: Option<U64>,
     pub committed_at_s: Option<U64>,
+    pub commitment_fee_sats: Option<U64>,
+    pub prior_txids: Vec<String>,
+    pub signed_at_s: Option<U64>,
     pub signed_tx: Option<String>,
     pub escrow_units: U128,
     pub retry_after_s: Option<U64>,
@@ -234,6 +268,9 @@ impl Contract {
         require!(params.sign_format == 1 || params.sign_format == 2, "sign_format must be 1 or 2");
         require!(params.fee_sats > 0 && params.min_size_sats > params.fee_sats + DUST_SATS, "bad fee/min_size");
         require!(params.expiry_step_s > 0 && params.expiry_offset_s < params.expiry_step_s, "bad expiry grid");
+        require!(params.max_size_sats >= params.min_size_sats, "max_size below min_size");
+        require!(params.max_fee_sats >= params.fee_sats && params.max_fee_sats + DUST_SATS < params.min_size_sats, "bad max_fee");
+        require!(params.rescue_delay_s >= 2 * params.fee_bump_after_s && params.rescue_delay_s > 0, "rescue delay must leave time to settle and bump");
         Self {
             params,
             root_key,
@@ -258,6 +295,7 @@ impl Contract {
         let p = &self.params;
         let now = now_s();
         require!(terms.size_sats.0 >= p.min_size_sats, "size below minimum");
+        require!(terms.size_sats.0 <= p.max_size_sats, "size above this deployment's cap");
         require!(terms.strike_units.0 > 0 && terms.premium_units.0 > 0, "strike and premium must be > 0");
         require!(terms.expiry_s.0 >= now + p.min_lead_s, "expiry too soon");
         require!(terms.expiry_s.0 % p.expiry_step_s == p.expiry_offset_s, "expiry not on the allowed grid (production: 08:00 UTC)");
@@ -275,7 +313,15 @@ impl Contract {
             &path,
         )
         .unwrap_or_else(|| env::panic_str("derivation failed"));
-        let script_pubkey = btc::p2wpkh_script(&derived_pubkey);
+        let rescue_pubkey: [u8; 33] = hex::decode(&terms.rescue_pubkey)
+            .ok()
+            .and_then(|b| b.try_into().ok())
+            .filter(|b: &[u8; 33]| k256::PublicKey::from_sec1_bytes(b).is_ok())
+            .unwrap_or_else(|| env::panic_str("rescue_pubkey must be a 33-byte compressed public key (hex)"));
+        require!(rescue_pubkey != derived_pubkey, "rescue key must be the seller's own");
+        let unlock_s = terms.expiry_s.0 + p.grace_s + p.rescue_delay_s;
+        let witness_script = btc::deposit_witness_script(&derived_pubkey, &rescue_pubkey, unlock_s);
+        let script_pubkey = btc::p2wsh_script(&witness_script);
 
         let storage_before = env::storage_usage();
         let offer = Offer {
@@ -289,6 +335,9 @@ impl Contract {
             created_s: now,
             path,
             derived_pubkey: derived_pubkey.to_vec(),
+            rescue_pubkey: rescue_pubkey.to_vec(),
+            unlock_s,
+            witness_script,
             script_pubkey,
             refund_script,
             buyer_script: None,
@@ -302,7 +351,7 @@ impl Contract {
         self.offers.insert(serial, offer);
         self.created.insert(serial);
         self.index_account(&seller, serial);
-        self.charge_storage(storage_before);
+        self.charge_storage(storage_before, self.params.usdc_storage_deposit);
         events::emit("offer_created", serial, serde_json::json!({ "seller": seller }));
         serial
     }
@@ -391,7 +440,7 @@ impl Contract {
         let (vout, value, _) = paying[0];
         let outpoint = Outpoint { txid, vout: *vout, value_sats: *value };
         require!(!self.outpoints.contains(&outpoint), "outpoint already used");
-        let unsigned = btc::build_spend(&outpoint, &offer.script_pubkey, &offer.refund_script, self.params.fee_sats)
+        let unsigned = btc::build_spend(&outpoint, &offer.witness_script, &offer.refund_script, self.params.fee_sats)
             .unwrap_or_else(|| env::panic_str("amount too small to recover"));
         let pref = ProofRef::from_proof(&proof, txid);
         self.lc_verify(&pref, self.params.min_conf).then(
@@ -426,6 +475,9 @@ impl Contract {
             txid,
             signed_tx: None,
             committed_at_s: now_s(),
+            fee_sats: self.params.fee_sats,
+            prior_txids: vec![],
+            signed_at_s: None,
         };
         self.outpoints.insert(outpoint.clone());
         self.recoveries.insert((serial, outpoint.clone()), c);
@@ -449,8 +501,8 @@ impl Contract {
         if c.signed_tx.is_some() {
             return true;
         }
-        let pubkey = self.offer(serial).pk33();
-        match Self::accept_signature(&c, &pubkey, r) {
+        let (pubkey, ws) = { let o = self.offer(serial); (o.pk33(), o.witness_script.clone()) };
+        match Self::accept_signature(&c, &pubkey, &ws, r) {
             Some(raw) => {
                 let mut c2 = c;
                 c2.signed_tx = Some(raw);
@@ -582,11 +634,13 @@ impl Contract {
         }
         let c = offer.commitment.clone().unwrap();
         let pubkey = offer.pk33();
-        match Self::accept_signature(&c, &pubkey, r) {
+        let ws = offer.witness_script.clone();
+        match Self::accept_signature(&c, &pubkey, &ws, r) {
             Some(raw) => {
                 let offer = self.offer_mut(serial);
                 let c = offer.commitment.as_mut().unwrap();
                 c.signed_tx = Some(raw.clone());
+                c.signed_at_s = Some(now_s());
                 offer.state = State::Signed;
                 offer.retry_after_s = None;
                 events::emit("signed", serial, serde_json::json!({ "txid": btc::display_hex(&c.txid), "raw": hex::encode(raw) }));
@@ -601,13 +655,46 @@ impl Contract {
         }
     }
 
-    /// Prove the committed transaction confirmed. Finalises the offer.
+    /// A signed settlement that has not been proven after `fee_bump_after_s`: anyone may have the same
+    /// spend re-signed with double the fee (up to `max_fee_sats`). Same input, same single recipient;
+    /// only the amount shrinks by the fee. Earlier versions stay valid.
+    pub fn bump_fee(&mut self, serial: u64) -> Promise {
+        let (max_fee, after) = (self.params.max_fee_sats, self.params.fee_bump_after_s);
+        let offer = self.offer(serial);
+        require!(offer.state == State::Signed, "only a signed, unproven settlement");
+        let c = offer.commitment.as_ref().unwrap();
+        require!(now_s() >= c.signed_at_s.unwrap_or(0) + after, "too early to bump");
+        let fee = (c.fee_sats.saturating_mul(2)).min(max_fee);
+        require!(fee > c.fee_sats, "fee already at the cap");
+        let u = btc::build_spend(&c.outpoint, &offer.witness_script, &c.to_script, fee)
+            .unwrap_or_else(|| env::panic_str("cannot build spend"));
+        let path = offer.path.clone();
+        let offer = self.offer_mut(serial);
+        let c = offer.commitment.as_mut().unwrap();
+        let old = c.txid;
+        c.prior_txids.push(old);
+        c.fee_sats = fee;
+        c.amount_sats = u.amount_sats;
+        c.unsigned_tx = bitcoin::consensus::serialize(&u.tx);
+        c.sighash = u.sighash;
+        c.txid = u.txid;
+        c.signed_tx = None;
+        c.signed_at_s = None;
+        offer.state = State::Committed;
+        offer.retry_after_s = Some(now_s() + RETRY_DELAY_S);
+        events::emit("fee_bumped", serial, serde_json::json!({ "fee_sats": fee, "txid": btc::display_hex(&u.txid), "replaces": btc::display_hex(&old) }));
+        self.sign_promise(&path, u.sighash)
+            .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SIGN).on_signed(serial))
+    }
+
+    /// Prove that a version of the committed transaction confirmed. Finalises the offer.
     pub fn confirm_spend(&mut self, serial: u64, proof: Proof) -> Promise {
         let offer = self.offer(serial);
-        require!(offer.state == State::Signed, "nothing to confirm");
-        let c = offer.commitment.as_ref().unwrap();
+        require!(matches!(offer.state, State::Signed | State::Committed), "nothing to confirm");
+        let c = offer.commitment.as_ref().unwrap_or_else(|| env::panic_str("nothing to confirm"));
         let (txid, _) = self.parse_proof_tx(&proof);
-        require!(txid == c.txid, "proof is not for the committed transaction");
+        require!(txid == c.txid || c.prior_txids.contains(&txid), "proof is not for a committed version");
+        require!(txid != c.txid || c.signed_tx.is_some(), "that version was never signed");
         let pref = ProofRef::from_proof(&proof, txid);
         self.lc_verify(&pref, self.params.min_conf)
             .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SMALL).on_spend_verified(serial))
@@ -619,7 +706,7 @@ impl Contract {
             return false;
         }
         let offer = self.offer_mut(serial);
-        if offer.state != State::Signed {
+        if !matches!(offer.state, State::Signed | State::Committed) || offer.commitment.is_none() {
             return false;
         }
         let reason = offer.commitment.as_ref().unwrap().reason;
@@ -667,10 +754,16 @@ impl Contract {
         require!(amount > 0, "nothing to claim");
         self.claimable.insert(who.clone(), 0);
         self.claimable_total -= amount;
-        ext_ft::ext(self.params.usdc.clone())
+        // NEP-145: a token like Circle's USDC only pays registered accounts. Register the payee
+        // (refunded by the token if already registered), paid from the reserve each offer keeps.
+        ext::ext_storage::ext(self.params.usdc.clone())
+            .with_attached_deposit(self.params.usdc_storage_deposit)
+            .with_static_gas(GAS_STORAGE_DEPOSIT)
+            .storage_deposit(Some(who.clone()), Some(true))
+            .then(ext_ft::ext(self.params.usdc.clone())
             .with_attached_deposit(NearToken::from_yoctonear(1))
             .with_static_gas(GAS_FT_TRANSFER)
-            .ft_transfer(who.clone(), U128(amount), Some("covered claim".into()))
+            .ft_transfer(who.clone(), U128(amount), Some("covered claim".into())))
             .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SMALL).on_claim(who, U128(amount)))
     }
 
@@ -683,6 +776,26 @@ impl Contract {
         }
         events::emit("claimed", 0, serde_json::json!({ "account": who, "units": amount.0.to_string() }));
         true
+    }
+
+    /// Live check of the whole signing path, as the contract itself calls it: ask the signer to sign a
+    /// fixed constant under a reserved path (never an offer's `<account>/CV-<n>`, so its key holds no
+    /// coins) and verify the answer against the key this contract derives for that path. Permissionless;
+    /// the deploy script runs it before deleting the contract's key, and it can be re-run any time.
+    pub fn selftest_sign(&mut self) -> Promise {
+        let digest: [u8; 32] = near_sdk::env::sha256_array(b"covered selftest");
+        self.sign_promise(SELFTEST_PATH, digest)
+            .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SMALL).on_selftest_signed())
+    }
+
+    #[private]
+    pub fn on_selftest_signed(&mut self, #[callback_result] r: Result<SignatureResponse, PromiseError>) -> bool {
+        let digest: [u8; 32] = near_sdk::env::sha256_array(b"covered selftest");
+        let pk = derive::derive_pubkey(&self.root_key, &self.params.derivation_prefix, env::current_account_id().as_str(), SELFTEST_PATH)
+            .unwrap_or_else(|| env::panic_str("derivation failed"));
+        let ok = r.ok().and_then(|x| x.compact()).map(|sig| derive::verify_sig(&pk, &digest, &derive::normalize_low_s(&sig))).unwrap_or(false);
+        events::emit("selftest_sign", 0, serde_json::json!({ "ok": ok }));
+        ok
     }
 
     /// Anyone may top up the NEAR the contract attaches to `sign`.
@@ -745,10 +858,12 @@ impl Contract {
         }
     }
 
-    pub fn derive_address(&self, path: String) -> String {
+    /// The MPC key this contract derives for `path` (compressed, hex). The deposit address also
+    /// commits to the seller's rescue key and unlock time; see `get_offer().witness_script`.
+    pub fn derive_key(&self, path: String) -> String {
         let pk = derive::derive_pubkey(&self.root_key, &self.params.derivation_prefix, env::current_account_id().as_str(), &path)
             .unwrap_or_else(|| env::panic_str("derivation failed"));
-        btc::address_for_script(&btc::p2wpkh_script(&pk), self.params.network)
+        hex::encode(pk)
     }
 }
 
@@ -775,9 +890,10 @@ impl Contract {
         }
         self.by_account.get_mut(who).unwrap().push(serial);
     }
-    fn charge_storage(&self, before: u64) {
+    /// Charge the caller for the storage just used plus `reserve` (kept, e.g. to register a payee), refund the rest.
+    fn charge_storage(&self, before: u64, reserve: NearToken) {
         let used = env::storage_usage().saturating_sub(before);
-        let cost = env::storage_byte_cost().saturating_mul(used as u128);
+        let cost = env::storage_byte_cost().saturating_mul(used as u128).saturating_add(reserve);
         require!(env::attached_deposit() >= cost, "attach storage deposit");
         let refund = env::attached_deposit().saturating_sub(cost);
         if refund.as_yoctonear() > 0 {
@@ -823,14 +939,18 @@ impl Contract {
     /// Build the commitment (once) and store it. Signature requests always use this stored sighash.
     fn commit(&mut self, serial: u64, reason: Reason) {
         let fee = self.params.fee_sats;
+        let half_delay = self.params.rescue_delay_s / 2;
         let offer = self.offer_mut(serial);
         require!(offer.commitment.is_none(), "already committed");
+        // Leave the settlement at least half the rescue delay to confirm (and be bumped) before the
+        // seller's exit opens; after that the seller simply uses the exit.
+        require!(now_s() + half_delay < offer.unlock_s, "too close to the rescue unlock; the seller's exit applies");
         let collateral = offer.collateral.clone().unwrap_or_else(|| env::panic_str("no collateral"));
         let to_script = match reason {
             Reason::Exercise => offer.buyer_script.clone().unwrap_or_else(|| env::panic_str("no buyer script")),
             _ => offer.refund_script.clone(),
         };
-        let u = btc::build_spend(&collateral, &offer.script_pubkey, &to_script, fee)
+        let u = btc::build_spend(&collateral, &offer.witness_script, &to_script, fee)
             .unwrap_or_else(|| env::panic_str("cannot build spend"));
         let c = Commitment {
             reason,
@@ -842,6 +962,9 @@ impl Contract {
             txid: u.txid,
             signed_tx: None,
             committed_at_s: now_s(),
+            fee_sats: fee,
+            prior_txids: vec![],
+            signed_at_s: None,
         };
         offer.commitment = Some(c);
         offer.state = State::Committed;
@@ -856,7 +979,7 @@ impl Contract {
 
     /// Verify the MPC's signature against the derived key for the committed
     /// sighash; return the final raw transaction if it is good.
-    fn accept_signature(c: &Commitment, pubkey: &[u8; 33], r: Result<SignatureResponse, PromiseError>) -> Option<Vec<u8>> {
+    fn accept_signature(c: &Commitment, pubkey: &[u8; 33], witness_script: &[u8], r: Result<SignatureResponse, PromiseError>) -> Option<Vec<u8>> {
         let resp = r.ok()?;
         let sig = derive::normalize_low_s(&resp.compact()?);
         if !derive::verify_sig(pubkey, &c.sighash, &sig) {
@@ -864,7 +987,7 @@ impl Contract {
         }
         let unsigned: bitcoin::Transaction = bitcoin::consensus::deserialize(&c.unsigned_tx).ok()?;
         let u = btc::Unsigned { tx: unsigned, txid: c.txid, sighash: c.sighash, amount_sats: c.amount_sats };
-        Some(btc::finalize(&u, &sig, pubkey))
+        Some(btc::finalize(&u, &sig, witness_script))
     }
 
     fn view(&self, o: &Offer) -> OfferView {
@@ -882,6 +1005,9 @@ impl Contract {
             created_s: U64(o.created_s),
             path: o.path.clone(),
             derived_pubkey: hex::encode(&o.derived_pubkey),
+            rescue_pubkey: hex::encode(&o.rescue_pubkey),
+            unlock_s: U64(o.unlock_s),
+            witness_script: hex::encode(&o.witness_script),
             address: btc::address_for_script(&o.script_pubkey, net),
             refund_address: btc::address_for_script(&o.refund_script, net),
             buyer_address: o.buyer_script.as_ref().map(|s| btc::address_for_script(s, net)),
@@ -894,6 +1020,9 @@ impl Contract {
             commitment_to_address: c.map(|c| btc::address_for_script(&c.to_script, net)),
             commitment_amount_sats: c.map(|c| U64(c.amount_sats)),
             committed_at_s: c.map(|c| U64(c.committed_at_s)),
+            commitment_fee_sats: c.map(|c| U64(c.fee_sats)),
+            prior_txids: c.map(|c| c.prior_txids.iter().map(btc::display_hex).collect()).unwrap_or_default(),
+            signed_at_s: c.and_then(|c| c.signed_at_s).map(U64),
             signed_tx: c.and_then(|c| c.signed_tx.as_ref()).map(hex::encode),
             escrow_units: U128(o.escrow_units),
             retry_after_s: o.retry_after_s.map(U64),

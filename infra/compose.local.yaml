@@ -43,6 +43,7 @@ services:
       - wasm:/wasm:ro
       - sandbox_home:/sandbox:ro
       - config:/config
+      - ../params:/params:ro
       - ../.env:/env/.env
     environment:
       NEAR_RPC: http://near-sandbox:3030

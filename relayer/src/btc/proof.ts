@@ -10,6 +10,8 @@ export interface Esplora {
   tipHeight(): Promise<number>;
   /** All txids of a block in order (display hex). */
   blockTxids(hash: string): Promise<string[]>;
+  /** Whether an output is spent, and by which transaction. */
+  outspend?(txid: string, vout: number): Promise<{ spent: boolean; txid?: string }>;
 }
 
 /** The proof shape the contract takes (`Proof` in lib.rs). Hashes in display order. */
@@ -26,6 +28,7 @@ export function esplora(base: string | string[], fetchFn: typeof fetch = fetch):
     block: (hash) => j(`/block/${hash}`),
     tipHeight: async () => Number(await t(`/blocks/tip/height`)),
     blockTxids: (hash) => j(`/block/${hash}/txids`),
+    outspend: async (txid, vout) => { const o = await j(`/tx/${txid}/outspend/${vout}`); return { spent: !!o.spent, txid: o.txid }; },
   };
 }
 

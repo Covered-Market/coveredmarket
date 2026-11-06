@@ -3,6 +3,7 @@ import { btcAddr, btcTx, Ext } from "../Explorer";
 import { detectBtcWallets } from "../lib/btcwallets";
 import { PayHelpers } from "./PayHelpers";
 import { BlockWait } from "../ChainClock";
+import { downloadKit, loadKit } from "../lib/rescue";
 import { useEffect, useState } from "react";
 import { btc8, C } from "../ds";
 import { CFG, type Wallet } from "../lib/near";
@@ -50,6 +51,10 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
             {seen && <span className="body-small">Seen: <Ext href={btcTx(seen.txid)}>{seen.txid}</Ext> · {seen.confirmed ? `${seen.depth} confirmation${seen.depth === 1 ? "" : "s"}` : "in the mempool"}</span>}
           </div>
         </div>
+        {(() => { const k = loadKit(serial); return k && !k.downloaded ? (
+          <div style={{ padding: "12px 16px", border: "1px solid var(--gilt)", background: "var(--paper-raised)", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }} className="body-small">
+            <b>Save your rescue kit first.</b> It is your way out if NEAR ever stops. <Button size="sm" variant="primary" onClick={() => { downloadKit(k.kit); location.reload(); }}>Download rescue kit</Button>
+          </div>) : null; })()}
         {offer.state === "Created" && <PayHelpers serial={serial} address={offer.address} sats={Number(offer.size_sats)} wallets={detectBtcWallets()} />}
         <Notice>Send from a wallet you control, in one output, the exact amount. Any other amount is not accepted; you can recover it to {offer.refund_address} from your contracts page.</Notice>
       </div>
