@@ -1,132 +1,158 @@
-# Covered — covered calls on native Bitcoin, no custodian
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/readme/banner-vault.png">
+    <img alt="Covered. Open to anyone. Held by no one. Earning for you. Sell covered calls on native Bitcoin. No custodian, no bridge, no wrapper." src="docs/readme/banner-paper.png" width="100%">
+  </picture>
+</p>
 
-A Bitcoin holder sells a call. The coins stay at a Bitcoin address only the NEAR contract can sign for (Chain Signatures). The buyer pays the premium in USDC on NEAR. In the window after expiry the buyer may pay the strike; then the contract signs the coins to the buyer. Otherwise anyone can settle and the contract signs them back. Full specification: [docs/SPEC.md](docs/SPEC.md).
+<p align="center">
+  <a href="https://github.com/bedeho/covered/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/bedeho/covered/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/bedeho/covered/actions/workflows/stack.yml"><img alt="End-to-end stack" src="https://github.com/bedeho/covered/actions/workflows/stack.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/bedeho/covered/actions/workflows/live.yml"><img alt="Live contract on Bitcoin testnet3" src="https://github.com/bedeho/covered/actions/workflows/live.yml/badge.svg?branch=main"></a>
+  <a href="https://178-62-225-161.sslip.io"><img alt="Testnet app" src="https://img.shields.io/website?url=https%3A%2F%2F178-62-225-161.sslip.io&label=testnet%20app&up_message=live&up_color=1F4F40&down_color=7E2432"></a>
+  <a href="docs/SECURITY-MODEL.md"><img alt="Unaudited" src="https://img.shields.io/badge/audit-none%20yet-7E2432"></a>
+  <a href="SECURITY.md"><img alt="Bug bounty up to $2,000" src="https://img.shields.io/badge/bug%20bounty-up%20to%20%242%2C000-B88A2E"></a>
+  <img alt="Built on NEAR" src="https://img.shields.io/badge/built%20on-NEAR-132A23">
+</p>
 
-| | |
+<p align="center">
+  <b><a href="https://178-62-225-161.sslip.io/#/try">Try it on testnet</a></b> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#run-it-yourself">Run it yourself</a> ·
+  <a href="#security">Security</a> ·
+  <a href="SECURITY.md">Bug bounty</a>
+</p>
+
+---
+
+You have held Bitcoin for years and it has earned nothing. The usual way to make it earn is to hand it to an exchange or a lender and hope. **Covered pays you today for agreeing to sell your coins at a higher price later, and the coins never leave Bitcoin.**
+
+- **Your coins stay on Bitcoin.** They sit at an address that only a NEAR contract can sign for, through NEAR's MPC signing network. No exchange, no bridge, no wrapped token, and no key that we hold.
+- **You are paid up front.** The buyer pays the premium in USDC the moment they buy. It is yours whatever happens next.
+- **Every step is checkable.** Each contract is a public certificate with a **Verify** button: seven checks run in your browser against Bitcoin and NEAR, with nothing from our servers.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/readme/shot-certificate-vault.png">
+    <img alt="Certificate CV-1 on the testnet site: a call on 0.0010 BTC at a $150,000 strike, with all seven Verify checks passed" src="docs/readme/shot-certificate-paper.png" width="100%">
+  </picture>
+  <br>
+  <sub>Certificate CV-1 on the live testnet site, Verify 7 of 7. Captured 6 Nov 2026, 10:47 UTC.</sub>
+</p>
+
+## How it works
+
+1. **Lock.** You choose a size, a strike and an expiry. The contract derives a fresh Bitcoin address that only it can sign for, and you send your coins there. NEAR's Bitcoin light client proves the deposit on chain.
+2. **Earn.** A buyer pays your premium in USDC. It is credited to you in the same transaction that records the sale.
+3. **Settle.** At expiry the buyer may pay the strike during a short exercise window. If they do, the contract signs your coins over to them and you receive the strike. If they don't, anyone can settle, and the contract signs the coins back to you.
+
+No price feed decides the outcome. The only way to get the coins is to pay for them.
+
+**An example.** You sell a call on 2 BTC with a $150,000 strike, expiring 31 Dec 2026 08:00 UTC, for a $6,000 premium.
+
+| At expiry | You end with |
 |---|---|
-| Contract | `contracts/covered` — Rust, near-sdk 5.30, rust-bitcoin, k256 |
-| Relayer | `relayer` — TypeScript: Bitcoin proofs, settlement timer, broadcast, NEP-366 gas relay, reference price |
-| Web | `web` — Vite/React on the Covered design system; certificate page with the seven **Verify** checks |
-| Brand | `brand` — tokens, component library, logos, patterns, fonts, brand book, generators |
-| Infra | `infra` — Docker Compose (one VM), Terraform (DigitalOcean + DNS), cloud-init, GitHub Actions |
-| CLI | `bin/covered` — the one entry point for local, tests and cloud |
+| The buyer does not pay the strike: **KEPT** | your 2 BTC back, plus the $6,000 |
+| The buyer pays the strike: **EXERCISED** | $300,000 for the coins, plus the $6,000 |
 
-## Quick start
+## Proven on real Bitcoin
 
-### Prerequisites
-- Docker 24+ with Compose v2 (that is all for the local stack)
-- For tests on the host: Rust 1.85+, Node 22
-- For `build`/`e2e` on the host: `rustup target add wasm32-unknown-unknown` and cargo-near (`curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/latest/download/cargo-near-installer.sh | sh`)
-- For the cloud: Terraform 1.6+, a DigitalOcean account, a domain
+On 6 Nov 2026 one full contract ran on Bitcoin testnet3 and NEAR testnet, through the deployed contract, the real MPC signer and the real light client ([run](https://github.com/bedeho/covered/actions/runs/42196248720)):
 
-### Run everything locally — one command
-```
+| UTC | What happened |
+|---|---|
+| 09:36:21 | CV-1 created: 0.001 BTC, strike $150,000, premium $5 |
+| 09:36:22 | Deposit sent: [`7549bd31…86fb3`](https://mempool.space/testnet/tx/7549bd315f9fd8e638b1f54aa43b7cb28f8a68e598f35852a3b8814f20386fb3) |
+| 09:38:23 | **Funded**: the light client `btc-client-v4.testnet` accepted the proof |
+| 09:38:27 | Sold for 5 USDC |
+| 11:07:16 | Exercised: the buyer paid the 150 USDC strike |
+| 11:07:46 | Signed by `v1.signer-prod.testnet` and broadcast: [`9fada3e1…85d75`](https://mempool.space/testnet/tx/9fada3e1f5617863d65084470a200d23622447236350c16da4c6d809b5b85d75) |
+| 11:10:54 | **Exercised**: spend proven on NEAR, seller claimed 155 USDC |
+
+Contract: [`covered-app-mw4qlyb3.testnet`](https://testnet.nearblocks.io/address/covered-app-mw4qlyb3.testnet), no access keys, code hash `1eaqCfvarE7A88k6m4toGJdbUYydF2mhdwftoQuyXeJ`.
+
+## See it
+
+<table>
+  <tr>
+    <td width="50%"><img alt="Sell a call: size, strike, expiry and premium, with both outcomes worked out" src="docs/readme/shot-sell.png"></td>
+    <td width="50%"><img alt="Try it: a five-step guide to selling a call on testnet Bitcoin, and what is live where" src="docs/readme/shot-try.png"></td>
+  </tr>
+  <tr>
+    <td><sub><b>Sell a call.</b> Set the terms and see both endings before you commit.</sub></td>
+    <td><sub><b>Try it.</b> The whole life of a contract on testnet, in one sitting.</sub></td>
+  </tr>
+</table>
+
+## Try it in five minutes
+
+The [testnet site](https://178-62-225-161.sslip.io/#/try) uses test coins and test USDC with no value.
+
+1. **Get a wallet.** Connect a NEAR wallet, or take a quick test wallet with 100,000 test USDC.
+2. **Sell a call.** 0.001 tBTC, a strike above the reference price, the shortest expiry.
+3. **Deposit.** Press *Send it from the demo faucet*, or pay from your own testnet3 wallet. Watch the light client prove it.
+4. **Buy it yourself** from a second browser profile.
+5. **Watch it settle.** Exercise by paying the strike, or let the window pass. Then press **Verify**.
+
+## Run it yourself
+
+You need **Docker 24+ with Compose v2**. That is all.
+
+```sh
+git clone https://github.com/bedeho/covered && cd covered
 bin/covered up
 ```
-That builds and starts, in containers: a NEAR sandbox (one validator, fast blocks), a Bitcoin regtest node, the four contracts compiled to wasm, a bootstrap that deploys `covered`, a mock signer (same interface and derivation as `v1.signer`), a mock light client and a mock USDC, creates `relayer.test.near` and two demo users with 1,000,000 USDC each, funds a regtest miner, then the relayer and the web app. Open **http://localhost**.
 
-```
-bin/covered keys                 # astrid.test.near / marcus.test.near and their keys
-bin/covered btc send <addr> 0.01 # pay a deposit address on regtest and mine a block
-bin/covered btc mine 6           # confirmations
-bin/covered logs relayer         # watch proofs, settlement, broadcasts
-bin/covered reset                # wipe chain state and start over
-```
+That starts a NEAR sandbox, a Bitcoin regtest node, the contracts, the relayer and the web app, with two funded demo users. Open **http://localhost**.
 
-The full life of a contract on the local stack:
-1. In the app create a wallet (an account under `test.near`, funded by the bootstrap; the relayer pays gas).
-2. **Sell a call**: size ≥ 0.001 BTC, strike above the fixed reference price ($97,420), expiry "tomorrow" (`min_lead` is 60 s locally; the UI's shortest preset is the next 08:00 UTC — set `expiry` by hand in a `near call` if you want it sooner).
-3. Pay the deposit address with `bin/covered btc send <address> <size>`. Within one relayer tick the proof is submitted and the offer is **Funded**.
-4. In a second browser profile create `marcus`, open the market, buy.
-5. After expiry: exercise from Marcus's contract page (pays the strike), or wait out the 10-minute window and press **Settle** (or let the relayer do it).
-6. The relayer broadcasts the signed transaction, mines are yours (`btc mine 1`), and `confirm_spend` finalises. Press **Verify** on the certificate: seven checks against the sandbox RPC and the regtest node.
-
-Local parameters (set in `infra/local/bootstrap/bootstrap.ts`): `min_conf 1`, `fee_sats 1000`, `grace 600 s`, `buy_cutoff 0`, `min_lead 60 s`, `escrow_timeout 3600 s`.
-
-### Tests
-```
-bin/covered test        # L0: contract (30), relayer (14), web (9) — no chain needed
-bin/covered e2e         # L1: builds wasm and runs the sandbox flows in integration/tests/flow.rs
-bin/covered up && bin/covered e2e-stack
-                        # L1+: the whole product on the composed stack, see below
-```
-`e2e-stack` (`e2e/run.mjs`) drives two contracts through their entire life on the running stack — NEAR sandbox, Bitcoin Core regtest, the relayer, the web app — with no mocks above the chain:
-
-- **KEPT**: create offer → real regtest deposit → relayer builds the Merkle proof and gets the offer Funded → buyer pays the premium in USDC → window closes (sandbox fast-forward) → relayer settles → signer signs → relayer broadcasts → mined → relayer proves the spend → **Kept**, coins at the seller's refund address.
-- **EXERCISED**: same until expiry → buyer pays the strike inside the window → relayer requests the signature → broadcast → mined → **Exercised**, coins at the buyer's address; the seller claims premiums + strike; `claimable + escrow == token balance`.
-- **UI**: market, sell, deposit, contracts, try and both certificates in Chromium; **Verify** must show 7/7 verified for each. Screenshots land in `e2e/artifacts/`.
-
-**L2 on live NEAR testnet** (`e2e/testnet.ts`, workflow `testnet.yml`, runs on `e2e/testnet*` branches and on demand): creates throwaway faucet accounts, deploys `covered` wired to the **real MPC signer**, and checks that (1) each deposit address equals what the signer's `derived_public_key` gives for the contract, (2) a withdrawal and (3) a full sell → buy → expiry → exercise → claim are signed by the **real MPC** through the contract and the signed transactions verify offline, and (4) the **real light client** accepts the relayer's proof of a real testnet3 transaction and rejects a tampered one. The deposits in (2)–(3) are proven through a mock light client, because a real deposit needs testnet BTC; everything else is the live network. Transcript and signed transactions are uploaded as the `testnet-l2` artifact.
-
-CI: `.github/workflows/ci.yml` (unit tests, wasm, sandbox flows, images, Terraform/Compose validation) on every push and PR; `.github/workflows/stack.yml` runs `up` + `e2e-stack` on `main`, version tags and on demand, and uploads the screenshots. Deploys happen only on version tags.
-
-### Deploy to the cloud — one command
-The production shape is deliberately the simplest thing: **one VM, two containers** (`web` = Caddy serving the static app with automatic TLS and proxying `/api` and `/btc`; `relayer`), plus a tiny `config` job that turns `.env` into the app's `config.json`. Bitcoin data comes from a public Esplora (mempool.space) and NEAR from a public RPC (FastNEAR); no node of our own.
-
-**What you need:** a DigitalOcean API token and a deploy key. **No domain needed** — without one the site is served at `https://<ip-with-dashes>.sslip.io` with a real certificate. **No contract setup needed on testnet** — on its first start the VM creates throwaway faucet accounts, builds the wasm, deploys `covered` against the real MPC signer (`v1.signer-prod.testnet`) and the real Bitcoin light client (`btc-client-v4.testnet`, Bitcoin testnet3), deploys a mock USDC anyone can mint, **deletes the contract's only key**, and writes everything (ids, relayer key, code hash) into the VM's `.env`. Visitors get a wallet and 100,000 test USDC from `/api/account` (faucet helper, rate-limited).
-
-From GitHub (nothing to install):
-```
-ssh-keygen -t ed25519 -f deploy_key -N ""
-gh secret set DO_TOKEN                      # paste the DigitalOcean token
-gh secret set DEPLOY_SSH_KEY < deploy_key
-gh workflow run cloud.yml -f action=apply   # ~15 min the first time (wasm build on the VM); the URL is in the run summary
-```
-From your laptop (Terraform 1.6+): `cp infra/cloud/terraform.tfvars.example infra/cloud/terraform.tfvars`, fill in `do_token` and `deploy_pubkey`, then `bin/covered provision`.
-
-- **Redeploy:** `gh workflow run cloud.yml -f action=deploy`, push a tag `v*`, or `bin/covered deploy` — ships the committed tree over ssh (`git archive`, so the repo can stay private) and runs `bin/covered serve` on the VM. The VM's `.env`, and so the deployed contract, is kept.
-- **Two networks, one VM:** the primary site (testnet) is on the domain itself, mainnet on `mainnet.<domain>` (`terraform output mainnet_url`). Each has its own contract, relayer and Bitcoin data source; a gold band marks every non-mainnet page and a switch in the header jumps between the two sites. Mainnet shows "not live yet" until `/opt/covered/.env.mainnet` names a contract (`MODE=mainnet`, `NEAR_NETWORK=mainnet`, `COVERED_ID`, `USDC_ID`, `SIGNER_ID=v1.signer`, `LIGHT_CLIENT_ID=btc-client.bridge.near`, `RELAYER_ID`/`RELAYER_KEY`, `ESPLORA=https://mempool.space/api,https://blockstream.info/api`, `EXPLORER_BTC=https://mempool.space`, `EXPLORER_NEAR=https://nearblocks.io`); the next deploy then starts its relayer.
-- **Wallets:** "Connect wallet" uses NEAR Connect (`@hot-labs/near-connect`: HOT, Meteor, Intear, MyNearWallet, OKX, Nightly, …). Wallets that sign NEP-366 delegate actions go through the relayer and need no NEAR; others send the transaction themselves. On testnet (and locally) a quick test wallet — a key kept in the browser, 100,000 mock USDC — is offered beside it; mainnet has only Connect.
-- **Paying a deposit:** QR / address as before, plus one-click buttons for Bitcoin browser wallets that are installed (UniSat, OKX, Leather, Xverse), and on testnet **"Send it from the demo faucet"**: the relayer holds a testnet3 key (generated on first start in the `relayer_data` volume; address at `GET /api/btc-faucet`) and pays the exact deposit of one of our own offers, at most `BTC_FAUCET_MAX_SATS` (0.002 BTC), 3 per IP per hour, 40 per day. Refill it from any testnet3 faucet. Locally the regtest miner plays the faucet. Never enabled on mainnet.
-- **Bitcoin data:** `ESPLORA` takes a comma-separated list of Esplora-compatible providers; the relayer and the app use the first that answers and move on when one is down, rate-limited or failing. Nothing they say is trusted — every claim reaches the contract as a proof the light client checks.
-- **Add or change the domain later:** point its nameservers at `ns1/ns2/ns3.digitalocean.com`, then `gh workflow run cloud.yml -f action=apply -f domain=example.com` (or set `domain` in tfvars and `bin/covered provision`). Terraform only adds the DNS zone and records — the VM is kept (`ignore_changes`) — and the deploy step restarts Caddy on the new name, which fetches a certificate as soon as DNS resolves. Old sslip.io links stop working; nothing else changes.
-- **Fresh contracts:** delete `COVERED_ID` from `/opt/covered/.env` on the VM and redeploy.
-- **Tear down:** `gh workflow run cloud.yml -f action=destroy` or `bin/covered destroy`.
-
-CI keeps the Terraform state as the `tfstate` artifact of the `cloud` workflow (no secrets in it). Use either the workflow or your laptop for a given deployment, not both. `testnet.yml`'s `cloud-rehearsal` job runs the VM's exact start-up (`bin/covered serve`) on a clean runner against live testnet and creates a visitor wallet through it.
-
-**Contracts.** Testnet: the VM deploys and locks its own on first start (above); `gh workflow run cloud.yml -f action=reset-contract` swaps in a fresh one after a contract change (the demo faucet's key and coins are kept). Mainnet: `scripts/deploy-mainnet.ts` with a funded account — read-only preflight, deploy with the reviewed `params/mainnet.json`, **`selftest_sign` against the real MPC before anything is locked** (it stops with the key still present if the signature does not verify), then delete the key and write `.env.mainnet`. Parameters for every network live in `params/{local,testnet,mainnet}.json`; every deployer and the sandbox tests read them.
-
-## Configuration
-Everything is read from `.env` (local: written by the bootstrap; cloud: written by the testnet bootstrap on first start, or supplied as `env_file`). Keys: `MODE` (local|testnet|mainnet), `ACCOUNT_FAUCET`/`USDC_MINT` (testnet wallet faucet), `NEAR_NETWORK`, `NEAR_RPC`, `COVERED_ID`, `USDC_ID`, `SIGNER_ID`, `LIGHT_CLIENT_ID`, `RELAYER_ID`, `RELAYER_KEY`, `BTC_BACKEND` (esplora|core), `ESPLORA`, `EXPLORER_BTC`, `EXPLORER_NEAR`, `MIN_CONF`, `CODE_HASH`, `DOMAIN` (cloud only). The web app reads the same values from `/config.json` at load, so one image serves every environment.
-
-## Layout
-```
-bin/covered                 CLI
-contracts/covered           the contract           contracts/mock-*  sandbox stand-ins (signer, light client, USDC)
-integration/                near-workspaces flows  relayer/          service + Dockerfile
-web/                        app + Dockerfile       brand/            design system and assets
-infra/compose.yaml          cloud stack            infra/compose.local.yaml  local overlay
-infra/local/                sandbox image, contract builder image, bootstrap
-infra/cloud/                Terraform, cloud-init, testnet first-start bootstrap   infra/compose.testnet.yaml  its overlay
-docs/SPEC.md                the specification
-scripts/                    regtest round trip, txoutproof converter, testnet contract deploy
+```sh
+bin/covered keys                  # the demo users, astrid and marcus, and their keys
+bin/covered btc send <addr> 0.01  # pay a deposit address on regtest and mine a block
+bin/covered logs relayer          # watch proofs, settlement and broadcasts
+bin/covered reset                 # wipe chain state and start over
+bin/covered rescue <kit> <addr>   # the seller's exit: sweep a deposit with only Bitcoin, after its timelock
 ```
 
-## Mainnet readiness
-What stands between this code and real money, and how each is handled:
+**Tests**
 
-| Risk | Handling | Checked by |
-|---|---|---|
-| Mainnet services differ from testnet | Read-only probe of `v1.signer` (3.17), `btc-client.bridge.near` and Circle USDC: our SHA3 derivation equals the signer's own `derived_public_key`; our borsh proof of a real mainnet tx is accepted, tampered and over-deep ones refused; USDC is 6 decimals and needs 0.00125 NEAR registration | `mainnet-probe.yml` (on change + weekly) |
-| The real `sign` call | `selftest_sign()`: the contract has the MPC sign a constant under a reserved path and verifies it on chain. The mainnet deploy stops before locking if it fails | `e2e/testnet.ts` against `v1.signer-prod.testnet`; `scripts/deploy-mainnet.ts` |
-| NEAR or the MPC network stops | **The seller's exit.** Every deposit address is P2WSH of `IF <mpc> CHECKSIG ELSE <unlock> CLTV DROP <rescue> CHECKSIG ENDIF`. After `unlock = expiry + grace + rescue_delay` (30 days on mainnet) the seller's own rescue key sweeps the coins with nothing but Bitcoin (`bin/covered rescue kit.json <address>`). The rescue key is made in the browser and saved as a kit when the offer is created. No settlement may be committed in the last half of the rescue delay | contract tests through libbitcoinconsensus (valid at unlock, invalid one second before, wrong keys refused); TS tool pinned byte for byte to the Rust reference; `e2e-stack` sweeps a real regtest deposit (refused before unlock, accepted after) |
-| Bitcoin fees spike after a settlement is signed | Settlements signal RBF. `bump_fee` (anyone, after `fee_bump_after_s`) re-signs the same input to the same single recipient with double the fee, up to `max_fee_sats`; whichever version confirms settles the offer. The relayer bumps stuck settlements automatically | contract + sandbox tests (old version still settles), relayer planner tests |
-| Real USDC pays only registered accounts | `claim` registers the payee first (NEP-145 `storage_deposit`, refunded if already registered), from a 0.00125 NEAR reserve each offer keeps | sandbox test with a seller who never held USDC; `e2e/testnet.ts` |
-| Unaudited code | Per-deployment `max_size_sats` (0.01 BTC on mainnet) | contract test |
-| Reorgs | `min_conf` per network: 3 on mainnet (deposit, exercise re-check and spend proof) | `params/mainnet.json` |
+```sh
+bin/covered test                      # unit tests: contract, relayer, web (Rust 1.85+, Node 22)
+bin/covered e2e                       # contract flows on a NEAR sandbox node
+bin/covered up && bin/covered e2e-stack   # the whole product: both endings, the UI, Verify 7/7
+```
 
-Still not engineering: an audit, and the legal question of offering options to the public.
+**Deploy** to one DigitalOcean VM with a real certificate, no domain needed: `gh workflow run cloud.yml -f action=apply`. On testnet the VM deploys and locks its own contract on first start.
 
-## Invariants to read first (`contracts/covered/src/lib.rs`: `commit_and_sign`, `accept_signature`, `ft_on_transfer`)
-1. A commitment (recipient script, unsigned tx, sighash, txid) is written once, before the first `sign`, and never replaced; retries re-request the same sighash.
-2. The committed tx spends exactly the collateral outpoint to exactly one output: the seller's refund script, or the buyer's script only when `reason == Exercise`. A fee bump changes only the fee (within `max_fee_sats`), never the input or the recipient.
-3. A signature is accepted only if it verifies against the derived key for the committed sighash.
-4. USDC enters only via `ft_on_transfer` from the pinned token with `sender_id` as the acting party; it leaves only via `claim` / `reclaim_strike` to the owner of the balance. `get_accounting()` equals the token balance.
+More: [local stack and tests](docs/DEVELOPING.md) · [deployment](docs/DEPLOY.md) · [configuration](docs/DEVELOPING.md#configuration)
 
-## Pinned external interfaces (checked against the live testnet, 5 Nov 2026)
-- **Signer** `v1.signer-prod.testnet` (3.18) / `v1.signer`: `sign({request:{payload_v2:{Ecdsa:<hex>}, path, domain_id:0}})` = `sign_format 2` (the legacy `payload`/`key_version` form is `1`), 1 yoctoNEAR deposit, ≥15 Tgas (we attach 150). Response `{scheme, big_r:{affine_point}, s:{scalar}, recovery_id}`. Derivation: `derived = root + SHA3-256("near-mpc-recovery v0.1.0 epsilon derivation:" ‖ predecessor ‖ "," ‖ path)·G` — **SHA3**, not SHA-256; the live vector is a test in `derive.rs` and `crypto.test.ts`. Root key from `public_key({domain_id:0})` as `secp256k1:<base58 x‖y>`.
-- **Light client** `btc-client-v4.testnet` (follows Bitcoin **testnet3**) / `btc-client.bridge.near`: `verify_transaction_inclusion_v2(ProofArgsV2) -> bool` with **borsh** arguments `{tx_id, tx_block_blockhash, tx_index: u64, merkle_proof: Vec<H256>, coinbase_tx_id, coinbase_merkle_proof, confirmations: u64}`, hashes in internal byte order. The contract (`ProofRef::borsh_args`) and the relayer (`lcArgsV2`) produce byte-identical arguments (shared test vector).
-- **USDC**: Circle's NEAR USDC, 6 decimals (`17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1` on mainnet). On testnet it cannot be minted, so the testnet deployment uses `mock-usdc`.
+## Security
 
-Unaudited. Not a price guarantee. The MPC threshold, the light client's honesty and our own code are the trust assumptions, and the app says so on every page.
+Covered is **unaudited** software. Testnet is live; mainnet is not. Read the contract before you trust it.
+
+| You trust | You don't trust |
+|---|---|
+| NEAR's MPC signing network signs only for the contract that asks, and a threshold of its nodes is honest | **Us.** We cannot move coins. The relayer and the site only relay proofs, pay gas and broadcast transactions the contract already signed. Every contract method is public. |
+| The Bitcoin light client follows the real chain | **A price feed.** Nobody's price decides who gets the coins. |
+| The contract code, which has no access keys and no upgrade method; mainnet offers are capped at 0.01 BTC while it is unaudited | **The buyer.** Coins go to the buyer only in the receipt where the full strike is paid. |
+
+If NEAR or its signing network ever stopped, you would not be stuck: every deposit address has a timelocked exit to a rescue key that only you hold, which you sweep with nothing but Bitcoin (`bin/covered rescue`).
+
+- [Security model](docs/SECURITY-MODEL.md): guarantees, what is not guaranteed, mainnet readiness, the seven Verify checks, the invariants to read first.
+- **Found a problem?** Report it privately through [GitHub security advisories](https://github.com/bedeho/covered/security/advisories/new). Bounties up to **$2,000**, paid in USDC or BTC. See [SECURITY.md](SECURITY.md).
+
+## Built with
+
+[NEAR Chain Signatures](https://docs.near.org/chain-abstraction/chain-signatures) (`v1.signer`) to sign Bitcoin transactions from a contract · NEAR's Bitcoin light client to prove deposits and spends · NEP-366 meta-transactions, so users need no NEAR for gas · USDC on NEAR for premiums and strikes. Rust (`near-sdk`, `rust-bitcoin`) for the contract, TypeScript for the relayer and the app.
+
+## Documentation
+
+| Read | For |
+|---|---|
+| [SPEC.md](docs/SPEC.md) | The full product and technical specification |
+| [SECURITY-MODEL.md](docs/SECURITY-MODEL.md) | What you trust, what is guaranteed, mainnet readiness, pinned external interfaces |
+| [DEVELOPING.md](docs/DEVELOPING.md) | Local stack, the life of a contract, tests, CI, configuration, layout |
+| [DEPLOY.md](docs/DEPLOY.md) | The cloud deployment, networks, wallets, faucet, domains |
+| [SECURITY.md](SECURITY.md) | How to report a vulnerability, and the bounty |
+| [brand/](brand/BRAND.md) | The design system: tokens, components, logos, fonts |
+
+<p align="center"><sub>Covered is unaudited. It is not a price guarantee, not investment advice, and not an offer of options to the public. Signatures come from NEAR's MPC network; if that network stops, settlement waits for it or for the seller's timelocked exit.</sub></p>

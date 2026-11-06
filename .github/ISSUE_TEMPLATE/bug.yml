@@ -1,0 +1,28 @@
+name: Bug
+description: Something does not work the way the README or the app says it does. Not for security issues.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "If this could let someone move coins, take USDC or fake a Verify result, **stop** and [report it privately](https://github.com/bedeho/covered/security/advisories/new) instead."
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options: [Testnet site, Local stack (bin/covered up), Contract, Relayer, Web app, Deployment, Docs]
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the certificate serial (CV-…) or transaction ids if there are any.
+  - type: input
+    id: version
+    attributes:
+      label: Commit or deployed contract
+      placeholder: e.g. de4750f, or covered-app-mw4qlyb3.testnet
