@@ -224,8 +224,14 @@ icon('verify', '<path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="M9 12
 icon('wallet', '<rect x="3" y="7" width="18" height="13"/><path d="M3 10h18M16 14h2"/><path d="M6 7V5h10v2"/>')
 
 # ---------- Social ----------
-def tagline(x, y, size, ink):
-    d, w = text_path('Income on Bitcoin you still hold.', *FRAUNCES_IT, size, x, y)
+TAGLINE = 'Open to anyone. Held by no one. Earning for you.'
+
+def tagline(x, y, size, ink, max_w=None):
+    """The brand line at baseline (x, y); shrinks to fit max_w if given."""
+    if max_w:
+        _, w = text_path(TAGLINE, *FRAUNCES_IT, size, 0, 0)
+        if w > max_w: size *= max_w / w
+    d, w = text_path(TAGLINE, *FRAUNCES_IT, size, x, y)
     return f'<path d="{d}" fill="{ink}"/>', w
 
 def social(w, h, dark=True):
@@ -247,7 +253,7 @@ def social(w, h, dark=True):
     wmp, ww = wordmark(m * 1.6 + ms * 1.2, m * 1.6 + ms * 0.72, ms * 0.9, ink)
     body += wmp
     # tagline bottom-left
-    tp, tw = tagline(m * 1.6, h - m * 2.2, h * 0.11, ink)
+    tp, tw = tagline(m * 1.6, h - m * 2.2, h * 0.11, ink, max_w=w - m * 3.2)
     body += tp
     # small line under
     d, _ = text_path('Non-custodial covered calls on native Bitcoin · built on NEAR', *SANS, h * 0.045, m * 1.6, h - m * 1.35, tracking=0.01)
@@ -271,8 +277,8 @@ def title_card():
     body += f'<g transform="translate(120,112) scale(1.5)">' + mark(ink=INK_V, coin=INK_V, finial=GILT_V, two_tone=True) + '</g>'
     d, _ = text_path('Covered', *FRAUNCES, 160, 120, 640)
     body += f'<path d="{d}" fill="{INK_V}"/>'
-    d, _ = text_path('Income on Bitcoin you still hold.', *FRAUNCES_IT, 64, 124, 740)
-    body += f'<path d="{d}" fill="{GILT_V}"/>'
+    tp, _ = tagline(124, 740, 64, GILT_V, max_w=w - 248)
+    body += tp
     d, _ = text_path('BUILT AT NEAR HACKATHON', *SANS_B, 26, 124, 960, tracking=0.16)
     body += f'<path d="{d}" fill="{MUTED_V}"/>'
     return svg(w, h, body, bg=VAULT)
