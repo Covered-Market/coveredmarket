@@ -1,5 +1,7 @@
 import { btcJson, btcText } from "../lib/btc";
 import { btcAddr, btcTx, Ext } from "../Explorer";
+import { detectBtcWallets } from "../lib/btcwallets";
+import { PayHelpers } from "./PayHelpers";
 import { useEffect, useState } from "react";
 import { btc8, C } from "../ds";
 import { CFG, type Wallet } from "../lib/near";
@@ -47,6 +49,7 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
             {seen && <span className="body-small">Seen: <Ext href={btcTx(seen.txid)}>{seen.txid}</Ext> · {seen.confirmed ? `${seen.depth} confirmation${seen.depth === 1 ? "" : "s"}` : "in the mempool"}</span>}
           </div>
         </div>
+        {offer.state === "Created" && <PayHelpers serial={serial} address={offer.address} sats={Number(offer.size_sats)} wallets={detectBtcWallets()} />}
         <Notice>Send from a wallet you control, in one output, the exact amount. Any other amount is not accepted; you can recover it to {offer.refund_address} from your contracts page.</Notice>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 44 }}>

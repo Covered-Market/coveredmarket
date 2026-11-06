@@ -1,6 +1,7 @@
 import express from "express";
 import { Core } from "./btc/core.js";
 import { failoverFetch } from "./btc/failover.js";
+import { esploraFaucet, type FaucetWallet } from "./btc/faucet.js";
 import { esplora, type Esplora } from "./btc/proof.js";
 import { checkDelegate } from "./metatx.js";
 import { decodeSignedDelegate, relayResult, viewOf } from "./near/delegate.js";
@@ -56,6 +57,42 @@ if (process.env.DEV_ROOT_ID && process.env.DEV_ROOT_KEY) {
   const create = devAccountCreator({ nodeUrl: cfg.nodeUrl, rootId: process.env.DEV_ROOT_ID, rootKey: process.env.DEV_ROOT_KEY, usdc: cfg.usdc });
   app.post("/api/dev/account", async (req, res) => {
     try { res.json(await create(String(req.body?.newAccountId), String(req.body?.newAccountPublicKey))); } catch (e) { res.status(400).json({ error: (e as Error).message }); }
+  });
+}
+
+// Demo faucet for test Bitcoin: pays the deposit of one of *our* offers that is still waiting for it, exactly its
+// size, capped and rate-limited. Testnet: a key generated on this server (fund its address from any testnet3
+// faucet); local sandbox: the regtest miner. Never on mainnet.
+if (cfg.networkId !== "mainnet" && (process.env.BTC_FAUCET ?? "1") === "1") {
+  const MAX = BigInt(env("BTC_FAUCET_MAX_SATS", "200000")), PER_HOUR = Number(env("BTC_FAUCET_PER_HOUR", "3")), PER_DAY = Number(env("BTC_FAUCET_PER_DAY", "40"));
+  const wallet: FaucetWallet = core
+    ? { address: "regtest miner", balance: async () => ({ confirmed: 10n ** 15n, unconfirmed: 0n }), pay: async (to, sats) => { const id = await core.send(to, Number(sats) / 1e8); await core.mine(1); return id; } }
+    : esploraFaucet(env("BTC_FAUCET_KEY_FILE", "/data/btc-faucet.key"), btcGet);
+  console.log(`btc faucet: ${wallet.address} (max ${MAX} sats per deposit)`);
+  const byIp = new Map<string, number[]>(); let day: number[] = []; const paid = new Set<number>();
+  app.get("/api/btc-faucet", async (_req, res) => {
+    try { const b = await wallet.balance(); res.json({ enabled: true, address: wallet.address, confirmed: String(b.confirmed), unconfirmed: String(b.unconfirmed), maxSats: String(MAX) }); }
+    catch (e) { res.json({ enabled: true, address: wallet.address, error: (e as Error).message, maxSats: String(MAX) }); }
+  });
+  app.post("/api/btc-faucet", async (req, res) => {
+    const serial = Number(req.body?.serial);
+    const ip = String(req.headers["x-forwarded-for"] ?? req.socket.remoteAddress ?? "").split(",")[0].trim();
+    const now = Date.now(), recent = (byIp.get(ip) ?? []).filter((t) => now - t < 3600_000); day = day.filter((t) => now - t < 86_400_000);
+    if (!Number.isInteger(serial) || serial < 0) return res.status(400).json({ error: "which offer?" });
+    if (recent.length >= PER_HOUR || day.length >= PER_DAY) return res.status(429).json({ error: "the demo faucet is resting; try again later or send from your own testnet wallet" });
+    if (paid.has(serial)) return res.status(409).json({ error: "this deposit was already sent by the faucet" });
+    try {
+      const o: any = await near.view("get_offer", { serial });
+      if (!o || o.state !== "Created") return res.status(409).json({ error: "this offer is not waiting for a deposit" });
+      const sats = BigInt(o.size_sats);
+      if (sats > MAX) return res.status(400).json({ error: `the demo faucet funds offers up to ${Number(MAX) / 1e8} BTC; make a smaller one or send from your own wallet` });
+      const txs = await services.addressTxs(o.address);
+      if (Array.isArray(txs) && txs.length) return res.status(409).json({ error: "something was already sent to this address" });
+      paid.add(serial); byIp.set(ip, [...recent, now]); day.push(now);
+      const txid = await wallet.pay(o.address, sats);
+      console.log(new Date().toISOString(), `btc faucet paid CV-${serial} ${sats} sats → ${o.address}: ${txid}`);
+      res.json({ ok: true, txid, sats: String(sats), address: o.address });
+    } catch (e) { paid.delete(serial); console.error(new Date().toISOString(), "btc faucet", (e as Error).message); res.status(500).json({ error: (e as Error).message }); }
   });
 }
 

@@ -10,6 +10,7 @@ services:
       PORT: "8787"
     volumes:
       - config:/config
+      - relayer_data:/data
     expose: ["8787"]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8787/api/health"]
@@ -77,4 +78,5 @@ services:
     command: ["/write-config.sh", "/config/mainnet.json"]
 volumes:
   config:
+  relayer_data:
   caddy_data:
