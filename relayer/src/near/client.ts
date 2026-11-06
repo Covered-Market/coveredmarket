@@ -24,6 +24,9 @@ export async function nearClient(cfg: NearCfg) {
     return account.callFunction({ contractId, methodName: method, args, gas: BigInt(gasTgas) * 10n ** 12n });
   };
   /** Relay a signed delegate action (NEP-366) built by the user's wallet. */
+  const accountExists = async (id: string) => {
+    try { await provider.query({ request_type: "view_account", account_id: id, finality: "optimistic" }); return true; } catch { return false; }
+  };
   const createSubAccount = async (id: string, publicKey: string, yocto: bigint) => {
     if (!account) throw new Error("relayer key not configured");
     return account.createAccount(id, publicKey as any, yocto);
@@ -34,5 +37,5 @@ export async function nearClient(cfg: NearCfg) {
   };
   /** The contract's clock: latest block timestamp in seconds. Guards (window, grace) are judged against this, not wall time. */
   const chainNow = async () => Number(BigInt((await provider.block({ finality: "optimistic" })).header.timestamp_nanosec) / 1_000_000_000n);
-  return { view, call, callAny, relay, createSubAccount, provider, chainNow };
+  return { view, call, callAny, relay, createSubAccount, accountExists, provider, chainNow };
 }
