@@ -95,7 +95,7 @@ async function createFunded(sizeSats: bigint, strike: string, premium: string, l
   const now = await chainNow();
   const expiry = Math.ceil((now + Number(p0.min_lead_s) + leadS) / 60) * 60;
   const serial: number = Number(await call(seller, covered.id, "create_offer", { terms: { size_sats: String(sizeSats), strike_units: strike, premium_units: premium, expiry_s: String(expiry), refund_address: addrFromSecret(9) } }, 10n ** 23n, 100n));
-  const o = await view(covered.id, "get_offer", { serial });
+  const o = await until(`CV-${serial} visible`, async () => { try { return await view(covered.id, "get_offer", { serial }); } catch { return null; } }, 60_000);
   // 1. the address the contract derived = the address the real signer derives for (covered, path)
   const live: string = await view(SIGNER, "derived_public_key", { path: o.path, predecessor: covered.id, domain_id: 0 });
   const livePk = secp.ProjectivePoint.fromHex(parseRootKey(live)).toRawBytes(true);
@@ -105,8 +105,8 @@ async function createFunded(sizeSats: bigint, strike: string, premium: string, l
   const dep = fakeDeposit(scriptFromAddress(o.address, "Testnet4"), sizeSats, serial);
   await call(lc, lc.id, "set_included", { tx_id: dep.txid, block_hash: "00".repeat(32), depth: 6 }, 0n, 30n);
   await call(seller, covered.id, "confirm_deposit", { serial, proof: proofFor(dep.raw) }, 0n, 150n);
-  const f = await view(covered.id, "get_offer", { serial });
-  if (f.state !== "Funded") throw new Error(`CV-${serial} not funded: ${f.state}`);
+  // Reads go to a load-balanced RPC whose nodes can trail the one that executed the call by a block or two.
+  await until(`CV-${serial} Funded`, async () => (await view(covered.id, "get_offer", { serial })).state === "Funded", 60_000);
   return { serial, expiry, grace: Number(p0.grace_s) };
 }
 /** Calls whose receipts include an MPC `sign` (yield/resume) can outlive the RPC's wait; the state is the truth. */
@@ -138,17 +138,16 @@ await call(buyer, usdc.id, "ft_transfer_call", { receiver_id: covered.id, amount
 log(`CV-${b.serial} sold; waiting for expiry in real time (${b.expiry - (await chainNow())} s)`);
 await until("expiry", async () => (await chainNow()) >= b.expiry + 2, 300_000);
 await call(buyer, usdc.id, "ft_transfer_call", { receiver_id: covered.id, amount: bo.strike_total_units, msg: JSON.stringify({ serial: b.serial, exercise: true }) }, 1n, 300n);
-const bc = await view(covered.id, "get_offer", { serial: b.serial });
+const bc = await until("exercise committed", async () => { const o = await view(covered.id, "get_offer", { serial: b.serial }); return o.state === "Committed" ? o : null; }, 60_000);
 if (bc.state !== "Committed" || bc.commitment_to_address !== to) throw new Error(`exercise did not commit to the buyer: ${bc.state} ${bc.commitment_to_address}`);
 await signing(buyer, "request_signature", { serial: b.serial });
 const bs = await signedAndValid(b.serial, "exercise", buyer);
 await call(lc, lc.id, "set_included", { tx_id: bs.commitment_txid, block_hash: "00".repeat(32), depth: 1 }, 0n, 30n);
 await call(buyer, covered.id, "confirm_spend", { serial: b.serial, proof: proofFor(bs.signed_tx) }, 0n, 150n);
-if ((await view(covered.id, "get_offer", { serial: b.serial })).state !== "Exercised") throw new Error("not Exercised");
+await until("Exercised", async () => (await view(covered.id, "get_offer", { serial: b.serial })).state === "Exercised", 60_000);
 await call(seller, covered.id, "claim", {}, 0n, 100n);
-const bal = BigInt(await view(usdc.id, "ft_balance_of", { account_id: seller.id }));
 const expect = BigInt(bo.premium_units) + BigInt(bo.strike_total_units);
-if (bal !== expect) throw new Error(`seller got ${bal}, expected ${expect}`);
+const bal = await until("seller paid", async () => { const v = BigInt(await view(usdc.id, "ft_balance_of", { account_id: seller.id })); return v === expect ? v : null; }, 60_000);
 const acc = await view(covered.id, "get_accounting");
 const held = BigInt(await view(usdc.id, "ft_balance_of", { account_id: covered.id }));
 if (BigInt(acc.claimable_total) + BigInt(acc.escrow_total) !== held) throw new Error("accounting invariant broken");
