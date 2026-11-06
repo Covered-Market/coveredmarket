@@ -72,7 +72,8 @@ const at0800 = (days: number) => { const d = new Date((now + days * 86400) * 100
 const SHORT = Number(process.env.SHORT_EXPIRY_S ?? 2400); // the two contracts that settle during this run
 const usd = (x: number) => String(Math.round(x * 1e6));
 const strike = (pct: number) => Math.round((spot * (1 + pct / 100)) / 500) * 500;
-const premium = (sizeBtc: number, ratePct: number, days: number) => Math.max(1, Math.round(sizeBtc * spot * (ratePct / 100) * (days / 365)));
+// Priced like a real desk would (an annual rate on the notional), to the cent: test sizes make small premiums.
+const premium = (sizeBtc: number, ratePct: number, days: number) => Math.max(0.05, Math.round(sizeBtc * spot * (ratePct / 100) * (days / 365) * 100) / 100);
 type Plan = { key: string; sats: number; strikePct: number; days: number; expiry: number; apr: number; deposit: boolean };
 const big = Math.min(MAXF, 200000), mid = Math.min(MAXF, 150000);
 const plans: Plan[] = [
