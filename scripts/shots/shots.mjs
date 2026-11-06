@@ -61,7 +61,7 @@ for (const [theme, devs] of Object.entries(themes)) for (const dev of devs) {
   const ctx = await browser.newContext({ ...devices[dev], colorScheme: theme === "vault" ? "dark" : "light" });
   const page = await ctx.newPage();
   await page.goto(SITE + "/#/market");
-  for (const [id, route, needs] of plan) {
+  for (const [id, route, needs] of plan) try {
     await page.evaluate((w) => w ? localStorage.setItem("covered.wallet", JSON.stringify(w)) : localStorage.removeItem("covered.wallet"),
       needs === "wallet" && busiest ? { accountId: busiest } : null);
     await page.goto(`${SITE}/${route}`); await page.reload();
@@ -75,7 +75,7 @@ for (const [theme, devs] of Object.entries(themes)) for (const dev of devs) {
     }
     if (id.startsWith("cert-")) {
       const v = page.getByRole("button", { name: "Verify" });
-      if (await v.count()) { await v.first().click(); await page.waitForSelector("text=/of 7|could not run/", { timeout: 90_000 }).catch(() => {}); await page.waitForTimeout(800); }
+      if (await v.count()) { await v.first().click({ force: true, timeout: 10_000 }).catch((e) => log(`  verify click: ${e.message.split("\n")[0]}`)); await page.waitForSelector("text=/of 7|could not run/", { timeout: 90_000 }).catch(() => {}); await page.waitForTimeout(800); }
     }
     for (const full of [false, true]) {
       const file = `${id}-${theme}-${dev}${full ? "-full" : ""}.png`;
@@ -83,7 +83,7 @@ for (const [theme, devs] of Object.entries(themes)) for (const dev of devs) {
       manifest.shots.push({ file, id, route, theme, device: dev, fullPage: full });
     }
     log(`${theme} ${dev} ${id}`);
-  }
+  } catch (e) { log(`${theme} ${dev} ${id} FAILED: ${String(e.message).split("\n")[0]}`); }
   await ctx.close();
 }
 await browser.close();
