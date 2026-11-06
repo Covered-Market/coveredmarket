@@ -45,7 +45,7 @@ export function Buy({ serial, wallet, onCreate }: { serial: number; wallet: Wall
               <div className="figure" style={{ wordBreak: "break-all" }}>{wallet?.accountId ?? "your NEAR account"}</div>
               <div className="body-small" style={{ color: "var(--ink-muted)" }}>No USDC on NEAR yet? <a href="https://app.near-intents.org" target="_blank" rel="noreferrer" style={{ color: "var(--intaglio)" }}>Fund this account from Solana or Base with NEAR Intents</a>, then come back.</div>
             </div>
-            <Button variant="primary" size="lg" disabled={busy || !addr} onClick={pay}>{wallet ? (busy ? "Paying…" : "Pay the premium") : "Create wallet"}</Button>
+            <Button variant="primary" size="lg" disabled={busy || !addr} onClick={pay}>{wallet ? (busy ? "Paying…" : "Pay the premium") : "Connect a wallet"}</Button>
           </div>
           <SettlementTimeline steps={[
             { title: "Pay the premium", detail: "one USDC transfer from your account; the sale is final in that receipt", state: "now" },
