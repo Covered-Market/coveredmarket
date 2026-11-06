@@ -7,7 +7,7 @@ export function Try({ wallet, onCreate }: { wallet: Wallet | null; onCreate: () 
   const steps = [
     { n: 1, title: "Get a wallet", detail: "Connect your NEAR wallet, or make a quick test wallet in this browser: it comes with 100,000 test USDC.", time: "1 min" },
     { n: 2, title: "Sell a call", detail: "Pick a size (0.001 tBTC is fine), a strike above the reference, the shortest expiry. The contract derives your deposit address.", time: "1 min" },
-    { n: 3, title: "Deposit testnet coins", detail: "Send the exact amount from any Bitcoin testnet3 wallet (faucet below). Watch the light client prove it.", time: "10–30 min" },
+    { n: 3, title: "Deposit testnet coins", detail: "Press “Send it from the demo faucet” on the deposit page, or pay from your own testnet3 wallet (UniSat, Leather, OKX, Xverse buttons appear when installed). Watch the light client prove it.", time: "10–30 min" },
     { n: 4, title: "Buy it yourself", detail: "Open a second browser profile, get another wallet, buy the call with test USDC.", time: "1 min" },
     { n: 5, title: "Watch it settle", detail: "At expiry, exercise by paying the strike or let the window pass. Open the Bitcoin transaction the contract signed.", time: "1 min" },
   ];
