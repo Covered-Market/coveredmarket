@@ -30,7 +30,7 @@ export function Sell({ wallet }: { wallet: Wallet }) {
     } catch (e) { alert((e as Error).message); } finally { setBusy(false); }
   };
   return (
-    <div style={{ padding: "32px 48px", display: "grid", gridTemplateColumns: "minmax(0, 560px) 1fr", gap: 56 }}>
+    <div className="cv-split cv-pad" style={{ padding: "32px 48px", display: "grid", gridTemplateColumns: "minmax(0, 560px) 1fr", gap: 56 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
           <div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)", marginBottom: 8 }}>Step 1 of 3 · Terms</div>

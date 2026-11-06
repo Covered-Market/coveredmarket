@@ -10,6 +10,7 @@ import { Market } from "./pages/Market";
 import { Sell } from "./pages/Sell";
 import { Try } from "./pages/Try";
 import { NetworkBand, NetworkSwitch, NotLive } from "./Network";
+import { ChainClock } from "./ChainClock";
 
 export function useRoute() {
   const [h, setH] = useState(location.hash || "#/market");
@@ -81,7 +82,8 @@ export function App() {
         </div>
       )}
       {content}
-      <div style={{ padding: "24px 48px", borderTop: "1px solid var(--rule)", marginTop: 48 }} className="body-small">
+      <div style={{ padding: "16px 48px 24px", borderTop: "1px solid var(--rule)", marginTop: 48 }} className="body-small cv-pad">
+        <ChainClock />
         <Notice>Covered is unaudited hackathon software.{CFG.disabled ? null : <> Only the contract <a href={`${CFG.explorerNear}/address/${CFG.contract}`} target="_blank" rel="noreferrer"><code>{CFG.contract}</code></a> can ask NEAR's signing network to spend a deposit address; Covered the company cannot. If the signing network stopped, settlement would stop with it.</>}</Notice>
       </div>
     </div>
