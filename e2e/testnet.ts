@@ -62,10 +62,10 @@ async function account(prefix: string) {
 type U = Awaited<ReturnType<typeof account>>;
 // Only a refused transaction is safe to resend: rate-limited, or rejected for a stale nonce (a load-balanced RPC
 // node a block behind can hand out the nonce the previous transaction just used).
-const call = (u: U, contractId: string, methodName: string, args: object, deposit = 0n, gas = 300n) => retry(() => u.acc.callFunction({ contractId, methodName, args, deposit, gas: gas * TGAS }), 6, /-429|429 Too Many|InvalidNonce|nonce .* must be larger/);
+const call = (u: U, contractId: string, methodName: string, args: object, deposit = 0n, gas = 300n) => retry(() => u.acc.callFunction({ contractId, methodName, args, deposit, gas: gas * TGAS }), 6, /-429|429 Too Many|InvalidNonce|nonce .* must be larger|Transaction has expired/);
 async function deploy(u: U, file: string, init: string, args: object) {
   // one transaction: no second nonce to race
-  await retry(() => u.acc.signAndSendTransaction({ receiverId: u.id, actions: [actionCreators.deployContract(wasm(file)), actionCreators.functionCall(init, args, 100n * TGAS, 0n)] }), 6, /-429|InvalidNonce|nonce .* must be larger/);
+  await retry(() => u.acc.signAndSendTransaction({ receiverId: u.id, actions: [actionCreators.deployContract(wasm(file)), actionCreators.functionCall(init, args, 100n * TGAS, 0n)] }), 6, /-429|InvalidNonce|nonce .* must be larger|Transaction has expired/);
 }
 const addrFromSecret = (b: number) => addressFromScript(p2wpkhScript(secp.getPublicKey(new Uint8Array(32).fill(b), true)), "Testnet4");
 /** Minimal legacy-format tx paying `value` to `script` (stands in for the seller's deposit). */

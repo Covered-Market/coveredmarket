@@ -9,6 +9,10 @@ describe("retryNonce", () => {
     await vi.runAllTimersAsync();
     expect(await p).toBe("ok");
     expect(n).toBe(3);
+    let k = 0;
+    const q = retryNonce(async () => { if (k++ < 1) throw new Error("Transaction has expired"); return "ok"; });
+    await vi.runAllTimersAsync();
+    expect(await q).toBe("ok");
     let m = 0;
     await expect(retryNonce(async () => { m++; throw new Error("Smart contract panicked: only seller"); })).rejects.toThrow("only seller");
     expect(m).toBe(1);
