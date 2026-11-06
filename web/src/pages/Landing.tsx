@@ -1,0 +1,511 @@
+/**
+ * The public landing page at `/` (no hash route). The app's own routes (`#/market`, `#/sell`, …) are untouched.
+ * Everything network-specific comes from CFG, so the same page serves the testnet and the mainnet site.
+ * Product images are real captures of the deployed testnet app (scripts/shots); the hero certificate is read
+ * from the contract and falls back to a snapshot of CV-1 when the network has no contract yet.
+ */
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { C, dateUtc } from "../ds";
+import { CFG, view } from "../lib/near";
+import { stampFor, useSpot } from "./hooks";
+import type { Offer } from "../lib/verify";
+import "../landing.css";
+
+const FEATURED = Number((CFG as unknown as { featured?: number }).featured ?? 1);
+const SECURITY = "security@covered.market";
+const SNAPSHOT = { serial: "CV-1", issued: "6 Nov 2026", size: 0.001, strike: 150000, expiry: "6 Nov 2026, 11:07 UTC", premium: 5, vault: "tb1qc7llf6xn7zwgagm7ztwmhd3209nkcu3tx5q9pe", seller: "live-seller-mw4s4qtp.testnet", buyer: "live-buyer-mw4s4qtp.testnet", contractId: "covered-app-mw4qlyb3.testnet", status: "open" as const };
+
+/** Read after loadConfig() has run (module scope runs before it), so these are functions of CFG. */
+const net = () => {
+  const isTest = CFG.mode !== "mainnet", live = !CFG.disabled;
+  return { isTest, live, testnetSite: isTest ? "" : CFG.switchUrl ?? "", app: (route: string) => (live ? `#/${route}` : CFG.switchUrl ? `${CFG.switchUrl}/#/${route}` : `#/${route}`) };
+};
+
+/** In-page anchors: the app uses the hash for routes, so section links scroll instead of changing the hash. */
+function jump(e: React.MouseEvent, id: string) { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); }
+const A = ({ to, children, className, style }: { to: string; children: ReactNode; className?: string; style?: React.CSSProperties }) => <a href={`#${to}`} onClick={(e) => jump(e, to)} className={className} style={style}>{children}</a>;
+
+function useHeroCert() {
+  const [cert, setCert] = useState<typeof SNAPSHOT & { live?: boolean }>(SNAPSHOT);
+  useEffect(() => {
+    if (!net().live) return;
+    view<Offer | null>("get_offer", { serial: FEATURED }).then((o) => {
+      if (!o) return;
+      setCert({ serial: `CV-${FEATURED}`, issued: dateUtc(o.created_s ?? o.expiry_s).slice(0, 11), size: Number(o.size_sats) / 1e8, strike: Number(o.strike_units) / 1e6, expiry: dateUtc(o.expiry_s), premium: Number(o.premium_units) / 1e6, vault: o.address, seller: o.seller, buyer: o.buyer ?? undefined as unknown as string, contractId: CFG.contract, status: stampFor(o.state) as "open", live: true });
+    }).catch(() => {});
+  }, []);
+  return cert;
+}
+
+/** Scales the 790px Certificate component to the width it is given, keeping it a certificate. */
+function ScaledCert({ cert }: { cert: object }) {
+  const { Certificate } = C();
+  const box = useRef<HTMLDivElement>(null), inner = useRef<HTMLDivElement>(null);
+  const [s, setS] = useState({ k: 0.6, h: 300 });
+  useLayoutEffect(() => {
+    const f = () => { const w = box.current?.parentElement?.clientWidth ?? 600; const pad = parseFloat(getComputedStyle(box.current!.parentElement!).paddingLeft) * 2; const k = Math.min(1, (w - pad) / 790); setS({ k, h: (inner.current?.offsetHeight ?? 440) * k }); };
+    f(); const ro = new ResizeObserver(f); if (box.current?.parentElement) ro.observe(box.current.parentElement); const t = setTimeout(f, 400);
+    return () => { ro.disconnect(); clearTimeout(t); };
+  }, [cert]);
+  return (
+    <div ref={box} className="ld-cert-box" style={{ width: 790 * s.k, height: s.h }}>
+      <div ref={inner} data-theme="paper" style={{ transform: `scale(${s.k})` }}><Certificate contract={cert as never} /></div>
+    </div>
+  );
+}
+
+const Kicker = ({ n, children }: { n?: string; children: ReactNode }) => <p className="ld-kicker">{n ? `Art. ${n} · ` : ""}{children}</p>;
+const Frame = ({ path, src, alt }: { path: string; src: string; alt: string }) => (
+  <div className="ld-frame" data-theme="paper"><div className="ld-frame-bar"><i /><i /><span>{path}</span></div><img src={src} alt={alt} loading="lazy" decoding="async" /></div>
+);
+const Icon = ({ d }: { d: string }) => <svg viewBox="0 0 24 24" aria-hidden="true"><path d={d} fill="none" stroke="var(--intaglio)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+
+const MARK = {
+  yes: { word: "Yes", color: "var(--intaglio)", fill: "var(--intaglio)", stroke: "var(--on-intaglio)", d: "M3 7.5l2.6 2.6L11 4.5" },
+  no: { word: "No", color: "var(--oxblood)", fill: "transparent", stroke: "var(--oxblood)", d: "M4 4l6 6M10 4l-6 6" },
+  part: { word: "Partly", color: "var(--gilt-ink)", fill: "transparent", stroke: "var(--gilt-ink)", d: "M3 7h8" },
+};
+type M = keyof typeof MARK;
+const COMPARE: [string, [M, string], [M, string], [M, string], [M, string]][] = [
+  ["Coins stay on Bitcoin", ["yes", "At their own address"], ["no", "Deposited to the exchange"], ["no", "Deposited to the exchange"], ["no", "Wrapped BTC on another chain"]],
+  ["No custodian holds them", ["yes", "Only the contract can sign"], ["no", ""], ["no", ""], ["part", "Vault is yours; the wrapper is not"]],
+  ["You set strike and expiry", ["yes", "Any strike, any day"], ["part", "Listed strikes and dates"], ["part", "Offered prices; Tue and Fri"], ["no", "The vault picks"]],
+  ["You set the price", ["yes", "You ask, a buyer accepts"], ["yes", "Limit orders"], ["no", "Rate is quoted"], ["no", "Sold at auction"]],
+  ["Paid up front", ["yes", "When the call sells"], ["yes", "When the order fills"], ["no", "Paid at settlement"], ["part", "Accrues in the vault"]],
+  ["No sign-up or ID check", ["yes", "A NEAR wallet"], ["no", "ID for every user"], ["no", "Exchange account"], ["yes", "A wallet"]],
+  ["Check it yourself on chain", ["yes", "Seven checks"], ["no", ""], ["no", ""], ["yes", ""]],
+];
+const Mark = ({ m, small }: { m: M; small?: boolean }) => { const k = MARK[m]; return <><span className="ld-mark" aria-hidden="true" style={{ borderColor: k.color, background: k.fill, width: small ? 24 : 28, height: small ? 24 : 28 }}><svg viewBox="0 0 14 14"><path d={k.d} fill="none" stroke={k.stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></span><span className="ld-word" style={{ color: k.color, fontSize: small ? 10 : 11 }}>{k.word}</span></>; };
+
+const BENEFITS = [
+  ["coin", "Your coins stay on Bitcoin", "No bridge, no wrapped token. They sit at an address you can look up on any explorer."],
+  ["key", "No custodian", "No exchange holds your coins. The contract has no owner key and signs only what its terms allow."],
+  ["premium", "Paid when it sells", "The premium is credited the moment a buyer takes your call, and it is yours whatever happens next."],
+  ["strike", "Your terms", "You choose the size, the strike, the expiry and the price. Nobody picks them for you."],
+  ["kept", "No margin, no liquidation", "Your coins cover the call in full, so a price spike cannot close you out."],
+  ["verify", "Check, don’t trust", "Seven checks run in your browser against NEAR and Bitcoin directly. None of them ask us."],
+  ["wallet", "No sign-up form", "A NEAR wallet is your account. It is pseudonymous, and every contract is public on both chains."],
+  ["chain", "No NEAR needed", "A relayer pays gas. Premiums and strikes settle in USDC."],
+];
+
+const built = (): { status: "Live" | "Partly" | "Next"; name: string; what: string; id: string; d: string }[] => [
+  { status: "Live", name: "Chain Signatures", what: "NEAR’s MPC network gives the contract its own Bitcoin key for every offer, derived from the contract and the serial, and signs only the transaction the contract has committed to.", id: `${CFG.signer} · derived keys`, d: "M12 3a2 2 0 1 0 0.01 0 M5 17a2 2 0 1 0 0.01 0 M19 17a2 2 0 1 0 0.01 0 M11 6.5l-5 8.5 M13 6.5l5 8.5 M7 19h10" },
+  { status: "Live", name: "A contract nobody controls", what: "NEAR accounts are governed by access keys. Covered’s contract has none after deployment, so it cannot be upgraded or drained, and Verify checks that from your browser.", id: `${CFG.contract} · 0 access keys`, d: "M7 11V8a5 5 0 0 1 10 0v3 M5 11h14v10H5z M12 15v2" },
+  { status: "Live", name: "Pay and act in one receipt", what: "The buyer’s USDC arrives with its instruction through NEP-141 ft_transfer_call. The premium is credited and the buyer recorded in the same receipt, with no pending state between.", id: "NEP-141 · ft_transfer_call", d: "M4 12h6 M14 12h6 M10 8l4 4-4 4 M4 6v12 M20 6v12" },
+  { status: "Live", name: "Meta-transactions", what: "NEAR delegate actions let you sign while the relayer submits and pays gas. You never need to hold NEAR, and the relayer can never act alone.", id: "NEP-366 delegate actions", d: "M4 12h13 M13 7l5 5-5 5 M4 6v12" },
+  { status: "Partly", name: "NEAR Intents", what: "Fund an account with USDC from Solana or Base today. Paying a premium or strike straight from another chain through 1Click is next.", id: "intents.near · 1Click", d: "M4 8h12 M12 4l4 4-4 4 M20 16H8 M12 12l-4 4 4 4" },
+  { status: "Next", name: "Confidential Intents", what: "Contract terms are public today, so anyone can verify them. Private terms will come with Confidential Intents on mainnet.", id: "privacy · mainnet", d: "M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z M12 9a3 3 0 1 0 0.01 0 M4 4l16 16" },
+];
+const STATUS_COLOR = { Live: "var(--intaglio)", Partly: "var(--gilt-ink)", Next: "var(--ink-muted)" };
+
+const STEPS = [
+  { n: "01", title: "Choose your terms", text: "Size, strike, expiry and the premium you ask. Before you commit, the page says in words what happens in each outcome.", tech: "Gas paid by the relayer · NEP-366", path: "covered · /sell", img: "/site/shots/step-sell.webp", alt: "The sell form: 2 BTC, strike $150,000, premium $6,000" },
+  { n: "02", title: "Deposit to your contract’s own address", text: "A Bitcoin address is derived for this one contract. Only the contract can ask for a signature for it. Your deposit is proven on NEAR by a Bitcoin light client.", tech: "Chain Signatures · Bitcoin light client", path: "covered · /c/1 · on-chain record", img: "/site/shots/step-deposit.webp", alt: "The on-chain record of CV-1: deposit address, deposit transaction, refund address, contract, signer and light client" },
+  { n: "03", title: "Get paid when it sells", text: "A buyer pays the premium in USDC on NEAR. It is credited to you in the same transaction that records the buyer. Claim it any time.", tech: "USDC on NEAR", path: "covered · /contracts", img: "/site/shots/step-sold2.webp", alt: "My contracts: 0.0010 BTC at rest in live contracts and $5.00 of premium ready to claim" },
+  { n: "04", title: "At expiry, the contract signs", text: "If the buyer pays the strike in the exercise window, the contract signs the coins to them. If not, it signs them back to your address.", tech: "Chain Signatures", path: "covered · /c/1", img: "/site/shots/step-cert.webp", alt: "The certificate of CV-1: 0.0010 BTC, strike $150,000, expires 6 Nov 2026, 11:07 UTC" },
+];
+
+const FAQ = [
+  ["What is a covered call?", "You sell someone the right to buy your coins at a price you set, on a date you set. They pay you for that right now. You keep the payment whatever happens."],
+  ["Where are my coins during the contract?", "On Bitcoin, at an address derived for your contract alone. You can look it up on any explorer. Only the contract can ask for a signature for it."],
+  ["Can I get my coins back early?", "Before a buyer takes the call, yes: withdraw the offer. Once it has sold, the coins stay until expiry."],
+  ["What if Bitcoin goes far above the strike?", "Your coins are sold at the strike. You keep the premium but not the rise above the strike."],
+  ["Do I need NEAR for gas?", "No. A relayer pays gas through meta-transactions. You sign; it submits."],
+  ["What does Covered charge?", "Nothing on testnet. Mainnet pricing will be published before it opens."],
+  ["Has the contract been audited?", "Not yet. It runs on testnet only until it has been."],
+];
+
+function Payoff() {
+  const [price, setPrice] = useState(131200);
+  const K = 150000, size = 2, prem = 6000;
+  const X = (p: number) => 56 + ((p - 90000) / 120000) * 444, Y = (v: number) => 260 - ((v - 180000) / (426000 - 180000)) * 240;
+  const val = (p: number) => Math.min(p, K) * size + prem, cap = Y(K * size + prem);
+  const fmt = (n: number) => "$" + n.toLocaleString("en-US");
+  return (
+    <figure style={{ margin: 0, display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+      <svg viewBox="0 0 520 300" role="img" aria-label="What Astrid has on 31 December, by Bitcoin price" style={{ width: "100%", height: "auto" }}>
+        <defs><pattern id="ld-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="var(--ink-muted)" strokeWidth="1" /></pattern></defs>
+        <line x1="56" y1="260" x2="500" y2="260" stroke="var(--rule-strong)" />
+        <line x1="56" y1="20" x2="56" y2="260" stroke="var(--rule-strong)" />
+        <polygon points={`${X(K)},${cap} ${X(210000)},${Y(210000 * size + prem)} ${X(210000)},${cap}`} fill="url(#ld-hatch)" opacity="0.5" />
+        <line x1={X(K)} y1="20" x2={X(K)} y2="260" stroke="var(--gilt)" strokeWidth="1.5" strokeDasharray="5 4" />
+        <polyline points={[90000, K, 210000].map((p) => `${X(p)},${Y(val(p))}`).join(" ")} fill="none" stroke="var(--intaglio)" strokeWidth="2" />
+        <line x1={X(price)} y1="20" x2={X(price)} y2="260" stroke="var(--ink)" />
+        <circle cx={X(price)} cy={Y(val(price))} r="5" fill="var(--paper)" stroke="var(--ink)" strokeWidth="2" />
+        <text x={X(K)} y="14" textAnchor="middle" fontFamily="var(--font-mono)" fontSize="12" fill="var(--gilt-ink)">strike $150,000</text>
+        <text x="490" y={cap - 30} textAnchor="end" fontFamily="var(--font-sans)" fontSize="12" fill="var(--ink-muted)">rise given up</text>
+        <text x="60" y="280" fontFamily="var(--font-mono)" fontSize="12" fill="var(--ink-muted)">$90,000</text>
+        <text x="500" y="280" textAnchor="end" fontFamily="var(--font-mono)" fontSize="12" fill="var(--ink-muted)">$210,000</text>
+        <text x="278" y="296" textAnchor="middle" fontFamily="var(--font-sans)" fontSize="12" fill="var(--ink-muted)">Bitcoin on 31 Dec 2026</text>
+      </svg>
+      <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <span className="ld-label ld-muted">If Bitcoin is at <span className="ld-mono" style={{ color: "var(--ink)", letterSpacing: 0 }}>{fmt(price)}</span> on 31 Dec 2026</span>
+        <input className="ld-range" type="range" min={90000} max={210000} step={1000} value={price} onChange={(e) => setPrice(Number(e.target.value))} aria-valuetext={fmt(price)} />
+      </label>
+      <p className="ld-lede" style={{ fontSize: 19 }}>{price < K ? "Below the strike. Astrid gets her 2.0000 BTC back and keeps the $6,000." : "Above the strike. Astrid sells at $150,000 a coin: $300,000, plus the $6,000 she already has."}</p>
+    </figure>
+  );
+}
+
+function Calculator() {
+  const spot = useSpot();
+  const S = spot?.price ?? 76078;
+  const [size, setSize] = useState(1), [prem, setPrem] = useState(1500), [days, setDays] = useState(30);
+  const term = (prem / (size * S)) * 100, ann = (term * 365) / days;
+  const pct = (v: number) => v.toFixed(v < 10 ? 2 : 1) + "%";
+  return (
+    <div className="ld-calc">
+      <p className="ld-label ld-muted" style={{ margin: 0 }}>Work out a call</p>
+      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}><span style={{ display: "flex", justifyContent: "space-between" }}><span className="ld-label ld-muted">Coins</span><span className="ld-mono" style={{ color: "var(--copper-ink)" }}>{size.toFixed(1)} BTC</span></span><input className="ld-range" style={{ accentColor: "var(--gilt)" }} type="range" min={0.1} max={5} step={0.1} value={size} onChange={(e) => setSize(Number(e.target.value))} aria-valuetext={`${size.toFixed(1)} BTC`} /></label>
+      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}><span style={{ display: "flex", justifyContent: "space-between" }}><span className="ld-label ld-muted">Premium you ask</span><span className="ld-mono" style={{ color: "var(--gilt-ink)" }}>${prem.toLocaleString("en-US")}</span></span><input className="ld-range" style={{ accentColor: "var(--gilt)" }} type="range" min={50} max={10000} step={50} value={prem} onChange={(e) => setPrem(Number(e.target.value))} aria-valuetext={`$${prem}`} /></label>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}><span className="ld-label ld-muted">Expiry</span>
+        <div role="group" aria-label="Days to expiry" className="ld-row" style={{ gap: 8 }}>{[7, 14, 30, 56].map((n) => <button key={n} type="button" className="ld-chip" aria-pressed={n === days} onClick={() => setDays(n)}>{n} days</button>)}</div>
+      </div>
+      <div style={{ borderTop: "1px solid var(--rule-strong)", paddingTop: 20, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16 }}>
+        <div><div className="ld-label ld-muted">For the term</div><div className="ld-big" style={{ color: "var(--gilt-ink)" }}>{pct(term)}</div></div>
+        <div><div className="ld-label ld-muted">Annualised</div><div className="ld-big">{pct(ann)}</div></div>
+      </div>
+      <p className="body-small ld-muted" style={{ margin: 0 }}>At a Bitcoin price of <span className="ld-mono">${Math.round(S).toLocaleString("en-US")}</span>{spot ? " (live reference, median of " + spot.sources + " tickers)" : " (reference, 6 Nov 2026)"}. Annualised assumes you sell a call like this every time one ends, which is not guaranteed.</p>
+    </div>
+  );
+}
+
+export function Landing() {
+  const { StatTile, Stamp } = C();
+  const { isTest, live, testnetSite, app } = net();
+  const cert = useHeroCert();
+  const [menu, setMenu] = useState(false);
+  useEffect(() => { document.title = "Covered — open to anyone, held by no one, earning for you"; const id = location.hash.slice(1); if (id && !id.startsWith("/")) setTimeout(() => document.getElementById(id)?.scrollIntoView(), 50); }, []);
+  const nav: [string, string][] = [["how", "How it works"], ["returns", "Returns"], ["compare", "Compare"], ["trust", "Security"], ["stack", "Built with"], ["faq", "FAQ"]];
+  const sellLabel = !live ? "Try it on testnet" : isTest ? "Sell a call on testnet" : "Sell a call";
+  return (
+    <div className="ld">
+      {isTest && (
+        <div className="ld-band" role="status"><div className="ld-wrap">
+          <span><strong className="ld-word" style={{ fontSize: 12 }}>{CFG.mode === "local" ? "Local sandbox" : "Testnet"}</strong> · Bitcoin testnet3 and NEAR testnet. Test coins and test USDC with no value.</span>
+          {CFG.switchUrl && <a href={CFG.switchUrl}>Go to mainnet →</a>}
+        </div></div>
+      )}
+      <header className="ld-head">
+        <div className="ld-wrap">
+          <a href="/" aria-label="Covered home" style={{ display: "flex", flexShrink: 0 }}><img className="ld-logo" src="/site/lockup.svg" alt="Covered" /></a>
+          <nav className="ld-nav" aria-label="Sections">{nav.map(([id, l]) => <A key={id} to={id}>{l}</A>)}</nav>
+          <div className="ld-head-right">
+            {(CFG.switchUrl || !isTest) && (
+              <span className="ld-switch ld-hide-phone" role="group" aria-label="Network">
+                {isTest ? <span className="on-test" aria-current="page">Testnet</span> : <a href={CFG.switchUrl}>Testnet</a>}
+                {isTest ? <a href={CFG.switchUrl}>Mainnet</a> : <span className="on-main" aria-current="page">Mainnet</span>}
+              </span>
+            )}
+            <a className="ld-btn ld-btn--primary" style={{ minHeight: 44, padding: "10px 16px", fontSize: 15 }} href={app("market")}>Open the app</a>
+            <button type="button" className="ld-btn ld-btn--quiet ld-menu" style={{ minHeight: 44, padding: "10px 12px", fontSize: 15 }} aria-expanded={menu} aria-label="Menu" onClick={() => setMenu(!menu)}><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg></button>
+          </div>
+        </div>
+        {menu && <div className="ld-wrap"><nav className="ld-drawer" aria-label="Sections">{nav.map(([id, l]) => <a key={id} href={`#${id}`} onClick={(e) => { setMenu(false); jump(e, id); }}>{l}</a>)}</nav></div>}
+      </header>
+
+      <main>
+        {/* hero */}
+        <section className="ld-hero" aria-labelledby="hero-h">
+          <div className="ld-wrap ld-hero-grid">
+            <div className="ld-stack" style={{ minWidth: 0 }}>
+              <p className="ld-kicker" style={{ margin: 0 }}>Covered calls on native Bitcoin</p>
+              <h1 id="hero-h" className="ld-h1"><span>Open to anyone.</span><span>Held by no one.</span><span style={{ color: "var(--intaglio)" }}>Earning for you.</span></h1>
+              <p className="ld-lede" style={{ maxWidth: "38ch" }}>Sell covered calls on coins that never leave Bitcoin. Only a NEAR contract can sign for them, and the premium is yours whatever happens.</p>
+              <div className="ld-row">
+                <a className="ld-btn ld-btn--primary" href={app("sell")}>{sellLabel}</a>
+                <A to="how" className="ld-btn ld-btn--quiet">See how it works</A>
+              </div>
+              <div className="ld-facts">{cert.serial} · {cert.size.toFixed(4)} BTC · strike ${cert.strike.toLocaleString("en-US", { minimumFractionDigits: 2 })} · premium ${cert.premium.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+            </div>
+            <figure style={{ margin: 0, minWidth: 0 }}>
+              <a href={`${live ? "" : testnetSite}#/c/${cert.serial.slice(3)}`} aria-label={`Open contract ${cert.serial} in the app`} style={{ display: "block", textDecoration: "none" }}>
+                <div className="ld-plate" data-theme="vault"><img className="ld-rosette" src="/site/rosette-gilt-on-vault.svg" alt="" aria-hidden="true" /><ScaledCert cert={cert} /></div>
+              </a>
+              <figcaption className="body-small ld-muted" style={{ marginTop: 12 }}>{!live ? `Until the first ${CFG.network} contract exists, this is ${cert.serial} on NEAR testnet. Open it and press Verify.` : cert.live ? `Contract ${cert.serial}, live on NEAR ${CFG.network} and read from the chain just now. Open it and press Verify.` : `Contract ${cert.serial} on NEAR ${CFG.network}. Open it and press Verify.`}</figcaption>
+            </figure>
+          </div>
+        </section>
+
+        {/* film */}
+        <section id="film" aria-labelledby="film-h" style={{ paddingBottom: 64 }}>
+          <div className="ld-wrap">
+            <h2 id="film-h" className="ld-kicker">The film · one contract from offer to settlement</h2>
+            <div className="ld-film" data-theme="vault">
+              <img className="ld-rosette" src="/site/rosette-gilt-on-vault.svg" alt="" aria-hidden="true" />
+              <img className="ld-film-logo" src="/site/lockup-on-vault.svg" alt="" aria-hidden="true" />
+              <div className="ld-film-text"><span className="ld-film-title">Open to anyone. Held by no one. Earning for you.</span><span className="ld-soon">Film coming soon</span></div>
+            </div>
+            <p className="body-small ld-muted" style={{ margin: "12px 0 0" }}>Astrid sells a call on her Bitcoin, Marcus buys it, and the contract settles on Bitcoin. Until the film is out, <a href={app("try")}>try it yourself in six minutes</a>.</p>
+          </div>
+        </section>
+
+        {/* example tiles */}
+        <section aria-labelledby="ex-h" style={{ paddingBottom: 96 }}>
+          <div className="ld-wrap">
+            <h2 id="ex-h" className="ld-kicker">Example · one call on 2 BTC</h2>
+            <div className="ld-3 ld-stats">
+              <StatTile label="Premium you keep" value="$6,000" kind="usd" tone="gilt" note="Paid when the call sells, yours in every outcome" />
+              <StatTile label="Coins at rest on Bitcoin" value={2} kind="btc" tone="btc" note="At an address only the contract can sign for" />
+              <StatTile label="Strike" value="$150,000" kind="usd" tone="ink" note="Expires 31 Dec 2026, 08:00 UTC" />
+            </div>
+          </div>
+        </section>
+
+        {/* benefits */}
+        <section id="why" className="ld-sec" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="why-h">
+          <div className="ld-wrap ld-stack" style={{ gap: 40 }}>
+            <div><Kicker n="01">Why Covered</Kicker><h2 id="why-h" className="ld-h2">Everything an exchange offers, except the exchange.</h2></div>
+            <div className="ld-4" style={{ borderTop: "1px solid var(--rule-strong)" }}>
+              {BENEFITS.map(([icon, t, x]) => (
+                <div className="ld-benefit" key={t}><span className="ld-disc"><img src={`/site/icons/${icon}.svg`} alt="" aria-hidden="true" /></span><h3 className="heading" style={{ margin: 0 }}>{t}</h3><p className="body-small ld-muted" style={{ margin: 0 }}>{x}</p></div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* story */}
+        <section className="ld-sec" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="story-h">
+          <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
+            <div><Kicker n="02">The idea</Kicker><h2 id="story-h" className="ld-h2">You sell the rise above a price you choose.</h2></div>
+            <div className="ld-2">
+              <div className="ld-stack" style={{ gap: 16, maxWidth: "60ch" }}>
+                <p className="body" style={{ margin: 0 }}>Astrid holds <span className="ld-mono" style={{ color: "var(--copper-ink)" }}>2.0000 BTC</span> she has no plan to sell this year. She offers a buyer the right to buy them at <span className="ld-mono">$150,000</span> on <span className="ld-mono">31 Dec 2026</span>. Marcus takes it and pays her <span className="ld-mono" style={{ color: "var(--gilt-ink)" }}>$6,000</span> now.</p>
+                <p className="body" style={{ margin: 0 }}>If Bitcoin ends below <span className="ld-mono">$150,000</span>, the contract signs her coins back to her. If it ends above, her coins are sold to Marcus at <span className="ld-mono">$150,000</span>. Either way the <span className="ld-mono" style={{ color: "var(--gilt-ink)" }}>$6,000</span> is hers.</p>
+                <p className="body-small ld-muted" style={{ margin: 0, paddingTop: 8, borderTop: "1px solid var(--rule)" }}>The trade-off: if Bitcoin rises far past the strike, she gives up the rise above it. That is what the premium pays for. Her coins cannot be withdrawn during the term.</p>
+              </div>
+              <Payoff />
+            </div>
+            <div className="ld-cards2">
+              <div className="ld-card"><div><Stamp status="kept" /></div><div className="heading">Bitcoin ends at <span className="ld-mono">$131,200</span></div><p className="body ld-muted" style={{ margin: 0 }}>The contract signs <span className="ld-mono" style={{ color: "var(--copper-ink)" }}>2.0000 BTC</span> back to Astrid’s address. She keeps <span className="ld-mono" style={{ color: "var(--gilt-ink)" }}>$6,000</span>.</p></div>
+              <div className="ld-card"><div><Stamp status="exercised">Sold at strike</Stamp></div><div className="heading">Bitcoin ends at <span className="ld-mono">$168,000</span></div><p className="body ld-muted" style={{ margin: 0 }}>Marcus pays <span className="ld-mono">$300,000</span> and the contract delivers the coins to him. Astrid has <span className="ld-mono">$306,000</span> in all.</p></div>
+            </div>
+          </div>
+        </section>
+
+        {/* returns */}
+        <section id="returns" className="ld-sec ld-vault" data-theme="vault" aria-labelledby="returns-h">
+          <div className="ld-wrap ld-2">
+            <div className="ld-stack" style={{ gap: 20 }}>
+              <div><Kicker n="03">Returns</Kicker><h2 id="returns-h" className="ld-h2">Your return is the premium you ask for.</h2></div>
+              <p className="body ld-muted" style={{ margin: 0, maxWidth: "52ch" }}>There is no pool and no promised rate. You name a price for your call; a buyer pays it or does not. What decides the premium:</p>
+              <ul style={{ margin: 0, padding: 0, listStyle: "none", borderTop: "1px solid var(--rule)" }}>
+                {[["Strike.", "Closer to today’s price pays more, and is more likely to be sold."], ["Time.", "A longer call pays more; a short one can be sold again sooner."], ["Volatility.", "When Bitcoin swings, buyers pay more for the upside."]].map(([b, t]) => <li key={b} className="body-small" style={{ padding: "12px 0", borderBottom: "1px solid var(--rule)" }}><strong>{b}</strong> <span className="ld-muted">{t}</span></li>)}
+              </ul>
+              <p className="body-small ld-muted" style={{ margin: 0 }}>Nothing here is a forecast or advice. Covered charges nothing on testnet; mainnet pricing will be published before it opens.</p>
+            </div>
+            <Calculator />
+          </div>
+        </section>
+        <div aria-hidden="true" style={{ height: 16, backgroundImage: "url(/site/coupon-edge.svg)", backgroundRepeat: "repeat-x", backgroundPosition: "center", opacity: 0.6 }} />
+
+        {/* how it works */}
+        <section id="how" className="ld-sec" aria-labelledby="how-h">
+          <div className="ld-wrap ld-stack" style={{ gap: 40 }}>
+            <div><Kicker n="04">How it works</Kicker><h2 id="how-h" className="ld-h2">Four steps. Your coins move twice.</h2></div>
+            {STEPS.map((s) => (
+              <div className="ld-step" key={s.n}>
+                <div className="ld-stack" style={{ gap: 12 }}>
+                  <div className="ld-mono" style={{ color: "var(--gilt-ink)" }}>{s.n}</div>
+                  <h3 className="heading" style={{ margin: 0 }}>{s.title}</h3>
+                  <p className="body ld-muted" style={{ margin: 0 }}>{s.text}</p>
+                  <div className="ld-label" style={{ color: "var(--intaglio)" }}>{s.tech}</div>
+                </div>
+                <div className="ld-shotplate" data-theme="vault"><Frame path={s.path} src={s.img} alt={s.alt} /></div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* built with */}
+        <section id="stack" className="ld-sec ld-raised" style={{ borderTop: "1px solid var(--rule)", position: "relative", overflow: "hidden" }} aria-labelledby="stack-h">
+          <div className="ld-wrap ld-stack" style={{ gap: 32, position: "relative" }}>
+            <div className="ld-2" style={{ alignItems: "end", gap: "24px 48px" }}>
+              <div><Kicker n="05">Built with</Kicker><h2 id="stack-h" className="ld-h2" style={{ maxWidth: "16ch" }}>Built on NEAR. Settled on Bitcoin.</h2></div>
+              <p className="ld-lede" style={{ maxWidth: "40ch" }}>Covered is one contract and a thin relayer. What makes it possible is NEAR: a contract that can hold a Bitcoin key without anyone holding it.</p>
+            </div>
+            <div className="ld-3">
+              {built().map((t) => (
+                <article className="ld-tech" key={t.name}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <span className="ld-disc" style={{ width: 48, height: 48 }}><Icon d={t.d} /></span>
+                    <span className="ld-stamp" style={{ color: STATUS_COLOR[t.status], borderStyle: t.status === "Next" ? "dashed" : "solid" }}>{t.status}</span>
+                  </div>
+                  <h3 className="heading" style={{ margin: 0 }}>{t.name}</h3>
+                  <p className="body-small ld-muted" style={{ margin: 0 }}>{t.what}</p>
+                  <div className="ld-tech-id">{t.id}</div>
+                </article>
+              ))}
+            </div>
+            <p className="body-small ld-muted" style={{ margin: 0, maxWidth: "90ch" }}>Also on chain: Bitcoin deposits and settlements are proven to the contract through the Bitcoin light client at <span className="ld-mono" style={{ color: "var(--intaglio)" }}>{CFG.lightClient}</span>, and every certificate can be checked in the browser.</p>
+            {live && <div className="ld-row" style={{ gap: "8px 24px" }}><a href={`${CFG.explorerNear}/address/${CFG.contract}`} target="_blank" rel="noreferrer">The contract on NearBlocks</a></div>}
+          </div>
+        </section>
+
+        {/* the app */}
+        <section className="ld-sec ld-vault" data-theme="vault" aria-labelledby="app-h">
+          <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
+            <div><Kicker n="06">The app</Kicker><h2 id="app-h" className="ld-h2" style={{ maxWidth: "16ch" }}>Every contract, readable by anyone.</h2></div>
+            <div className="ld-app">
+              <Frame path="covered · /c/1" src="/site/shots/app-cert.webp" alt="Contract CV-1 in the app: the certificate, the countdown to the exercise window, the premium credited and the settlement timeline" />
+              <div className="ld-frame" data-theme="vault"><div className="ld-frame-bar"><i /><i /><span>/try · Vault theme</span></div><img src="/site/shots/app-try-vault.webp" alt="Try it on testnet, in the dark Vault theme: five steps and what is live where" loading="lazy" /></div>
+            </div>
+            <div className="ld-cards2">
+              <figure style={{ margin: 0 }}><img src="/site/shots/crop-timeline2.webp" alt="Settlement timeline of CV-1: coins deposited, call sold, exercise window, coins returned" loading="lazy" style={{ width: "100%", display: "block", border: "1px solid var(--rule)" }} /><figcaption className="body-small ld-muted" style={{ marginTop: 8 }}>Settlement timeline</figcaption></figure>
+              <figure style={{ margin: 0 }}><img src="/site/shots/crop-try.webp" alt="Try it: the guided testnet flow" loading="lazy" style={{ width: "100%", display: "block", border: "1px solid var(--rule)" }} /><figcaption className="body-small ld-muted" style={{ marginTop: 8 }}>Try it on testnet</figcaption></figure>
+            </div>
+            <div className="ld-row"><a className="ld-btn ld-btn--primary" href={app("market")}>Open the app</a><a className="ld-btn ld-btn--quiet" href={`${testnetSite}#/try`}>Try it in six minutes</a></div>
+          </div>
+        </section>
+
+        {/* compare */}
+        <section id="compare" className="ld-sec" aria-labelledby="compare-h">
+          <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
+            <div><Kicker n="07">Compared</Kicker><h2 id="compare-h" className="ld-h2">Other ways to earn on Bitcoin, side by side.</h2></div>
+            <div className="ld-cmp-desk" role="table" aria-label="Covered compared with other ways to earn on Bitcoin">
+              <div className="ld-table">
+                <div className="rh ch" role="columnheader" />
+                <div className="ch ours" role="columnheader" data-theme="vault"><img src="/site/lockup-on-vault.svg" alt="Covered" style={{ height: 22 }} /><span className="body-small ld-muted">Native Bitcoin, NEAR contract</span></div>
+                {[["Deribit", "Options exchange"], ["Binance Dual Investment", "Exchange earn product"], ["DeFi call vaults", "Thetanuts, StakeDAO and others"]].map(([n, k]) => <div key={n} className="ch" role="columnheader"><span className="heading" style={{ fontSize: 15 }}>{n}</span><span className="body-small ld-muted">{k}</span></div>)}
+                {COMPARE.map(([row, ...cells]) => [
+                  <div key={row} className="rh body" role="rowheader">{row}</div>,
+                  ...cells.map(([m, note], i) => <div key={row + i} role="cell" className={i === 0 ? "ours" : ""} data-theme={i === 0 ? "vault" : undefined}><Mark m={m} />{note && <span className="ld-note">{note}</span>}</div>),
+                ])}
+              </div>
+            </div>
+            <div className="ld-cmp-phone" style={{ flexDirection: "column", borderTop: "1px solid var(--rule-strong)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 4, padding: "12px 0", borderBottom: "1px solid var(--rule)" }}>
+                {["Covered", "Deribit", "Binance Dual", "DeFi vaults"].map((h, i) => <span key={h} className="ld-word" data-theme={i === 0 ? "vault" : undefined} style={{ fontSize: 10, textAlign: "center", padding: "6px 2px", background: i === 0 ? "var(--paper)" : undefined, color: i === 0 ? "var(--ink)" : "var(--ink-muted)" }}>{h}</span>)}
+              </div>
+              {COMPARE.map(([row, ...cells]) => (
+                <div key={row} style={{ padding: "14px 0", borderBottom: "1px solid var(--rule)", display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div className="body-small" style={{ fontWeight: 600 }}>{row}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 4 }}>{cells.map(([m], i) => <div key={i} data-theme={i === 0 ? "vault" : undefined} style={{ background: i === 0 ? "var(--paper)" : undefined, padding: "8px 2px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}><Mark m={m} small /></div>)}</div>
+                </div>
+              ))}
+              <p className="body-small ld-muted" style={{ margin: "8px 0 0" }}>Binance Dual: Binance Dual Investment. DeFi vaults: Thetanuts, StakeDAO and others.</p>
+            </div>
+            <p className="body-small ld-muted" style={{ margin: 0, maxWidth: "90ch" }}>Sources: Deribit requires ID verification for all users (<a href="https://malaysia.news.yahoo.com/crypto-options-exchange-deribit-require-174321313.html" target="_blank" rel="noreferrer">2020</a>); Binance Dual Investment pays rewards at settlement, Tuesdays and Fridays for BTC (<a href="https://www.binance.com/en/support/faq/09911be9f5754c34806bd3ab4a427e0e" target="_blank" rel="noreferrer">Binance FAQ</a>); DeFi call vaults run on wrapped BTC and pick strikes by algorithm (<a href="https://www.spark.money/tools/bitcoin-structured-product-comparison" target="_blank" rel="noreferrer">Spark</a>). Checked 6 Nov 2026. Names are trademarks of their owners.</p>
+          </div>
+        </section>
+
+        {/* buyers */}
+        <section className="ld-sunk" aria-label="For buyers">
+          <div className="ld-wrap ld-row" style={{ padding: "32px 0", justifyContent: "space-between", gap: "16px 32px" }}>
+            <p className="body" style={{ margin: 0, flex: "1 1 420px" }}><strong>Want the upside instead?</strong> Buy a call backed by coins you can look up on Bitcoin. Pay the premium in USDC; the coins are delivered to your Bitcoin address if you exercise.</p>
+            <a className="ld-btn ld-btn--quiet" href={app("market")}>See the market</a>
+          </div>
+        </section>
+        <img src="/site/band.svg" alt="" aria-hidden="true" style={{ display: "block", width: "100%", height: 40, objectFit: "cover", opacity: 0.45 }} />
+
+        {/* trust */}
+        <section id="trust" className="ld-sec" style={{ borderTop: "none" }} aria-labelledby="trust-h">
+          <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
+            <div><Kicker n="08">What you are trusting</Kicker><h2 id="trust-h" className="ld-h2" style={{ maxWidth: "16ch" }}>No custodian. Here is who can sign.</h2></div>
+            <div className="ld-trust" role="table" aria-label="Who can and cannot act on your coins">
+              <div className="ld-label ld-muted hd">Party</div><div className="ld-label hd" style={{ color: "var(--intaglio)" }}>Can</div><div className="ld-label hd" style={{ color: "var(--oxblood)" }}>Cannot</div>
+              {[["The contract", "Sign your coins after expiry, only to the address its terms name.", "Be upgraded. It has no owner key after deployment."], ["NEAR’s MPC network", "Produce the signatures the contract asks for.", "Sign on its own. No single node holds the key."], ["The Covered team", "Run the relayer that pays gas and this site.", "Move your coins or change a contract’s terms."], ["You, the seller", "Withdraw before the call sells; claim your premium any time.", "Withdraw coins during the term. They return or are sold at expiry."]].map(([w, c, n]) => [
+                <div key={w} className="heading">{w}</div>,
+                <div key={w + "c"} className="body"><span className="ld-label ph" style={{ color: "var(--intaglio)" }}>Can</span>{c}</div>,
+                <div key={w + "n"} className="body"><span className="ld-label ph" style={{ color: "var(--oxblood)" }}>Cannot</span>{n}</div>,
+              ])}
+            </div>
+            <div style={{ background: "var(--paper-raised)", border: "1px solid var(--rule-strong)", padding: "20px 24px" }}>
+              <p className="ld-label" style={{ margin: "0 0 8px" }}>What remains</p>
+              <p className="body" style={{ margin: 0 }}>Signatures come from NEAR’s MPC network. Deposits are proven by the Bitcoin light client on NEAR, so settlement waits if either stops. The contract code has not been audited yet and cannot be upgraded. That is less trust than an exchange, and we would rather say it than hide it.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* verify */}
+        <section className="ld-sec" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="verify-h">
+          <div className="ld-wrap ld-2">
+            <div className="ld-stack" style={{ minWidth: 0 }}>
+              <div><Kicker n="09">Proof</Kicker><h2 id="verify-h" className="ld-h2">Seven checks. None of them ask us.</h2></div>
+              <p className="body ld-muted" style={{ margin: 0, maxWidth: "52ch" }}>Press Verify on any certificate. Your browser reads NEAR and Bitcoin directly and checks:</p>
+              <ol className="body-small" style={{ margin: 0, paddingLeft: 24, display: "flex", flexDirection: "column", gap: 8 }}>
+                <li>The deployed code is the published code, and no key can change it</li><li>The deposit address is derived from this contract and this serial</li><li>The collateral is on Bitcoin, at that address, for the full size</li><li>Every payment the certificate shows is a receipt on NEAR</li><li>Each change of state followed the contract’s rules</li><li>The signed settlement pays the address the terms name</li><li>That settlement is confirmed on Bitcoin</li>
+              </ol>
+              <div><a className="ld-btn ld-btn--primary" href={`${live ? "" : testnetSite}#/c/${cert.serial.slice(3)}`}>Verify {cert.serial}</a></div>
+            </div>
+            <div className="ld-shotplate" data-theme="vault" style={{ minWidth: 0 }}><Frame path="covered · /c/1" src="/site/shots/verify.webp" alt="The Verify panel with all seven checks passed" /></div>
+          </div>
+        </section>
+
+        {/* faq */}
+        <section id="faq" className="ld-sec" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="faq-h">
+          <div className="ld-wrap ld-2">
+            <div><Kicker n="10">Questions</Kicker><h2 id="faq-h" className="ld-h2">What people ask first.</h2></div>
+            <div className="ld-faq">{FAQ.map(([q, a]) => <details key={q}><summary>{q}</summary><p className="body">{a}</p></details>)}</div>
+          </div>
+        </section>
+
+        {/* security */}
+        <section id="security" className="ld-sunk" style={{ borderTop: "1px solid var(--rule)", padding: "96px 0" }} aria-labelledby="security-h">
+          <div className="ld-wrap">
+            <div className="ld-notice">
+              <img className="ld-bandimg" src="/site/band.svg" alt="" aria-hidden="true" style={{ top: 12 }} />
+              <img className="ld-bandimg" src="/site/band.svg" alt="" aria-hidden="true" style={{ bottom: 12 }} />
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 24, borderBottom: "1px solid var(--rule-strong)", paddingBottom: 24 }}>
+                <div className="ld-stack" style={{ gap: 16 }}>
+                  <p className="ld-kicker" style={{ color: "var(--intaglio)", margin: 0 }}>Art. 11 · Security notice</p>
+                  <h2 id="security-h" className="ld-h2" style={{ maxWidth: "16ch" }}>Found a flaw? Tell us before anyone else.</h2>
+                  <p className="ld-lede" style={{ maxWidth: "46ch" }}>Covered keeps people’s Bitcoin behind a contract. If you find a way to move, freeze or misprice those coins, we want to hear it first, and we pay for it.</p>
+                </div>
+                <img className="ld-hide-phone" src="/site/seal.svg" alt="Covered seal" style={{ width: 132, height: 132, flexShrink: 0, opacity: 0.9 }} />
+              </div>
+              <div>
+                <p className="ld-label ld-muted" style={{ margin: "0 0 8px" }}>Rewards, by what the flaw could do</p>
+                <div className="ld-bounty">
+                  {[["Critical", "var(--oxblood)", "A signature for collateral the terms do not allow, or coins sent to any address the terms do not name."], ["High", "var(--copper-ink)", "Coins held past expiry with no way to settle, or a premium or strike credited to the wrong account."], ["Medium", "var(--gilt-ink)", "Accounting that breaks claimable plus escrow equals balance, or a relayer flaw that blocks settlement."], ["Low", "var(--ink-muted)", "The app or a certificate misstating a contract’s terms or state, or a Verify check that passes when it should not."]].map(([sev, col, what]) => [
+                    <div key={sev}><span className="ld-stamp" style={{ color: col, display: "inline-block", transform: "none" }}>{sev}</span></div>,
+                    <div key={sev + "w"} className="body">{what}</div>,
+                  ])}
+                </div>
+                <p className="body-small ld-muted" style={{ margin: "12px 0 0" }}>Rewards are set per report, scaled to severity, and paid in USDC on NEAR once a fix ships. The first report of a flaw is the one rewarded.</p>
+              </div>
+              <div className="ld-3" style={{ gap: "24px 32px" }}>
+                <div className="ld-stack" style={{ gap: 8 }}><h3 className="ld-label" style={{ margin: 0, color: "var(--intaglio)" }}>In scope</h3><p className="body-small" style={{ margin: 0 }}>The Covered contract on NEAR, the relayer, the web app, and the seven Verify checks on every certificate.</p></div>
+                <div className="ld-stack" style={{ gap: 8 }}><h3 className="ld-label" style={{ margin: 0, color: "var(--oxblood)" }}>Out of scope</h3><p className="body-small" style={{ margin: 0 }}>NEAR’s MPC network, the Bitcoin light client and wallets: report those to their teams. Volume denial of service, social engineering, and the testnet faucet’s limits.</p></div>
+                <div className="ld-stack" style={{ gap: 8 }}><h3 className="ld-label" style={{ margin: 0 }}>Our promise</h3><p className="body-small" style={{ margin: 0 }}>Research in good faith within these rules is authorised, and we will not take legal action over it. We acknowledge every report and agree a disclosure date with you.</p></div>
+              </div>
+              <div className="ld-row" style={{ borderTop: "1px solid var(--rule-strong)", paddingTop: 24, gap: "16px 24px" }}>
+                <a className="ld-btn ld-btn--primary" href={`mailto:${SECURITY}?subject=Vulnerability%20report`}>Report a vulnerability</a>
+                <span className="ld-mono ld-muted" style={{ fontSize: 13 }}>{SECURITY}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* close */}
+        <section className="ld-vault" data-theme="vault" style={{ position: "relative", overflow: "hidden", padding: "96px 0" }} aria-labelledby="close-h">
+          <img src="/site/rosette-gilt-on-vault.svg" alt="" aria-hidden="true" style={{ position: "absolute", width: 640, right: -220, top: -200, opacity: 0.35, pointerEvents: "none" }} />
+          <div className="ld-wrap ld-stack" style={{ position: "relative" }}>
+            <h2 id="close-h" className="ld-h2" style={{ maxWidth: "14ch" }}>{isTest || !live ? "Sell your first call on testnet." : "Sell your first call."}</h2>
+            <p className="body ld-muted" style={{ margin: 0, maxWidth: "52ch" }}>{isTest || !live ? "A test wallet, test dollars and test coins from the demo faucet. About six minutes from start to a certificate." : "Connect a NEAR wallet, choose your terms, deposit from any Bitcoin wallet. Want to see it first? Testnet uses the same contract with coins of no value."}</p>
+            <div className="ld-row">
+              <a className="ld-btn ld-btn--gilt" href={isTest || !live ? `${testnetSite}#/try` : "#/sell"}>{isTest || !live ? "Start on testnet" : "Open the app"}</a>
+              {isTest ? (CFG.switchUrl && <a className="ld-btn ld-btn--quiet" href={CFG.switchUrl}>Go to mainnet</a>) : live && <a className="ld-btn ld-btn--quiet" href={`${testnetSite}#/try`}>Try it on testnet first</a>}
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="ld-foot">
+        <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
+          <div className="ld-foot-grid">
+            <div className="ld-stack" style={{ gap: 12 }}><img src="/site/lockup.svg" alt="Covered" style={{ height: 32, alignSelf: "flex-start" }} /><p className="ld-lede" style={{ fontSize: 18 }}>Open to anyone. Held by no one. Earning for you.</p></div>
+            <nav aria-label="Product"><span className="ld-label ld-muted">Product</span><a href={app("market")}>Market</a><a href={app("sell")}>Sell a call</a><a href={`${testnetSite}#/try`}>Try it</a><A to="faq">FAQ</A></nav>
+            <nav aria-label="Trust"><span className="ld-label ld-muted">Trust</span><A to="trust">Security</A><A to="security">Report a vulnerability</A><A to="compare">Compared</A></nav>
+            <nav aria-label="Build"><span className="ld-label ld-muted">Build</span><A to="stack">Built with</A>{live && <a href={`${CFG.explorerNear}/address/${CFG.contract}`} target="_blank" rel="noreferrer">Contract</a>}<a href={`mailto:${SECURITY}`}>{SECURITY}</a></nav>
+          </div>
+          <div className="ld-mono ld-muted" style={{ fontSize: 13, borderTop: "1px solid var(--rule)", paddingTop: 16, display: "flex", flexDirection: "column", gap: 4, overflowWrap: "anywhere" }}>
+            <span>NEAR {CFG.network} · contract {live ? CFG.contract : "not deployed yet"} · USDC {CFG.usdc}</span>
+            <span>Signer {CFG.signer} · Bitcoin light client {CFG.lightClient}</span>
+          </div>
+          <p className="body-small ld-muted" style={{ margin: 0 }}>{isTest ? "This is the testnet site: test coins and test USDC with no value. " : ""}Covered is unaudited software. Selling a call gives up the rise above your strike, and your coins stay locked until expiry. Built on NEAR.</p>
+        </div>
+      </footer>
+    </div>
+  );
+}
