@@ -2,7 +2,7 @@ import express from "express";
 import { Core } from "./btc/core.js";
 import { esplora, type Esplora } from "./btc/proof.js";
 import { checkDelegate } from "./metatx.js";
-import { decodeSignedDelegate, viewOf } from "./near/delegate.js";
+import { decodeSignedDelegate, relayResult, viewOf } from "./near/delegate.js";
 import { nearClient } from "./near/client.js";
 import { tick, type Services } from "./run.js";
 import { spotUsd } from "./spot.js";
@@ -40,10 +40,12 @@ app.post("/api/relay", async (req, res) => {
   if (!v.ok) return res.status(400).json({ error: v.reason });
   try {
     const outcome: any = await near.relay(sd);
-    const ok = outcome?.status && "SuccessValue" in outcome.status;
-    if (ok) relayed++;
-    res.status(ok ? 200 : 422).json({ ok, value: ok ? Buffer.from(outcome.status.SuccessValue, "base64").toString() : undefined, failure: ok ? undefined : outcome?.status?.Failure });
-  } catch (e) { res.status(500).json({ error: (e as Error).message }); }
+    const r = relayResult(outcome, sd.delegateAction.receiverId);
+    const what = `${sd.delegateAction.senderId} → ${sd.delegateAction.receiverId}.${viewOf(sd).actions.map((a) => a.methodName).join(",")}`;
+    if (r.ok) { relayed++; console.log(new Date().toISOString(), `relay ok ${what} → ${r.value || "(no value)"}`); }
+    else console.log(new Date().toISOString(), `relay failed ${what}: ${JSON.stringify(r.failure).slice(0, 300)}`);
+    res.status(r.ok ? 200 : 422).json(r);
+  } catch (e) { console.error(new Date().toISOString(), "relay error", (e as Error).message); res.status(500).json({ error: (e as Error).message }); }
 });
 
 // Local stack only: create and fund NEAR accounts (the testnet helper's role) and mint mock USDC.
