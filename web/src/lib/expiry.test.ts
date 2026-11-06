@@ -13,7 +13,8 @@ describe("expiry choices", () => {
   });
   it("testnet: minutes away, on the minute grid", () => {
     const c = expiryChoices({ min_lead_s: 300, expiry_step_s: 60, expiry_offset_s: 0 }, now);
-    expect(c[0].label).toBe("in 12 min");
+    expect(c.map((x) => x.label).slice(0, 4)).toEqual(["in 10 min", "in 30 min", "in 2 hours", "in 24 hours"]);
+    expect(c[0].at - now).toBeGreaterThanOrEqual(600);
     expect(c.map((x) => x.at % 60)).toEqual(c.map(() => 0));
     expect(c.length).toBe(5);
   });

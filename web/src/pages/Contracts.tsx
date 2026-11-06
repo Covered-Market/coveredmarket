@@ -5,7 +5,7 @@ import type { Offer } from "../lib/verify";
 import { stampFor } from "./hooks";
 
 export function Contracts({ wallet }: { wallet: Wallet }) {
-  const { PositionsTable, StatTile, Button } = C();
+  const { PositionsTable, StatTile, Button, Stamp, Figure } = C();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [claimable, setClaimable] = useState("0");
   const [busy, setBusy] = useState(false);
@@ -26,9 +26,19 @@ export function Contracts({ wallet }: { wallet: Wallet }) {
           <Button variant="primary" disabled={busy || claimable === "0"} onClick={async () => { setBusy(true); try { await call(wallet, CFG.contract, "claim", {}, 0n, 60); load(); } catch (e) { alert((e as Error).message); } finally { setBusy(false); } }}>{busy ? "Claiming…" : `Claim ${usd(claimable)}`}</Button>
         </div>
       </div>
-      <div onClick={(e) => { const t = (e.target as HTMLElement).closest("tr"); const id = t?.textContent?.match(/CV-(\d+)/)?.[1]; if (id) location.hash = `#/c/${id}`; }} data-cv="positions" style={{ cursor: "pointer", overflowX: "auto" }}>
+      <div onClick={(e) => { const t = (e.target as HTMLElement).closest("tr"); const id = t?.textContent?.match(/CV-(\d+)/)?.[1]; if (id) location.hash = `#/c/${id}`; }} data-cv="positions" className="cv-only-wide" style={{ cursor: "pointer", overflowX: "auto" }}>
         <PositionsTable rows={rows} />
       </div>
+      {rows.length > 0 && <div className="cv-only-narrow" style={{ display: "flex", flexDirection: "column", border: "1px solid var(--rule)", background: "var(--paper-raised)" }}>
+        {rows.map((r) => (
+          <a key={r.id} href={`#/c/${r.id.slice(3)}`} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: "4px 12px", padding: "12px 14px", borderTop: "1px solid var(--rule)", color: "inherit", textDecoration: "none" }}>
+            <span className="body-small"><b className="cv-mono">{r.id}</b> · {r.side === "sell" ? "you sold" : "you bought"} · {r.expiry}</span>
+            <span style={{ justifySelf: "end" }}><Stamp status={r.status} flat /></span>
+            <span><Figure value={r.size} kind="btc" size="sm" /> <span className="body-small" style={{ color: "var(--ink-muted)" }}>at</span> <Figure value={r.strike} kind="usd" size="sm" /></span>
+            <span style={{ justifySelf: "end" }}><Figure value={r.premium} kind="usd" size="sm" tone="gilt" /></span>
+          </a>
+        ))}
+      </div>}
       {rows.length === 0 && <div className="body" style={{ color: "var(--ink-muted)" }}>Nothing yet. <a href="#/sell" style={{ color: "var(--intaglio)" }}>Sell a call</a> or <a href="#/market" style={{ color: "var(--intaglio)" }}>buy one</a>.</div>}
     </div>
   );

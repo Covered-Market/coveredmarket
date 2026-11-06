@@ -28,10 +28,13 @@
     .cv-cert__body { grid-template-columns: minmax(0, 1fr); }
     .cv-cert__foot { flex-direction: column; align-items: stretch; gap: 16px; }
     .cv-cert__addr { word-break: break-all; }
+    .cv-cert__serial { text-align: left; }
+    .cv-only-wide { display: none !important; }
     .cv-offer { width: 100%; }
     .cv-figure--xl { font-size: 32px; line-height: 36px; }
     .cv-root h1.display-2 { font-size: 36px !important; }
   }
+  @media (min-width: 761px) { .cv-only-narrow { display: none !important; } }
   @media (max-width: 520px) {
     .cv-tiles { display: grid !important; grid-template-columns: minmax(0, 1fr); width: 100%; }
     .cv-tiles > * { min-width: 0; }
