@@ -44,12 +44,17 @@ async function retryNonce<T>(f: () => Promise<T>, tries = 6): Promise<T> {
   }
 }
 const tag = Date.now().toString(36).slice(-5);
+// Test keys for this run, saved to the run's artifact (never logged), so a stopped run can't strand coins:
+// the seller can still withdraw, and each deposit's rescue key can sweep it after its unlock time.
+const keys: Record<string, string> = {};
+const saveKeys = () => { mkdirSync(new URL("./artifacts/", import.meta.url), { recursive: true }); writeFileSync(new URL("./artifacts/keys.json", import.meta.url), JSON.stringify(keys, null, 2), { mode: 0o600 }); };
 async function visitor(name: string) {
   const kp = KeyPairEd25519.fromRandom(), id = `${name}-${tag}.testnet`;
   const j = await post("/api/account", { newAccountId: id, newAccountPublicKey: kp.getPublicKey().toString() });
   const real = j.accountId ?? id;
   await until(`${real} exists`, async () => { try { await p.query({ request_type: "view_access_key", account_id: real, public_key: kp.getPublicKey().toString(), finality: "optimistic" }); return true; } catch { return null; } }, 60_000, 2000);
   log(`${name}: ${real}`);
+  keys[real] = kp.toString();
   return { id: real, acc: new Account(real, p, new KeyPairSigner(kp)) };
 }
 type V = Awaited<ReturnType<typeof visitor>>;
@@ -89,13 +94,16 @@ if (have < need) {
 }
 
 const maren = await visitor("maren"), ola = await visitor("ola"), ines = await visitor("ines");
+saveKeys();
 const made: Record<string, { serial: number; plan: Plan }> = {};
 for (const x of plans) {
-  const rescuePub = Buffer.from(secp.getPublicKey(secp.utils.randomPrivateKey(), true)).toString("hex");
+  const rescuePriv = secp.utils.randomPrivateKey();
+  const rescuePub = Buffer.from(secp.getPublicKey(rescuePriv, true)).toString("hex");
   const sizeBtc = x.sats / 1e8, days = Math.max(x.days, 1);
   const terms = { size_sats: String(x.sats), strike_units: usd(strike(x.strikePct)), premium_units: usd(premium(sizeBtc, x.apr, days)), expiry_s: String(x.expiry), refund_address: faucet.address, rescue_pubkey: rescuePub };
   const serial = Number(await call(maren, cfg.contract, "create_offer", { terms }, 10n ** 23n, 100n));
   made[x.key] = { serial, plan: x };
+  keys[`rescue CV-${serial}`] = Buffer.from(rescuePriv).toString("hex"); saveKeys();
   log(`CV-${serial} ${x.key}: ${sizeBtc} BTC, strike $${strike(x.strikePct)}, premium $${Number(terms.premium_units) / 1e6}, expiry ${new Date(x.expiry * 1000).toISOString().slice(0, 16)}Z`);
 }
 for (const x of plans.filter((y) => y.deposit)) {

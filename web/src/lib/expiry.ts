@@ -9,8 +9,9 @@ export function expiryChoices(p: { min_lead_s?: number; expiry_step_s?: number; 
   for (const w of wanted) {
     const at = Math.ceil((nowS + Math.max(w, lead) + 60 - off) / step) * step + off; // +60 s: room for the transaction to land
     if (out.some((o) => o.at === at)) continue;
-    const away = at - nowS;
-    const label = away < 3 * 3600 ? `in ${Math.round(away / 60)} min` : away < 86400 * 1.5 && step < 86400 ? `in ${Math.round(away / 3600)} hours` : new Date(at * 1000).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+    // Fine grid (testnet): say how far, as asked ("in 30 min"); daily grid (mainnet): name the day.
+    const ask = Math.max(w, lead);
+    const label = step < 3600 && ask < 2 * 86400 ? (ask < 5400 ? `in ${Math.round(ask / 60)} min` : `in ${Math.round(ask / 3600)} hours`) : new Date(at * 1000).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
     out.push({ at, label });
   }
   return out;
