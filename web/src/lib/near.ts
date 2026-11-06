@@ -10,7 +10,7 @@ import type { Clients } from "./verify.js";
 
 /** Runtime configuration, served as /config.json by the web container (written by `covered up` / the cloud bootstrap). */
 export interface Config { network: string; rpc: string; contract: string; usdc: string; esplora: string; explorerBtc: string; explorerNear: string; codeHash: string; signer: string; lightClient: string; minConf: number; helper: string; accountSuffix: string; mode: "local" | "testnet" | "mainnet" }
-const defaults: Config = { network: "testnet", rpc: "https://rpc.testnet.fastnear.com", contract: "covered.testnet", usdc: "usdc.fakes.testnet", esplora: "https://mempool.space/testnet4/api", explorerBtc: "https://mempool.space/testnet4", explorerNear: "https://testnet.nearblocks.io", codeHash: "", signer: "v1.signer-prod.testnet", lightClient: "btc-client.testnet", minConf: 1, helper: "https://helper.testnet.near.org", accountSuffix: "testnet", mode: "testnet" };
+const defaults: Config = { network: "testnet", rpc: "https://rpc.testnet.fastnear.com", contract: "covered.testnet", usdc: "usdc.fakes.testnet", esplora: "https://mempool.space/testnet/api", explorerBtc: "https://mempool.space/testnet", explorerNear: "https://testnet.nearblocks.io", codeHash: "", signer: "v1.signer-prod.testnet", lightClient: "btc-client-v4.testnet", minConf: 1, helper: "/api", accountSuffix: "testnet", mode: "testnet" };
 export const CFG: Config = { ...defaults, ...((window as any).COVERED_CONFIG ?? {}) };
 export async function loadConfig() {
   try { const r = await fetch("/config.json", { cache: "no-store" }); if (r.ok) Object.assign(CFG, await r.json()); } catch {}
