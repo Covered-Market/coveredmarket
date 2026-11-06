@@ -23,12 +23,12 @@ const p = new JsonRpcProvider({ url: RPC }, { retries: 8, wait: 1500, backoff: 1
 const TGAS = 10n ** 12n, NEAR = 10n ** 24n;
 const tag = Date.now().toString(36);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-/** Resend a transaction the network REJECTED for its nonce (it never ran): a load-balanced RPC node a block
+/** Resend a transaction the network REJECTED (stale nonce or expired block hash: it never ran): a load-balanced RPC node a block
  *  behind can hand out the nonce the previous transaction just used. Any other error is final. */
 async function retryNonce<T>(f: () => Promise<T>, tries = 6): Promise<T> {
   for (let i = 0; ; i++) {
     try { return await f(); }
-    catch (e) { if (i + 1 >= tries || !/InvalidNonce|nonce .*must be larger/i.test(String((e as Error)?.message ?? e))) throw e; await new Promise((r) => setTimeout(r, 1500 * (i + 1))); }
+    catch (e) { if (i + 1 >= tries || !/InvalidNonce|nonce .*must be larger|Transaction has expired|Expired/i.test(String((e as Error)?.message ?? e))) throw e; await new Promise((r) => setTimeout(r, 1500 * (i + 1))); }
   }
 }
 
