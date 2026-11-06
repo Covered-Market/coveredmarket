@@ -25,7 +25,8 @@ if (core) await core.ensureWallet();
 const api: Esplora = core ?? esplora(cfg.esplora);
 const app = express();
 app.use(express.json({ limit: "256kb" }));
-app.get("/api/health", (_req, res) => res.json({ ok: true, covered: cfg.covered, network: cfg.networkId, btc: cfg.btcBackend }));
+let relayed = 0; // meta-transactions relayed successfully since start (the e2e asserts the UI went this way)
+app.get("/api/health", (_req, res) => res.json({ ok: true, covered: cfg.covered, network: cfg.networkId, btc: cfg.btcBackend, relayed }));
 
 let spot = { price: cfg.fixedSpot ?? 0, sources: cfg.fixedSpot ? 1 : 0, at: cfg.fixedSpot ? Infinity : 0 };
 app.get("/api/spot", async (_req, res) => {
@@ -40,6 +41,7 @@ app.post("/api/relay", async (req, res) => {
   try {
     const outcome: any = await near.relay(sd);
     const ok = outcome?.status && "SuccessValue" in outcome.status;
+    if (ok) relayed++;
     res.status(ok ? 200 : 422).json({ ok, value: ok ? Buffer.from(outcome.status.SuccessValue, "base64").toString() : undefined, failure: ok ? undefined : outcome?.status?.Failure });
   } catch (e) { res.status(500).json({ error: (e as Error).message }); }
 });
