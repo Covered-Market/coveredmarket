@@ -1,0 +1,38 @@
+name: shots
+# Screenshots of the deployed app (scripts/shots/shots.mjs), committed to the branch that ran it under site/shots/.
+on:
+  push:
+    branches: ["site/shots"]
+    paths: ["scripts/shots/**", ".github/workflows/shots.yml"]
+  workflow_dispatch:
+    inputs:
+      site:
+        description: site URL
+        default: https://178-62-225-161.sslip.io
+permissions:
+  contents: write
+concurrency:
+  group: shots-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: browser
+        run: cd e2e && npm ci && npx playwright install --with-deps chromium
+      - name: capture
+        run: |
+          ln -s ../../e2e/node_modules scripts/shots/node_modules
+          SITE="${{ inputs.site || 'https://178-62-225-161.sslip.io' }}" OUT=site/shots node scripts/shots/shots.mjs
+          rm scripts/shots/node_modules
+      - name: commit
+        run: |
+          git config user.name "covered-shots"
+          git config user.email "shots@users.noreply.github.com"
+          git add site/shots
+          git commit -m "shots: capture from ${{ inputs.site || 'deployed site' }} [skip ci]" || echo "nothing new"
+          git push
