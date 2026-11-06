@@ -55,9 +55,15 @@ await covered.acc.signAndSendTransaction({ receiverId: covered.id, actions: [act
 await covered.acc.callFunction({ contractId: usdc.id, methodName: "storage_deposit", args: {}, deposit: 10n ** 22n, gas: 30n * TGAS });
 // Lock: the contract keeps no key. From here on only its own code can act for it.
 await covered.acc.signAndSendTransaction({ receiverId: covered.id, actions: [actionCreators.deleteKey(covered.kp.getPublicKey())] });
-const keys: any = await p.query({ request_type: "view_access_key_list", account_id: covered.id, finality: "optimistic" });
-if (keys.keys.length) throw new Error("contract still has access keys");
-const codeHash: string = ((await p.query({ request_type: "view_account", account_id: covered.id, finality: "optimistic" })) as any).code_hash;
+// Reads hit a load-balanced RPC that can trail the node that ran the transaction; wait for it to catch up.
+for (let i = 0; ; i++) {
+  const keys: any = await p.query({ request_type: "view_access_key_list", account_id: covered.id, finality: "final" });
+  if (!keys.keys.length) break;
+  if (i > 20) throw new Error("contract still has access keys");
+  await sleep(2000);
+}
+const codeHash: string = ((await p.query({ request_type: "view_account", account_id: covered.id, finality: "final" })) as any).code_hash;
+if (/^1+$/.test(codeHash)) throw new Error("contract code not visible yet");
 
 const lines = `
 # --- covered testnet bootstrap --- (generated ${new Date().toISOString()}; delete COVERED_ID to deploy a fresh set)
