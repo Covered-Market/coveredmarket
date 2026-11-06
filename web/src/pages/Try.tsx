@@ -5,10 +5,10 @@ import { CFG, type Wallet } from "../lib/near";
 export function Try({ wallet, onCreate }: { wallet: Wallet | null; onCreate: () => void }) {
   const { Button, Stamp, Notice } = C();
   const steps = [
-    { n: 1, title: "Create a wallet", detail: `A NEAR ${CFG.network} account made in this browser; the helper funds it. Get testnet USDC from the faucet link below.`, time: "1 min" },
+    { n: 1, title: "Get a wallet", detail: "Connect your NEAR wallet, or make a quick test wallet in this browser: it comes with 100,000 test USDC.", time: "1 min" },
     { n: 2, title: "Sell a call", detail: "Pick a size (0.001 tBTC is fine), a strike above the reference, the shortest expiry. The contract derives your deposit address.", time: "1 min" },
-    { n: 3, title: "Deposit testnet4 coins", detail: "Send the exact amount from any testnet4 wallet (faucet below). Watch the light client prove it.", time: "2–10 min" },
-    { n: 4, title: "Buy it yourself", detail: "Open a second browser profile, create another wallet, buy the call with testnet USDC.", time: "1 min" },
+    { n: 3, title: "Deposit testnet coins", detail: "Send the exact amount from any Bitcoin testnet3 wallet (faucet below). Watch the light client prove it.", time: "10–30 min" },
+    { n: 4, title: "Buy it yourself", detail: "Open a second browser profile, get another wallet, buy the call with test USDC.", time: "1 min" },
     { n: 5, title: "Watch it settle", detail: "At expiry, exercise by paying the strike or let the window pass. Open the Bitcoin transaction the contract signed.", time: "1 min" },
   ];
   const live = [
@@ -33,8 +33,8 @@ export function Try({ wallet, onCreate }: { wallet: Wallet | null; onCreate: () 
           ))}
         </ol>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          {wallet ? <Button variant="primary" size="lg" href="#/sell">Start · sell a call</Button> : <Button variant="primary" size="lg" onClick={onCreate}>Start · create a wallet</Button>}
-          <Button size="lg" href="https://mempool.space/testnet4/faucet">testnet4 faucet</Button>
+          {wallet ? <Button variant="primary" size="lg" href="#/sell">Start · sell a call</Button> : <Button variant="primary" size="lg" onClick={onCreate}>Start · get a wallet</Button>}
+          <Button size="lg" href="https://coinfaucet.eu/en/btc-testnet/">testnet3 faucet</Button>
           <Button size="lg" href="https://github.com/[TEAM]/covered">Read the contract</Button>
         </div>
       </div>
