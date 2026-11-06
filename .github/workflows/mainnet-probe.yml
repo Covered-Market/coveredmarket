@@ -1,0 +1,22 @@
+name: mainnet-probe
+# Read-only checks of the mainnet dependencies (v1.signer, btc-client.bridge.near, Circle USDC). No funds, no keys.
+on:
+  push:
+    branches: ["feat/mainnet**"]
+    paths: ["e2e/probe-mainnet.ts", ".github/workflows/mainnet-probe.yml", "relayer/src/btc/**", "web/src/lib/derive.ts"]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * 1"   # weekly: catch upstream changes before they bite
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: (cd relayer && npm ci) && (cd web && npm ci) && (cd e2e && npm ci)
+      - run: set -o pipefail; cd e2e && npx tsx probe-mainnet.ts | tee probe-mainnet.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: mainnet-probe, path: "e2e/artifacts/mainnet-probe.json" }
