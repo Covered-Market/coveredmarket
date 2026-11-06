@@ -10,10 +10,13 @@ on:
         description: site URL
         default: https://178-62-225-161.sslip.io
       script:
-        description: live.ts (one full contract) or seed.ts (a realistic book)
+        description: live.ts (one full contract), seed.ts (a realistic book) or take.ts (buy + exercise SERIAL)
         type: choice
-        options: [live.ts, seed.ts]
+        options: [live.ts, seed.ts, take.ts]
         default: live.ts
+      serial:
+        description: for take.ts — the offer to buy and exercise
+        default: ""
 jobs:
   live:
     runs-on: ubuntu-latest
@@ -23,7 +26,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: cd e2e && npm ci && mkdir -p artifacts
-      - run: set -o pipefail; cd e2e && SITE="${{ inputs.site }}" npx tsx "${{ inputs.script || 'live.ts' }}" | tee "artifacts/${{ inputs.script || 'live.ts' }}.log"
+      - run: set -o pipefail; cd e2e && SITE="${{ inputs.site }}" SERIAL="${{ inputs.serial }}" npx tsx "${{ inputs.script || 'live.ts' }}" | tee "artifacts/${{ inputs.script || 'live.ts' }}.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: live, path: e2e/artifacts/ }
