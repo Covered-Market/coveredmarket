@@ -1,17 +1,28 @@
 name: stack
 # Boots the whole product with `bin/covered up` (NEAR sandbox, Bitcoin regtest, contracts, relayer, web)
 # and runs `bin/covered e2e-stack`: both contract lifecycles end to end, the UI, and Verify 7/7.
+# This is the README's "Run it yourself" path on a clean machine, on x86-64 and on arm64 (what Docker on an
+# Apple Silicon Mac runs). Pull requests skip it when only docs or brand assets change.
 on:
   push:
     branches: [main, "e2e/**"]
     tags: ["v*"]
+  pull_request:
+    paths-ignore: ["docs/**", "brand/**", "scripts/readme/**", "SECURITY.md", "LICENSE", ".github/ISSUE_TEMPLATE/**", ".github/PULL_REQUEST_TEMPLATE.md"]
   workflow_dispatch:
 concurrency:
   group: stack-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   stack:
-    runs-on: ubuntu-latest
+    name: stack (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, runner: ubuntu-latest }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +38,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e-screens
+          name: e2e-screens-${{ matrix.arch }}
           path: e2e/artifacts/
           if-no-files-found: ignore
