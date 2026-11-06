@@ -5,7 +5,7 @@
 
 ## Idea
 
-**A security, printed.** Covered looks like the thing it is: an option contract. References are engraved securities and bond certificates: cream paper, one green intaglio ink, a little gold leaf, guilloche borders, a serial number, a stamp that says what happened. Three checks: **engraved, exact, unhurried.** Line: *Income on Bitcoin you still hold.*
+**A security, printed.** Covered looks like the thing it is: an option contract. References are engraved securities and bond certificates: cream paper, one green intaglio ink, a little gold leaf, guilloche borders, a serial number, a stamp that says what happened. Three checks: **engraved, exact, unhurried.** Line: *Open to anyone. Held by no one. Earning for you.*
 
 ## Logo: the Lid
 
