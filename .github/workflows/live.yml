@@ -1,12 +1,19 @@
 name: live
 # One full contract on the deployed site with real Bitcoin testnet3 (see e2e/live.ts). On demand only: it spends
 # the demo faucet's test coins (and gets them back) and takes one to two hours of real block time.
+# script=seed.ts instead fills the site with a realistic book (e2e/seed.ts): offers for sale, one running,
+# one kept, one exercised, one awaiting its deposit.
 on:
   workflow_dispatch:
     inputs:
       site:
         description: site URL
         default: https://178-62-225-161.sslip.io
+      script:
+        description: live.ts (one full contract) or seed.ts (a realistic book)
+        type: choice
+        options: [live.ts, seed.ts]
+        default: live.ts
 jobs:
   live:
     runs-on: ubuntu-latest
@@ -16,7 +23,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: cd e2e && npm ci && mkdir -p artifacts
-      - run: set -o pipefail; cd e2e && SITE="${{ inputs.site }}" npx tsx live.ts | tee artifacts/live.log
+      - run: set -o pipefail; cd e2e && SITE="${{ inputs.site }}" npx tsx "${{ inputs.script || 'live.ts' }}" | tee "artifacts/${{ inputs.script || 'live.ts' }}.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: live, path: e2e/artifacts/ }
