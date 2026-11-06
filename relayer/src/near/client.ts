@@ -24,11 +24,15 @@ export async function nearClient(cfg: NearCfg) {
     return account.callFunction({ contractId, methodName: method, args, gas: BigInt(gasTgas) * 10n ** 12n });
   };
   /** Relay a signed delegate action (NEP-366) built by the user's wallet. */
+  const createSubAccount = async (id: string, publicKey: string, yocto: bigint) => {
+    if (!account) throw new Error("relayer key not configured");
+    return account.createAccount(id, publicKey as any, yocto);
+  };
   const relay = async (signedDelegate: any) => {
     if (!account) throw new Error("relayer key not configured");
     return account.signAndSendTransaction({ receiverId: signedDelegate.delegateAction.senderId, actions: [actionCreators.signedDelegate(signedDelegate)], throwOnFailure: false } as any);
   };
   /** The contract's clock: latest block timestamp in seconds. Guards (window, grace) are judged against this, not wall time. */
   const chainNow = async () => Number(BigInt((await provider.block({ finality: "optimistic" })).header.timestamp_nanosec) / 1_000_000_000n);
-  return { view, call, callAny, relay, provider, chainNow };
+  return { view, call, callAny, relay, createSubAccount, provider, chainNow };
 }

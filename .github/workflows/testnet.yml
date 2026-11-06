@@ -62,5 +62,19 @@ jobs:
           sleep 3
           view "$USDC_ID" ft_balance_of "{\"account_id\":\"$ID\"}" | jq -e '. == "100000000000"'
           echo "cloud rehearsal OK: $COVERED_ID"
+      - name: contract reset, funded by the relayer (no faucet), and visitor wallets while the faucet refuses
+        run: |
+          set -euo pipefail
+          set -a; . ./.env; set +a; OLD=$COVERED_ID; REL=$RELAYER_ID
+          sed -i '/^COVERED_ID=/d' .env
+          echo 'NEAR_HELPER_URL=https://helper.invalid/account' >> .env
+          bin/covered serve
+          set -a; . ./.env; set +a
+          [ "$COVERED_ID" != "$OLD" ] && [ "$RELAYER_ID" = "$REL" ] && [[ "$COVERED_ID" == *".$REL" ]] || { echo "reset did not fund from the relayer: $COVERED_ID / $RELAYER_ID"; exit 1; }
+          curl -fsS localhost/config.json | jq -e --arg c "$COVERED_ID" '.contract == $c'
+          PK=$(node -e "const c=require('crypto');const k=c.generateKeyPairSync('ed25519');const raw=k.publicKey.export({format:'der',type:'spki'}).subarray(12);const A='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';let n=BigInt('0x'+raw.toString('hex')),s='';while(n>0n){s=A[Number(n%58n)]+s;n/=58n}console.log('ed25519:'+s)")
+          J=$(curl -fsS -X POST localhost/api/account -H 'content-type: application/json' -d "{\"newAccountId\":\"v$(date +%s).testnet\",\"newAccountPublicKey\":\"$PK\"}")
+          echo "$J"; echo "$J" | jq -e --arg r ".$REL" '.accountId | endswith($r)'
+          echo "reset OK: $OLD -> $COVERED_ID, relayer kept; visitor wallet made without the faucet"
       - if: failure()
         run: docker compose --env-file .env -f infra/compose.yaml -f infra/compose.testnet.yaml logs --tail=120
