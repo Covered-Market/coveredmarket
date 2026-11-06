@@ -1,0 +1,22 @@
+{
+  "_comment": "Mainnet deployment parameters. Reviewed values; changing any of them means a new contract. Accounts and the signer root key are filled in by scripts/deploy-mainnet.ts.",
+  "network": "Mainnet",
+  "usdc_decimals": 6,
+  "min_conf": 3,
+  "fee_sats": 3000,
+  "max_fee_sats": 48000,
+  "fee_bump_after_s": 3600,
+  "grace_s": 7200,
+  "buy_cutoff_s": 3600,
+  "min_lead_s": 86400,
+  "expiry_step_s": 86400,
+  "expiry_offset_s": 28800,
+  "escrow_timeout_s": 604800,
+  "min_size_sats": 100000,
+  "max_size_sats": 1000000,
+  "rescue_delay_s": 2592000,
+  "derivation_prefix": "near-mpc-recovery v0.1.0 epsilon derivation:",
+  "sign_format": 2,
+  "sign_deposit": "1",
+  "usdc_storage_deposit": "1250000000000000000000"
+}

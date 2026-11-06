@@ -3,14 +3,20 @@
 //      mock MPC signs, relayer broadcasts → mined → relayer confirms → seller claims.
 //   2. EXERCISED: same until expiry → buyer pays the strike in the window → relayer requests the
 //      signature → broadcast → mined → confirmed → seller claims premium + strike.
-//   3. UI: market, sell, deposit, contracts and both certificates in Chromium; press Verify on each
-//      and require 7/7 verified. Screenshots go to e2e/artifacts/.
+//   3. UI: market, sell (through the gas relayer, downloading a rescue kit), deposit via the demo faucet,
+//      contracts and both certificates in Chromium; press Verify on each and require 7/7 verified.
+//   4. THE SELLER'S EXIT: a funded offer swept with its rescue kit by the rescue tool, on the real bitcoind:
+//      refused before the unlock time, accepted after it. Screenshots go to e2e/artifacts/.
 import { Account } from "@near-js/accounts";
 import { KeyPairEd25519, KeyPair } from "@near-js/crypto";
 import { JsonRpcProvider } from "@near-js/providers";
 import { KeyPairSigner } from "@near-js/signers";
 import { chromium } from "playwright";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import * as secp from "@noble/secp256k1";
+import { sha256 } from "@noble/hashes/sha256";
+import { base58 } from "@scure/base";
 
 const WEB = process.env.WEB ?? "http://localhost";
 const RPC = process.env.RPC ?? "http://localhost:3030";
@@ -27,6 +33,10 @@ const view = async (method, args = {}, contract = cfg.contract) => {
   const r = await provider.query({ request_type: "call_function", account_id: contract, method_name: method, args_base64: Buffer.from(JSON.stringify(args)).toString("base64"), finality: "optimistic" });
   return JSON.parse(Buffer.from(r.result).toString());
 };
+const hexOf = (b) => Buffer.from(b).toString("hex");
+/** A rescue key, as the Sell page makes one. */
+const rescueKey = () => { const priv = secp.utils.randomPrivateKey(); return { priv, pub: hexOf(secp.getPublicKey(priv, true)) }; };
+const wif = (priv) => { const body = Buffer.from([0xef, ...priv, 0x01]); const ck = sha256(sha256(body)).slice(0, 4); return base58.encode(Buffer.concat([body, Buffer.from(ck)])); };
 const chainNow = async () => Number(BigInt((await provider.block({ finality: "optimistic" })).header.timestamp_nanosec) / 1_000_000_000n);
 async function until(what, f, ms = 120_000) {
   const t0 = Date.now();
@@ -52,19 +62,19 @@ const usdc = (n) => String(BigInt(Math.round(n * 1e6)));
 const offer = (s) => view("get_offer", { serial: s });
 const btcStatus = async (txid) => { const r = await fetch(`${WEB}/btc/tx/${txid}/status`); return r.ok ? r.json() : null; };
 
-async function createAndFund(seller, { sizeBtc, strike, premium }) {
+async function createAndFund(seller, { sizeBtc, strike, premium, rescue = rescueKey() }) {
   const p = await view("get_params");
   const now = await chainNow();
   const expiry = Math.ceil((now + Number(p.min_lead_s) + 90) / Number(p.expiry_step_s)) * Number(p.expiry_step_s) + Number(p.expiry_offset_s);
   const refund = (await post("/btc/dev/address")).address;
-  const serial = Number(await call(seller, cfg.contract, "create_offer", { terms: { size_sats: String(Math.round(sizeBtc * 1e8)), strike_units: usdc(strike), premium_units: usdc(premium), expiry_s: String(expiry), refund_address: refund } }, NEAR / 10n, 100n));
+  const serial = Number(await call(seller, cfg.contract, "create_offer", { terms: { size_sats: String(Math.round(sizeBtc * 1e8)), strike_units: usdc(strike), premium_units: usdc(premium), expiry_s: String(expiry), refund_address: refund, rescue_pubkey: rescue.pub } }, NEAR / 10n, 100n));
   const o = await offer(serial);
   log(`CV-${serial} created, deposit ${sizeBtc} BTC to ${o.address}, expiry ${expiry}`);
   await post("/btc/dev/send", { address: o.address, btc: sizeBtc });
   await post("/btc/dev/mine", { n: 1 });
   await until(`CV-${serial} Funded (relayer proves the deposit)`, async () => (await offer(serial)).state === "Funded");
   log(`CV-${serial} Funded by the relayer's proof`);
-  return { serial, expiry, refund, grace: Number(p.grace_s) };
+  return { serial, expiry, refund, grace: Number(p.grace_s), rescue };
 }
 async function buy(buyer, serial) {
   const o = await offer(serial);
@@ -141,6 +151,7 @@ const offersBefore = (await view("get_account_offers", { account: astrid.id })).
 await page.goto(`${WEB}/#/sell`); await page.reload(); await page.waitForTimeout(1500);
 const field = (t) => page.locator("label.cv-field", { hasText: t }).locator("input");
 await field("Size").fill("0.002"); await field("Strike").fill("150000"); await field("Premium you ask").fill("25"); await field("Return coins to").fill(refund);
+const kitDownload = page.waitForEvent("download", { timeout: 60_000 });
 await page.getByRole("button", { name: "Continue to deposit" }).click();
 try { await until("UI offer on chain and deposit page shown", async () => /#\/deposit\/\d+/.test(page.url()), 60_000); }
 catch (e) { await page.screenshot({ path: `${ART}sell-failed.png`, fullPage: true }); throw new Error(`${e.message}; url ${page.url()}; console: ${consoleWarn.join(" | ")}; errors: ${errors.join(" | ")}`); }
@@ -148,6 +159,13 @@ const relayedAfter = (await (await fetch(`${WEB}/api/health`)).json()).relayed;
 if (relayedAfter !== relayedBefore + 1) throw new Error(`UI create_offer did not go through the relayer (relayed ${relayedBefore} → ${relayedAfter}); console: ${consoleWarn.join(" | ")}`);
 if (consoleWarn.some((w) => w.includes("relay unavailable"))) throw new Error("UI fell back to a direct call");
 if ((await view("get_account_offers", { account: astrid.id })).length !== offersBefore + 1) throw new Error("UI offer not on chain");
+{
+  const dl = await kitDownload; const path = `${ART}ui-rescue-kit.json`; await dl.saveAs(path);
+  const kit = JSON.parse(readFileSync(path, "utf8"));
+  const uiOffer = await offer(Number(page.url().match(/#\/deposit\/(\d+)/)[1]));
+  if (kit.kind !== "covered-rescue-kit" || kit.address !== uiOffer.address || kit.rescue_public_key !== uiOffer.rescue_pubkey || kit.witness_script !== uiOffer.witness_script) throw new Error("UI rescue kit does not match the offer");
+  log(`UI sell downloaded a rescue kit for ${uiOffer.address} (exit unlocks ${kit.unlock_utc})`);
+}
 await page.screenshot({ path: `${ART}sell-relayed.png`, fullPage: true });
 log(`UI sell → create_offer relayed as a meta-transaction (relayer count ${relayedBefore} → ${relayedAfter}); now ${page.url().split("#")[1]}`);
 
@@ -171,5 +189,27 @@ for (const [s, name] of [[k.serial, "kept"], [x.serial, "exercised"]]) {
   log(`CV-${s} Verify: 7 of 7 verified in the browser`);
 }
 await browser.close();
+
+// ── 4. The seller's exit on the real bitcoind: no NEAR involved, only the rescue kit and Bitcoin.
+{
+  const r = await createAndFund(astrid, { sizeBtc: 0.002, strike: 150000, premium: 20 });
+  const o = await offer(r.serial);
+  const kit = { kind: "covered-rescue-kit", version: 1, bitcoin_network: "regtest", hrp: "bcrt", contract: cfg.contract, near_network: cfg.network, serial: r.serial, address: o.address, witness_script: o.witness_script, unlock_s: Number(o.unlock_s), unlock_utc: new Date(Number(o.unlock_s) * 1000).toISOString(), size_sats: o.size_sats, rescue_private_key_wif: wif(r.rescue.priv), rescue_public_key: r.rescue.pub, refund_address: o.refund_address };
+  writeFileSync(`${ART}rescue-kit-CV-${r.serial}.json`, JSON.stringify(kit, null, 2));
+  const dest = (await post("/btc/dev/address")).address;
+  const ROOT = new URL("..", import.meta.url).pathname;
+  const rescue = () => spawnSync("docker", ["compose", "--env-file", ".env", "-f", "infra/compose.yaml", "-f", "infra/compose.local.yaml", "exec", "-T", "relayer", "node", "dist/rescue.js", "-", dest, "--esplora", "http://localhost:8787/btc", "--fee-rate", "2", "--broadcast"], { cwd: ROOT, input: JSON.stringify(kit), encoding: "utf8" });
+  const early = rescue();
+  if (early.status === 0) throw new Error(`rescue accepted before the unlock time!\n${early.stdout}`);
+  log(`CV-${r.serial} exit before ${kit.unlock_utc}: refused by bitcoind (${(early.stdout + early.stderr).match(/refused: ([^\n]{0,80})/)?.[1] ?? "non-final"})`);
+  await post("/btc/dev/mocktime", { t: kit.unlock_s + 7200, mine: 12 });
+  const ok = rescue();
+  if (ok.status !== 0) throw new Error(`rescue refused after unlock:\n${ok.stdout}\n${ok.stderr}`);
+  const txid = ok.stdout.match(/txid ([0-9a-f]{64})/)[1];
+  await post("/btc/dev/mine", { n: 1 });
+  const got = await (await fetch(`${WEB}/btc/address/${dest}/utxo`)).json();
+  if (!got.some((u) => u.txid === txid && u.value > 190_000)) throw new Error("rescued coins not at the destination");
+  log(`CV-${r.serial} exit after unlock: rescue tool swept ${o.size_sats} sats (less fee) to ${dest} in ${txid}, confirmed`);
+}
 if (errors.length) { console.log("page errors:", errors); throw new Error("UI raised errors"); }
 log("E2E PASSED");

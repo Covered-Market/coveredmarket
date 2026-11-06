@@ -126,6 +126,9 @@ if (core) {
   app.get("/btc/tx/:id/merkle-proof", h((r) => core.merkleProof(r.params.id)));
   app.get("/btc/tx/:id/outspend/:v", h((r) => core.outspend(r.params.id, Number(r.params.v))));
   app.get("/btc/blocks/tip/height", h(async () => String(await core.tipHeight())));
+  app.get("/btc/blocks/tip/hash", h(() => core.tipHash()));
+  app.get("/btc/address/:a/utxo", h((r) => core.utxos(r.params.a)));
+  app.get("/btc/fee-estimates", h(async () => ({ "1": 2, "3": 2, "6": 1 })));
   app.get("/btc/block-height/:h", h((r) => core.blockHashAt(Number(r.params.h))));
   app.get("/btc/block/:hash", h((r) => core.block(r.params.hash)));
   app.get("/btc/block/:hash/txids", h((r) => core.blockTxids(r.params.hash)));
@@ -134,6 +137,8 @@ if (core) {
   app.post("/btc/dev/send", h(async (r) => ({ txid: await core.send(r.body.address, Number(r.body.btc)) })));
   app.post("/btc/dev/mine", h(async (r) => ({ blocks: await core.mine(Number(r.body?.n ?? 1)) })));
   app.post("/btc/dev/address", h(async () => ({ address: await core.newAddress() })));
+  // Regtest only: jump Bitcoin's clock forward and mine so median time past follows (tests the seller's exit).
+  app.post("/btc/dev/mocktime", h(async (r) => { await core.mocktime(Number(r.body.t)); return { blocks: await core.mine(Number(r.body?.mine ?? 12)) }; }));
 }
 app.listen(cfg.port, () => console.log(`relayer on :${cfg.port} → ${cfg.covered} (${cfg.networkId}), btc=${cfg.btcBackend}`));
 

@@ -13,3 +13,4 @@ anyhow = "1"
 hex = { workspace = true }
 bitcoin = { workspace = true, features = ["rand-std"] }
 covered = { path = "../contracts/covered" }
+bitcoinconsensus = "0.106.0"

@@ -8,6 +8,7 @@ import { KeyPairEd25519 } from "@near-js/crypto";
 import { JsonRpcProvider } from "@near-js/providers";
 import { KeyPairSigner } from "@near-js/signers";
 import { writeFileSync } from "node:fs";
+import * as secp from "@noble/secp256k1";
 
 const SITE = (process.env.SITE ?? "https://178-62-225-161.sslip.io").replace(/\/$/, "");
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -48,11 +49,13 @@ const btc = (id: string) => `${cfg.explorerBtc}/tx/${id}`;
 const report: Record<string, unknown> = { site: SITE, contract: cfg.contract };
 
 const seller = await visitor("seller"), buyer = await visitor("buyer");
+// The seller's rescue key, as the Sell page makes one (kept only for this run; the exit is tested on regtest).
+const rescuePub = Buffer.from(secp.getPublicKey(secp.utils.randomPrivateKey(), true)).toString("hex");
 const params = await view("get_params");
 const SIZE = BigInt(params.min_size_sats);
 const now = await chainNow();
 const expiry = Math.ceil((now + Math.max(Number(params.min_lead_s) + 60, Number(process.env.EXPIRY_IN_S ?? 1800))) / Number(params.expiry_step_s)) * Number(params.expiry_step_s);
-const serial = Number(await call(seller, cfg.contract, "create_offer", { terms: { size_sats: String(SIZE), strike_units: "150000000000", premium_units: "5000000", expiry_s: String(expiry), refund_address: faucet.address } }, 10n ** 23n, 100n));
+const serial = Number(await call(seller, cfg.contract, "create_offer", { terms: { size_sats: String(SIZE), strike_units: "150000000000", premium_units: "5000000", expiry_s: String(expiry), refund_address: faucet.address, rescue_pubkey: rescuePub } }, 10n ** 23n, 100n));
 const offer = await until("offer visible", async () => { try { return await view("get_offer", { serial }); } catch { return null; } }, 60_000, 3000);
 log(`CV-${serial}: ${Number(SIZE) / 1e8} BTC at ${offer.address}, expiry in ${Math.round((expiry - now) / 60)} min`);
 

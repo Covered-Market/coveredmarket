@@ -40,11 +40,9 @@ const signer = await deploy("signer", "mock-signer", "new", { root_scalar_hex: R
 const rootKeyHex: string = await view(signer.id, "root_key_hex");
 const lc = await deploy("btc-client", "mock-btc-client", "new", {});
 const usdc = await deploy("usdc", "mock-usdc", "new", {});
-const covered = await deploy("covered", "covered", "new", { params: {
-  signer: signer.id, light_client: lc.id, usdc: usdc.id, usdc_decimals: 6, network: "Regtest", min_conf: 1, fee_sats: 1000,
-  grace_s: 600, buy_cutoff_s: 0, min_lead_s: 60, escrow_timeout_s: 3600, min_size_sats: 100000, expiry_step_s: 60, expiry_offset_s: 0,
-  mpc_root_key: rootKeyHex, derivation_prefix: "near-mpc-recovery v0.1.0 epsilon derivation:", sign_format: 2, sign_deposit: "50000000000000000000000",
-}});
+// Reviewed parameters for this network (params/local.json) plus the accounts made above.
+const { _comment, ...tuned } = JSON.parse(readFileSync("/params/local.json", "utf8"));
+const covered = await deploy("covered", "covered", "new", { params: { ...tuned, signer: signer.id, light_client: lc.id, usdc: usdc.id, mpc_root_key: rootKeyHex } });
 await covered.account.callFunction({ contractId: usdc.id, methodName: "storage_deposit", args: {}, gas: 30n * 10n ** 12n, deposit: 10n ** 22n });
 // Local only: the contract keeps no admin key either; delete its full-access key like production.
 await covered.account.signAndSendTransaction({ receiverId: covered.id, actions: [actionCreators.deleteKey(covered.kp.getPublicKey())] });

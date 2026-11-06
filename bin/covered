@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The one entry point. `bin/covered help`.
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "$ROOT"
+COVERED_CALLER_PWD="$PWD"; ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "$ROOT"
 LOCAL=(--env-file .env -f infra/compose.yaml -f infra/compose.local.yaml)
 need() { command -v "$1" >/dev/null || { echo "missing: $1 ($2)"; exit 1; }; }
 cmd=${1:-help}; shift || true
@@ -44,6 +44,11 @@ case "$cmd" in
     docker compose --env-file .env -f infra/compose.yaml "${PROFILES[@]}" up -d --build --remove-orphans && docker image prune -f >/dev/null
     for i in $(seq 1 90); do curl -fsS localhost/api/health >/dev/null 2>&1 && break; sleep 2; done
     curl -fsS localhost/api/health; echo ;;
+  rescue)    # the seller's exit, with only Bitcoin: bin/covered rescue <kit.json> <your-btc-address> [--fee-rate N] [--esplora URL] [--broadcast]
+    kit=${1:?usage: bin/covered rescue <kit.json> <your-btc-address> [--broadcast]}; shift
+    case "$kit" in /*) ;; *) kit="${COVERED_CALLER_PWD:-$PWD}/$kit" ;; esac
+    if command -v node >/dev/null && [ -d relayer/node_modules ]; then (cd relayer && npx tsx src/rescue.ts "$kit" "$@")
+    else touch .env; docker compose --env-file .env -f infra/compose.yaml run --rm -T --no-deps relayer node dist/rescue.js - "$@" < "$kit"; fi ;;
   provision) # create or update the VM (+ DNS if a domain is set) from infra/cloud/terraform.tfvars or TF_VAR_*, then deploy
     need terraform "https://developer.hashicorp.com/terraform/install"
     (cd infra/cloud && terraform init -input=false >/dev/null && terraform apply -input=false -auto-approve "$@")
@@ -58,7 +63,7 @@ case "$cmd" in
       [ "$i" = 60 ] && { echo "VM not ready"; exit 1; }; done
     git archive --format=tar HEAD | "${SSH[@]}" 'cd /opt/covered && find . -mindepth 1 -maxdepth 1 ! -name .env -exec rm -rf {} + && tar -x'
     mainnet=${MAINNET_SITE:-${site:+mainnet.$site}}
-    "${SSH[@]}" "cd /opt/covered && { [ -z '$site' ] || { sed -i '/^DOMAIN=/d; /^MAINNET_DOMAIN=/d' .env; printf 'DOMAIN=%s\nMAINNET_DOMAIN=%s\n' '$site' '$mainnet' >> .env; }; } && bin/covered serve"
+    "${SSH[@]}" "cd /opt/covered && { [ -z '$site' ] || { sed -i '/^DOMAIN=/d; /^MAINNET_DOMAIN=/d' .env; printf 'DOMAIN=%s\nMAINNET_DOMAIN=%s\n' '$site' '$mainnet' >> .env; }; } && { [ -z '${RESET_CONTRACT:-}' ] || sed -i '/^COVERED_ID=/d' .env; } && bin/covered serve"
     [ -n "$site" ] && { for i in $(seq 1 60); do curl -fsS "https://$site/api/health" >/dev/null 2>&1 && break; sleep 5; done; echo "live: https://$site"; } ;;
   destroy)   (cd infra/cloud && terraform destroy "$@") ;;
   help|*)    cat <<'H'
@@ -77,6 +82,8 @@ covered — one entry point
     build              wasm for the contracts (needs rustup wasm32 target + cargo-near)
     e2e                L1: sandbox integration tests
     e2e-stack          against a running `up`: both contract lifecycles through relayer, bitcoind and UI, then Verify
+  rescue <kit.json> <address> [--broadcast]   sweep a deposit with the seller's rescue kit after its unlock (no NEAR needed)
+
   cloud (DigitalOcean, one VM, Caddy TLS on your domain or <ip>.sslip.io)
     provision          terraform apply (infra/cloud/terraform.tfvars), then deploy
     deploy [ip] [site] ship the committed tree over ssh and restart (first start on testnet deploys its own contracts)
