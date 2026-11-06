@@ -1,26 +1,25 @@
 #cloud-config
-# First boot: Docker, a `deploy` user, the repo, the production .env, then `docker compose up`.
+# First boot only prepares the machine: Docker, swap (the contract build wants it on 2 GB), a firewall and a
+# `deploy` user. The code arrives with `bin/covered deploy` (git archive over ssh), so the repo can stay private.
 package_update: true
-packages: [ca-certificates, curl, git, ufw]
+packages: [ca-certificates, curl, ufw]
 users:
   - name: deploy
-    groups: [docker, sudo]
+    groups: [sudo]
     shell: /bin/bash
     sudo: "ALL=(ALL) NOPASSWD:ALL"
     ssh_authorized_keys:
       - ${deploy_pubkey}
 write_files:
-  - path: /opt/covered.env
+  - path: /opt/covered/.env
     permissions: "0600"
     content: |
       ${indent(6, env_file)}
-      DOMAIN=${domain}
 runcmd:
+  - fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab
   - curl -fsSL https://get.docker.com | sh
   - systemctl enable --now docker
+  - usermod -aG docker deploy
   - ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw --force enable
-  - git clone --branch ${git_ref} ${repo} /opt/covered
-  - mv /opt/covered.env /opt/covered/.env
   - chown -R deploy:deploy /opt/covered
-  - cd /opt/covered && docker compose --env-file .env -f infra/compose.yaml up -d --build
-  - echo "covered up at https://${domain}" > /var/log/covered-bootstrap.log
+  - touch /var/lib/covered-ready

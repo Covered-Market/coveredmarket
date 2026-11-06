@@ -3,7 +3,7 @@ name: testnet
 # (btc-client-v4.testnet, which follows Bitcoin testnet3). Throwaway accounts come from the testnet faucet helper.
 on:
   push:
-    branches: ["e2e/testnet**"]
+    branches: ["e2e/testnet**", "feat/cloud**"]
   workflow_dispatch:
 concurrency:
   group: testnet-${{ github.ref }}
@@ -37,3 +37,29 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: testnet-l2, path: e2e/artifacts/ }
+  # The cloud VM's exact start-up (`bin/covered serve`) on a clean runner: builds the wasm, deploys and locks a fresh
+  # testnet contract set via the faucet, starts relayer + web, then creates a visitor wallet through /api/account.
+  cloud-rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - run: touch .env && bin/covered serve
+      - name: check the running stack
+        run: |
+          set -euo pipefail
+          cat .env | grep -v KEY
+          curl -fsS localhost/api/health; echo
+          curl -fsS localhost/config.json; echo
+          set -a; . ./.env; set +a
+          view() { curl -fsS https://rpc.testnet.fastnear.com -H 'content-type: application/json' -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"query\",\"params\":{\"request_type\":\"call_function\",\"finality\":\"optimistic\",\"account_id\":\"$1\",\"method_name\":\"$2\",\"args_base64\":\"$(printf '%s' "$3" | base64 -w0)\"}}" | jq -r '.result.result | implode'; }
+          view "$COVERED_ID" get_params '{}' | jq -e '.signer == "v1.signer-prod.testnet" and .light_client == "btc-client-v4.testnet"'
+          curl -fsS https://rpc.testnet.fastnear.com -H 'content-type: application/json' -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"query\",\"params\":{\"request_type\":\"view_access_key_list\",\"finality\":\"optimistic\",\"account_id\":\"$COVERED_ID\"}}" | jq -e '.result.keys | length == 0'
+          PK=$(node -e "const c=require('crypto');const k=c.generateKeyPairSync('ed25519');const raw=k.publicKey.export({format:'der',type:'spki'}).subarray(12);const A='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';let n=BigInt('0x'+raw.toString('hex')),s='';while(n>0n){s=A[Number(n%58n)]+s;n/=58n}console.log('ed25519:'+s)")
+          ID="visitor-$(date +%s).testnet"
+          curl -fsS -X POST localhost/api/account -H 'content-type: application/json' -d "{\"newAccountId\":\"$ID\",\"newAccountPublicKey\":\"$PK\"}"; echo
+          sleep 3
+          view "$USDC_ID" ft_balance_of "{\"account_id\":\"$ID\"}" | jq -e '. == "100000000000"'
+          echo "cloud rehearsal OK: $COVERED_ID"
+      - if: failure()
+        run: docker compose --env-file .env -f infra/compose.yaml -f infra/compose.testnet.yaml logs --tail=120

@@ -38,7 +38,7 @@ services:
       - config:/config
     command: >
       sh -c 'printf "{\"mode\":\"%s\",\"network\":\"%s\",\"rpc\":\"%s\",\"contract\":\"%s\",\"usdc\":\"%s\",\"esplora\":\"%s\",\"explorerBtc\":\"%s\",\"explorerNear\":\"%s\",\"codeHash\":\"%s\",\"signer\":\"%s\",\"lightClient\":\"%s\",\"minConf\":%s,\"helper\":\"%s\",\"accountSuffix\":\"%s\"}"
-      "$${MODE:-testnet}" "$${NEAR_NETWORK}" "$${WEB_NEAR_RPC:-$${NEAR_RPC}}" "$${COVERED_ID}" "$${USDC_ID}" "$${WEB_ESPLORA:-$${ESPLORA}}" "$${EXPLORER_BTC:-https://mempool.space/testnet4}" "$${EXPLORER_NEAR:-https://testnet.nearblocks.io}" "$${CODE_HASH:-}" "$${SIGNER_ID:-v1.signer-prod.testnet}" "$${LIGHT_CLIENT_ID:-}" "$${MIN_CONF:-1}" "$${HELPER:-https://helper.testnet.near.org}" "$${ACCOUNT_SUFFIX:-$${NEAR_NETWORK}}" > /config/config.json && cat /config/config.json'
+      "$${MODE:-testnet}" "$${NEAR_NETWORK}" "$${WEB_NEAR_RPC:-$${NEAR_RPC}}" "$${COVERED_ID}" "$${USDC_ID}" "$${WEB_ESPLORA:-$${ESPLORA}}" "$${EXPLORER_BTC:-https://mempool.space/testnet}" "$${EXPLORER_NEAR:-https://testnet.nearblocks.io}" "$${CODE_HASH:-}" "$${SIGNER_ID:-v1.signer-prod.testnet}" "$${LIGHT_CLIENT_ID:-}" "$${MIN_CONF:-1}" "$${HELPER:-/api}" "$${ACCOUNT_SUFFIX:-$${NEAR_NETWORK}}" > /config/config.json && cat /config/config.json'
 volumes:
   config:
   caddy_data:
