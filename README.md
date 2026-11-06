@@ -96,14 +96,28 @@ The [testnet site](https://178-62-225-161.sslip.io/#/try) uses test coins and te
 
 ## Run it yourself
 
-You need **Docker 24+ with Compose v2**. That is all.
+To run the app you need **Docker 24+ with Compose v2**, an internet connection for the first build, and ports **80**, **3030** and **18443** free. Nothing else is installed on your machine and no accounts or keys are needed.
 
 ```sh
 git clone https://github.com/bedeho/covered && cd covered
 bin/covered up
 ```
 
-That starts a NEAR sandbox, a Bitcoin regtest node, the contracts, the relayer and the web app, with two funded demo users. Open **http://localhost**.
+The first run takes 4 to 8 minutes, mostly compiling the contracts inside Docker; later runs take seconds. It ends with `Covered is at http://localhost`. Open **http://localhost**.
+
+**What runs locally.** Everything is on your machine: a NEAR sandbox node, a Bitcoin Core regtest node, the `covered` contract, the relayer and the web app, plus two demo users with 1,000,000 test USDC each. Three pieces are local stand-ins for live NEAR services, with the same interfaces: a **mock MPC signer** (same key derivation as `v1.signer`), a **mock Bitcoin light client**, and a **mock USDC** token. The spot price is fixed at $97,420. The real signer and light client are exercised on testnet (see [Proven on real Bitcoin](#proven-on-real-bitcoin) and [DEVELOPING.md](docs/DEVELOPING.md#tests)).
+
+**Check that it works.** With the stack up, run the end-to-end test (needs **Node 22** on your machine; it installs its own Chromium):
+
+```sh
+bin/covered e2e-stack
+```
+
+In about two minutes it drives two contracts through their whole life, one **KEPT** and one **EXERCISED**: create, deposit on regtest, proof, sale, settlement and claim. It then sells and deposits once through the web app, presses **Verify** in a real browser (7 of 7 on each certificate), and sweeps a deposit with the seller's rescue kit after its timelock. The last line is `E2E PASSED`, and screenshots land in `e2e/artifacts/`. On a fresh Linux machine, run `cd e2e && npx playwright install --with-deps chromium` once first, so the browser's system libraries are present.
+
+The same two commands run on a clean machine in CI on every pull request and every push to `main` ([stack workflow](https://github.com/bedeho/covered/actions/workflows/stack.yml)), on both x86-64 and arm64.
+
+**Useful commands**
 
 ```sh
 bin/covered keys                  # the demo users, astrid and marcus, and their keys
@@ -115,10 +129,12 @@ bin/covered rescue <kit> <addr>   # the seller's exit: sweep a deposit with only
 
 **Tests**
 
+These run on your machine rather than in Docker:
+
 ```sh
-bin/covered test                      # unit tests: contract, relayer, web (Rust 1.85+, Node 22)
-bin/covered e2e                       # contract flows on a NEAR sandbox node
-bin/covered up && bin/covered e2e-stack   # the whole product: both endings, the UI, Verify 7/7
+bin/covered test        # unit tests: contract, relayer, web. Needs Rust 1.85+ and Node 22
+bin/covered e2e         # contract flows on a NEAR sandbox node. Also needs the wasm32 target and cargo-near 0.23 (see DEVELOPING.md)
+bin/covered e2e-stack   # the whole product against a running `bin/covered up`, as above
 ```
 
 **Deploy** to one DigitalOcean VM with a real certificate, no domain needed: `gh workflow run cloud.yml -f action=apply`. On testnet the VM deploys and locks its own contract on first start.
@@ -154,5 +170,9 @@ If NEAR or its signing network ever stopped, you would not be stuck: every depos
 | [DEPLOY.md](docs/DEPLOY.md) | The cloud deployment, networks, wallets, faucet, domains |
 | [SECURITY.md](SECURITY.md) | How to report a vulnerability, and the bounty |
 | [brand/](brand/BRAND.md) | The design system: tokens, components, logos, fonts |
+
+## License
+
+[MIT](LICENSE). The bundled fonts (Fraunces, Instrument Sans, Spline Sans Mono, in `brand/fonts/` and `web/public/ds/fonts/`) are third-party works under the [SIL Open Font License 1.1](https://openfontlicense.org).
 
 <p align="center"><sub>Covered is unaudited. It is not a price guarantee, not investment advice, and not an offer of options to the public. Signatures come from NEAR's MPC network; if that network stops, settlement waits for it or for the seller's timelocked exit.</sub></p>
