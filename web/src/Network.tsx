@@ -13,7 +13,7 @@ export function NetworkBand() {
     ? "Local sandbox — a private NEAR chain and Bitcoin regtest on this machine. Nothing here exists anywhere else."
     : "Testnet — Bitcoin testnet3 and NEAR testnet. Test coins and test USDC with no value.";
   return (
-    <div role="status" style={{ background: "var(--gilt)", color: "var(--on-gilt)", padding: "6px 48px", display: "flex", gap: 16, alignItems: "center", justifyContent: "space-between", fontSize: 13, letterSpacing: 0.2 }}>
+    <div role="status" style={{ background: "var(--gilt)", color: "var(--on-gilt)", padding: "6px clamp(16px, 4vw, 48px)", display: "flex", flexWrap: "wrap", gap: "4px 16px", alignItems: "center", justifyContent: "space-between", fontSize: 13, letterSpacing: 0.2 }}>
       <span><strong style={{ textTransform: "uppercase", letterSpacing: 1 }}>{LABEL[CFG.mode]}</strong> · {text.split(" — ")[1]}</span>
       {CFG.switchUrl && <a href={CFG.switchUrl} style={{ color: "inherit", fontWeight: 600 }}>Go to mainnet →</a>}
     </div>
@@ -35,7 +35,7 @@ export function NetworkSwitch() {
 
 export function NotLive() {
   return (
-    <div style={{ padding: "64px 48px", maxWidth: 640 }}>
+    <div className="cv-pad" style={{ padding: "64px 48px", maxWidth: 640 }}>
       <div className="label" style={{ color: "var(--ink-muted)", marginBottom: 8 }}>Mainnet</div>
       <h1 className="title" style={{ margin: "0 0 12px" }}>Not live yet</h1>
       <p className="body" style={{ color: "var(--ink-muted)" }}>Covered on Bitcoin mainnet opens once its contract is deployed and locked. Until then everything works on testnet with test coins — same contract code, same signing network, same Bitcoin light client design.</p>

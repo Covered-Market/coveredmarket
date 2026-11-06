@@ -16,7 +16,8 @@ export interface Offer {
   commitment_reason: string | null; commitment_txid: string | null; commitment_sighash: string | null; commitment_to_address: string | null;
   commitment_amount_sats: string | null; committed_at_s: string | null; signed_tx: string | null; escrow_units: string; state: string;
 }
-export interface Params { signer: string; light_client: string; usdc: string; network: Net; fee_sats: number; grace_s: number; rescue_delay_s: number; mpc_root_key: string; derivation_prefix: string }
+export interface Params { signer: string; light_client: string; usdc: string; network: Net; fee_sats: number; grace_s: number; rescue_delay_s: number; mpc_root_key: string; derivation_prefix: string;
+  min_conf?: number; min_size_sats?: string | number; min_lead_s?: number; expiry_step_s?: number; expiry_offset_s?: number; escrow_timeout_s?: number; max_fee_sats?: number }
 export interface Accounting { claimable_total: string; escrow_total: string; near_balance: string }
 
 export interface Clients {
