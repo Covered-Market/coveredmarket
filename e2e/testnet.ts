@@ -14,7 +14,7 @@ import { KeyPairSigner } from "@near-js/signers";
 import { readFileSync, writeFileSync } from "node:fs";
 import { buildProof, esplora, lcArgsV2, txidOf } from "../relayer/src/btc/proof.ts";
 import { verifySignedTx } from "../web/src/lib/bip143.ts";
-import { addressFromScript, hex, p2wpkhScript, parseRootKey, scriptFromAddress } from "../web/src/lib/derive.ts";
+import { addressFromScript, depositWitnessScript, hex, p2wpkhScript, p2wshScript, parseRootKey, scriptFromAddress } from "../web/src/lib/derive.ts";
 import * as secp from "@noble/secp256k1";
 
 const RPC = process.env.NEAR_RPC ?? "https://rpc.testnet.fastnear.com";
@@ -102,7 +102,9 @@ async function createFunded(sizeSats: bigint, strike: string, premium: string, l
   const live: string = await view(SIGNER, "derived_public_key", { path: o.path, predecessor: covered.id, domain_id: 0 });
   const livePk = secp.ProjectivePoint.fromHex(parseRootKey(live)).toRawBytes(true);
   if (hex.to(livePk) !== o.derived_pubkey) throw new Error(`derived key mismatch: contract ${o.derived_pubkey} vs signer ${hex.to(livePk)}`);
-  if (addressFromScript(p2wpkhScript(livePk), "Testnet4") !== o.address) throw new Error("address mismatch");
+  // The deposit address is P2WSH of the script with the live MPC key and the seller's exit.
+  const ws = depositWitnessScript(livePk, hex.from(o.rescue_pubkey), Number(o.unlock_s));
+  if (hex.to(ws) !== o.witness_script || addressFromScript(p2wshScript(ws), "Testnet4") !== o.address) throw new Error("address mismatch");
   log(`CV-${serial}: deposit address ${o.address} matches the real signer's derived key`);
   const dep = fakeDeposit(scriptFromAddress(o.address, "Testnet4"), sizeSats, serial);
   await call(lc, lc.id, "set_included", { tx_id: dep.txid, block_hash: "00".repeat(32), depth: 6 }, 0n, 30n);
