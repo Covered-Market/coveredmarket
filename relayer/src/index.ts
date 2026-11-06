@@ -111,7 +111,10 @@ if (process.env.ACCOUNT_FAUCET === "1" && cfg.networkId === "testnet") {
       let accountId = id;
       const r = await fetch(process.env.NEAR_HELPER_URL ?? "https://helper.testnet.near.org/account", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ newAccountId: id, newAccountPublicKey: pk }) }).catch(() => null);
       if (r?.status === 409) return res.status(409).json({ error: "that name is taken" });
-      if (!r?.ok) {
+      // The faucet sometimes answers 200 without creating the account (silent rate limit): trust the chain, not the answer.
+      let made = false;
+      if (r?.ok) for (let i = 0; i < 8 && !made; i++) { made = await near.accountExists(id); if (!made) await new Promise((ok) => setTimeout(ok, 2000)); }
+      if (!made) {
         // The public faucet rate-limits this server's IP. Make the account ourselves instead, as a
         // sub-account of the relayer with a little NEAR (gas is relayed anyway).
         accountId = `${id.replace(/\.testnet$/, "")}.${cfg.relayerId}`;

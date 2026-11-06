@@ -67,7 +67,7 @@ jobs:
           set -euo pipefail
           set -a; . ./.env; set +a; OLD=$COVERED_ID; REL=$RELAYER_ID
           sed -i '/^COVERED_ID=/d' .env
-          echo 'NEAR_HELPER_URL=https://helper.invalid/account' >> .env
+          echo 'NEAR_HELPER_URL=https://postman-echo.com/post' >> .env   # answers 200 and creates nothing, like the rate-limited faucet
           bin/covered serve
           set -a; . ./.env; set +a
           [ "$COVERED_ID" != "$OLD" ] && [ "$RELAYER_ID" = "$REL" ] && [[ "$COVERED_ID" == *".$REL" ]] || { echo "reset did not fund from the relayer: $COVERED_ID / $RELAYER_ID"; exit 1; }
