@@ -8,6 +8,7 @@ import { Deposit } from "./pages/Deposit";
 import { Market } from "./pages/Market";
 import { Sell } from "./pages/Sell";
 import { Try } from "./pages/Try";
+import { NetworkBand, NetworkSwitch, NotLive } from "./Network";
 
 export function useRoute() {
   const [h, setH] = useState(location.hash || "#/market");
@@ -30,7 +31,7 @@ export function App() {
     { label: "Try it", href: "#/try", on: on === "try" },
   ];
   const page = parts[0] ?? "market";
-  const content = (() => {
+  const content = CFG.disabled ? <NotLive /> : (() => {
     switch (page) {
       case "market": return <Market />;
       case "sell": return wallet ? <Sell wallet={wallet} /> : <NeedWallet onCreate={() => setNaming(true)} />;
@@ -44,8 +45,10 @@ export function App() {
   })();
   return (
     <div className="cv-root" style={{ minHeight: "100vh", background: "var(--paper)", color: "var(--ink)", fontFamily: "var(--font-sans)" }}>
-      <TopBar items={nav(page)} href="#/market">
-        {wallet ? (
+      <NetworkBand />
+      <TopBar items={CFG.disabled ? [] : nav(page)} href="#/market">
+        <NetworkSwitch />
+        {CFG.disabled ? null : wallet ? (
           <Button size="sm" onClick={() => { if (confirm("Forget this wallet on this device?")) { clearWallet(); setWallet(null); } }}>{wallet.accountId}</Button>
         ) : (
           <Button size="sm" variant="primary" onClick={() => setNaming(true)}>Create wallet</Button>
@@ -64,7 +67,7 @@ export function App() {
       )}
       {content}
       <div style={{ padding: "24px 48px", borderTop: "1px solid var(--rule)", marginTop: 48 }} className="body-small">
-        <Notice>Covered is unaudited hackathon software. Only the contract <code>{CFG.contract}</code> can ask NEAR's signing network to spend a deposit address; Covered the company cannot. If the signing network stopped, settlement would stop with it.</Notice>
+        <Notice>Covered is unaudited hackathon software.{CFG.disabled ? null : <> Only the contract <a href={`${CFG.explorerNear}/address/${CFG.contract}`} target="_blank" rel="noreferrer"><code>{CFG.contract}</code></a> can ask NEAR's signing network to spend a deposit address; Covered the company cannot. If the signing network stopped, settlement would stop with it.</>}</Notice>
       </div>
     </div>
   );

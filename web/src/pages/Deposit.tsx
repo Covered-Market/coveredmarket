@@ -1,3 +1,5 @@
+import { btcJson, btcText } from "../lib/btc";
+import { btcAddr, btcTx, Ext } from "../Explorer";
 import { useEffect, useState } from "react";
 import { btc8, C } from "../ds";
 import { CFG, type Wallet } from "../lib/near";
@@ -12,8 +14,8 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
     if (!offer) return;
     const f = async () => {
       try {
-        const txs: any[] = await (await fetch(`${CFG.esplora}/address/${offer.address}/txs`)).json();
-        const tip = Number(await (await fetch(`${CFG.esplora}/blocks/tip/height`)).text());
+        const txs: any[] = await btcJson(`/address/${offer.address}/txs`);
+        const tip = Number(await btcText(`/blocks/tip/height`));
         const hit = txs.find((t) => t.vout.some((v: any) => v.scriptpubkey_address === offer.address && v.value === Number(offer.size_sats)));
         setSeen(hit ? { txid: hit.txid, confirmed: hit.status.confirmed, depth: hit.status.confirmed ? tip - hit.status.block_height + 1 : 0 } : null);
       } catch {}
@@ -41,7 +43,8 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
           <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
             <span className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>Send exactly {btc8(offer.size_sats)} to</span>
             <span className="figure" style={{ color: "var(--copper-ink)", wordBreak: "break-all", fontSize: 15 }}>{offer.address}</span>
-            <div style={{ display: "flex", gap: 8 }}><Button size="sm" onClick={() => navigator.clipboard.writeText(offer.address)}>Copy address</Button><Button size="sm" href={`bitcoin:${offer.address}?amount=${(Number(offer.size_sats) / 1e8).toFixed(8)}`}>Open in wallet</Button></div>
+            <div style={{ display: "flex", gap: 8 }}><Button size="sm" onClick={() => navigator.clipboard.writeText(offer.address)}>Copy address</Button><Button size="sm" href={`bitcoin:${offer.address}?amount=${(Number(offer.size_sats) / 1e8).toFixed(8)}`}>Open in wallet</Button><Button size="sm" href={btcAddr(offer.address)}>View on explorer</Button></div>
+            {seen && <span className="body-small">Seen: <Ext href={btcTx(seen.txid)}>{seen.txid}</Ext> · {seen.confirmed ? `${seen.depth} confirmation${seen.depth === 1 ? "" : "s"}` : "in the mempool"}</span>}
           </div>
         </div>
         <Notice>Send from a wallet you control, in one output, the exact amount. Any other amount is not accepted; you can recover it to {offer.refund_address} from your contracts page.</Notice>

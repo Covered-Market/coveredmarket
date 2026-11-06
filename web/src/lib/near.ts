@@ -7,10 +7,14 @@ import { actionCreators, buildDelegateAction, encodeSignedDelegate } from "@near
 import { sha256 } from "@noble/hashes/sha256";
 import { base58 } from "@scure/base";
 import type { Clients } from "./verify.js";
+import { btcFetch, btcJson, btcText } from "./btc";
 
 /** Runtime configuration, served as /config.json by the web container (written by `covered up` / the cloud bootstrap). */
-export interface Config { network: string; rpc: string; contract: string; usdc: string; esplora: string; explorerBtc: string; explorerNear: string; codeHash: string; signer: string; lightClient: string; minConf: number; helper: string; accountSuffix: string; mode: "local" | "testnet" | "mainnet" }
-const defaults: Config = { network: "testnet", rpc: "https://rpc.testnet.fastnear.com", contract: "covered.testnet", usdc: "usdc.fakes.testnet", esplora: "https://mempool.space/testnet/api", explorerBtc: "https://mempool.space/testnet", explorerNear: "https://testnet.nearblocks.io", codeHash: "", signer: "v1.signer-prod.testnet", lightClient: "btc-client-v4.testnet", minConf: 1, helper: "/api", accountSuffix: "testnet", mode: "testnet" };
+export interface Config { network: string; rpc: string; contract: string; usdc: string; esplora: string; explorerBtc: string; explorerNear: string; codeHash: string; signer: string; lightClient: string; minConf: number; helper: string; accountSuffix: string; mode: "local" | "testnet" | "mainnet";
+  /** Network without a contract yet: the app shows "not live". */ disabled?: boolean;
+  /** The other network's site, for the header switch. */ switchUrl?: string;
+  /** Quick in-browser test wallets and test funds (testnet, local). */ faucet?: boolean }
+const defaults: Config = { network: "testnet", rpc: "https://rpc.testnet.fastnear.com", contract: "covered.testnet", usdc: "usdc.fakes.testnet", esplora: "https://mempool.space/testnet/api,https://blockstream.info/testnet/api", explorerBtc: "https://mempool.space/testnet", explorerNear: "https://testnet.nearblocks.io", codeHash: "", signer: "v1.signer-prod.testnet", lightClient: "btc-client-v4.testnet", minConf: 1, helper: "/api", accountSuffix: "testnet", mode: "testnet", faucet: true };
 export const CFG: Config = { ...defaults, ...((window as any).COVERED_CONFIG ?? {}) };
 export async function loadConfig() {
   try { const r = await fetch("/config.json", { cache: "no-store" }); if (r.ok) Object.assign(CFG, await r.json()); } catch {}
@@ -32,8 +36,8 @@ export const verifyClients = (): Clients => ({
     ftBalance: (token, account) => view<string>("ft_balance_of", { account_id: account }, token),
   },
   btc: {
-    outspend: async (txid, vout) => { const r = await fetch(`${CFG.esplora}/tx/${txid}/outspend/${vout}`); if (!r.ok) throw new Error(`esplora ${r.status}`); const j = await r.json(); return { spent: j.spent, txid: j.txid }; },
-    txStatus: async (txid) => { const r = await fetch(`${CFG.esplora}/tx/${txid}/status`); if (r.status === 404) return null; if (!r.ok) throw new Error(`esplora ${r.status}`); const j = await r.json(); const tip = Number(await (await fetch(`${CFG.esplora}/blocks/tip/height`)).text()); return { confirmed: j.confirmed, depth: j.confirmed ? tip - j.block_height + 1 : 0 }; },
+    outspend: async (txid, vout) => { const j = await btcJson(`/tx/${txid}/outspend/${vout}`); return { spent: j.spent, txid: j.txid }; },
+    txStatus: async (txid) => { const r = await btcFetch(`/tx/${txid}/status`); if (r.status === 404) return null; if (!r.ok) throw new Error(`esplora ${r.status}`); const j = await r.json(); const tip = Number(await btcText(`/blocks/tip/height`)); return { confirmed: j.confirmed, depth: j.confirmed ? tip - j.block_height + 1 : 0 }; },
   },
   expected: { codeHash: CFG.codeHash, contract: CFG.contract, signer: CFG.signer, lightClient: CFG.lightClient, usdc: CFG.usdc, minConf: CFG.minConf },
 });
