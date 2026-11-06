@@ -6,7 +6,7 @@
  * ids, the relayer key and the code hash into /env/.env. Nothing here holds funds of value.
  */
 import { Account } from "@near-js/accounts";
-import { KeyPairEd25519 } from "@near-js/crypto";
+import { KeyPair, KeyPairEd25519 } from "@near-js/crypto";
 import { JsonRpcProvider } from "@near-js/providers";
 import { KeyPairSigner } from "@near-js/signers";
 import { actionCreators } from "@near-js/transactions";
@@ -24,6 +24,24 @@ const TGAS = 10n ** 12n, NEAR = 10n ** 24n;
 const tag = Date.now().toString(36);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// A redeploy funds the new accounts from the existing relayer (sub-accounts of it), so only the very first
+// start needs the testnet faucet — which rate-limits an IP to a handful of accounts per day.
+const envVal = (k: string) => env.match(new RegExp(`^${k}=(.+)$`, "m"))?.[1]?.trim();
+const funderId = envVal("RELAYER_ID"), funderKey = envVal("RELAYER_KEY");
+let funder: Account | null = null;
+if (funderId && funderKey) {
+  const a = new Account(funderId, p, new KeyPairSigner(KeyPair.fromString(funderKey as any)));
+  const bal = BigInt(((await p.query({ request_type: "view_account", account_id: funderId, finality: "final" }).catch(() => null)) as any)?.amount ?? "0");
+  if (bal >= 14n * 10n ** 24n) { funder = a; console.log(`funding the new contract set from ${funderId} (${bal / 10n ** 24n} NEAR)`); }
+}
+async function sub(prefix: string, near: bigint) {
+  const kp = KeyPairEd25519.fromRandom();
+  const id = `${prefix}-${tag}.${funderId}`;
+  await funder!.createAccount(id, kp.getPublicKey(), near * NEAR);
+  await sleep(1500);
+  return { id, kp, acc: new Account(id, p, new KeyPairSigner(kp)) };
+}
+
 async function account(prefix: string) {
   const kp = KeyPairEd25519.fromRandom();
   const id = `covered-${prefix}-${tag}.testnet`;
@@ -39,9 +57,15 @@ async function account(prefix: string) {
 const wasm = (n: string) => readFileSync(`/wasm/${n}.wasm`);
 const view = async (c: string, m: string, a: object = {}) => JSON.parse(Buffer.from(((await p.query({ request_type: "call_function", account_id: c, method_name: m, args_base64: Buffer.from(JSON.stringify(a)).toString("base64"), finality: "optimistic" })) as any).result).toString());
 
-const covered = await account("app"), usdc = await account("usdc"), relayer = await account("relayer");
-// The relayer pays everyone's gas (NEP-366); top it up from two more faucet accounts.
-for (const k of ["gas1", "gas2"]) { const g = await account(k); await g.acc.transfer({ receiverId: relayer.id, amount: 9n * NEAR }); }
+let covered, usdc, relayer;
+if (funder) {
+  covered = await sub("app", 8n); usdc = await sub("usdc", 4n);
+  relayer = { id: funderId!, kp: KeyPair.fromString(funderKey as any), acc: funder }; // the relayer stays, with its NEAR
+} else {
+  covered = await account("app"); usdc = await account("usdc"); relayer = await account("relayer");
+  // The relayer pays everyone's gas (NEP-366); top it up from two more faucet accounts.
+  for (const k of ["gas1", "gas2"]) { const g = await account(k); await g.acc.transfer({ receiverId: relayer.id, amount: 9n * NEAR }); }
+}
 
 await usdc.acc.signAndSendTransaction({ receiverId: usdc.id, actions: [actionCreators.deployContract(wasm("mock_usdc")), actionCreators.functionCall("new", {}, 100n * TGAS, 0n)] });
 const rootKey: string = await view(SIGNER, "public_key", { domain_id: 0 });

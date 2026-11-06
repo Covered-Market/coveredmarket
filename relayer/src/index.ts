@@ -108,11 +108,20 @@ if (process.env.ACCOUNT_FAUCET === "1" && cfg.networkId === "testnet") {
     const id = String(req.body?.newAccountId ?? ""), pk = String(req.body?.newAccountPublicKey ?? "");
     if (!/^[a-z0-9][a-z0-9_-]{1,40}\.testnet$/.test(id) || !/^ed25519:[1-9A-HJ-NP-Za-km-z]{32,50}$/.test(pk)) return res.status(400).json({ error: "bad account id or key" });
     try {
-      const r = await fetch("https://helper.testnet.near.org/account", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ newAccountId: id, newAccountPublicKey: pk }) });
-      if (!r.ok) return res.status(r.status === 409 ? 409 : 400).json({ error: (await r.text()).slice(0, 200) || "account could not be created (name taken?)" });
+      let accountId = id;
+      const r = await fetch(process.env.NEAR_HELPER_URL ?? "https://helper.testnet.near.org/account", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ newAccountId: id, newAccountPublicKey: pk }) }).catch(() => null);
+      if (r?.status === 409) return res.status(409).json({ error: "that name is taken" });
+      if (!r?.ok) {
+        // The public faucet rate-limits this server's IP. Make the account ourselves instead, as a
+        // sub-account of the relayer with a little NEAR (gas is relayed anyway).
+        accountId = `${id.replace(/\.testnet$/, "")}.${cfg.relayerId}`;
+        if (accountId.length > 64) return res.status(400).json({ error: "name too long" });
+        try { await near.createSubAccount(accountId, pk, 10n ** 23n); }
+        catch (e) { return res.status(/exist/i.test(String(e)) ? 409 : 500).json({ error: /exist/i.test(String(e)) ? "that name is taken" : (e as Error).message }); }
+      }
       seen.set(ip, [...recent, Date.now()]);
-      if (process.env.USDC_MINT === "1") await near.callAny(cfg.usdc, "mint", { account_id: id, amount: String(100_000n * 1_000_000n) });
-      res.json({ ok: true, accountId: id, usdc: process.env.USDC_MINT === "1" ? "100000" : "0" });
+      if (process.env.USDC_MINT === "1") await near.callAny(cfg.usdc, "mint", { account_id: accountId, amount: String(100_000n * 1_000_000n) });
+      res.json({ ok: true, accountId, usdc: process.env.USDC_MINT === "1" ? "100000" : "0" });
     } catch (e) { res.status(500).json({ error: (e as Error).message }); }
   });
 }

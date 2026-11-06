@@ -58,7 +58,9 @@ export async function createWallet(name: string): Promise<Wallet> {
   const url = CFG.mode === "local" ? "/api/dev/account" : `${CFG.helper}/account`;
   const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ newAccountId: accountId, newAccountPublicKey: kp.getPublicKey().toString() }) });
   if (!r.ok) throw new Error(`account creation failed: ${await r.text()}`);
-  const w = { accountId, key: kp.toString() };
+  // The server may name it differently (a sub-account of the relayer when the public faucet is busy).
+  const j = await r.json().catch(() => ({}));
+  const w = { accountId: typeof j.accountId === "string" ? j.accountId : accountId, key: kp.toString() };
   saveWallet(w);
   return w;
 }
