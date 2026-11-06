@@ -38,9 +38,16 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with: { terraform_wrapper: false }
       - name: secrets present
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
-          [ -n "$TF_VAR_do_token" ] || { echo "::error::add the DO_TOKEN repository secret"; exit 1; }
-          [ -n "${{ secrets.DEPLOY_SSH_KEY }}" ] || { echo "::error::add the DEPLOY_SSH_KEY repository secret"; exit 1; }
+          bad=0
+          if [ -z "$TF_VAR_do_token" ]; then echo "::error::DO_TOKEN is not set"; bad=1
+          elif ! [[ "$TF_VAR_do_token" =~ ^dop_v1_[0-9a-f]{64}$ ]]; then echo "::error::DO_TOKEN is set but is not a DigitalOcean token (expected dop_v1_ + 64 hex chars; got ${#TF_VAR_do_token} chars starting '${TF_VAR_do_token:0:3}')"; bad=1
+          elif ! curl -fsS -o /dev/null -H "Authorization: Bearer $TF_VAR_do_token" https://api.digitalocean.com/v2/account; then echo "::error::DO_TOKEN is rejected by DigitalOcean"; bad=1; fi
+          if [ -z "$KEY" ]; then echo "::error::DEPLOY_SSH_KEY is not set"; bad=1
+          elif ! printf '%s\n' "$KEY" | ssh-keygen -y -f /dev/stdin >/dev/null 2>&1; then echo "::error::DEPLOY_SSH_KEY is not a valid private key"; bad=1; fi
+          exit $bad
       - name: deploy key
         run: |
           install -m 700 -d ~/.ssh
