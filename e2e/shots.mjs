@@ -15,6 +15,8 @@ const OUT = process.env.OUT ?? `artifacts/${MODE}`;
 mkdirSync(OUT, { recursive: true });
 
 const cfg = await (await fetch(`${SITE}/config.json`)).json();
+const faucet = await fetch(`${SITE}/api/btc-faucet`).then((r) => r.json()).catch(() => null);
+if (faucet?.address) console.log(`demo faucet ${faucet.address}: ${faucet.confirmed} confirmed + ${faucet.unconfirmed} unconfirmed sats`);
 async function view(method, args = {}) {
   const r = await fetch(cfg.rpc, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "call_function", account_id: cfg.contract, method_name: method, args_base64: Buffer.from(JSON.stringify(args)).toString("base64"), finality: "final" } }) });
   const j = await r.json();
