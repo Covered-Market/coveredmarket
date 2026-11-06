@@ -1,0 +1,501 @@
+{
+  "site": "https://178-62-225-161.sslip.io",
+  "contract": "covered-app-mw4qlyb3.testnet",
+  "network": "testnet",
+  "capturedAt": "2026-11-06T10:47:15.019Z",
+  "seller": "live-seller-mw4s4qtp.testnet",
+  "picks": {
+    "open": {
+      "serial": 1,
+      "state": "Sold"
+    },
+    "sold": {
+      "serial": 1,
+      "state": "Sold"
+    },
+    "kept": null,
+    "exercised": null,
+    "created": null
+  },
+  "offers": [
+    {
+      "serial": 1,
+      "seller": "live-seller-mw4s4qtp.testnet",
+      "buyer": "live-buyer-mw4s4qtp.testnet",
+      "size_sats": "100000",
+      "strike_units": "150000000000",
+      "strike_total_units": "150000000",
+      "premium_units": "5000000",
+      "expiry_s": "1793963220",
+      "created_s": "1793957779",
+      "path": "live-seller-mw4s4qtp.testnet/CV-1",
+      "derived_pubkey": "0243c017f81219bda2eb662c5845751d4dbe7f060eef54c633cce8cf5dc9ec0410",
+      "address": "tb1qc7llf6xn7zwgagm7ztwmhd3209nkcu3tx5q9pe",
+      "refund_address": "tb1qr4ecpxecfr6qkjqec6s024qe8k28hfn47s0nna",
+      "buyer_address": "tb1qr4ecpxecfr6qkjqec6s024qe8k28hfn47s0nna",
+      "collateral_txid": "7549bd315f9fd8e638b1f54aa43b7cb28f8a68e598f35852a3b8814f20386fb3",
+      "collateral_vout": 0,
+      "collateral_value_sats": "100000",
+      "commitment_reason": null,
+      "commitment_txid": null,
+      "commitment_sighash": null,
+      "commitment_to_address": null,
+      "commitment_amount_sats": null,
+      "committed_at_s": null,
+      "signed_tx": null,
+      "escrow_units": "0",
+      "retry_after_s": null,
+      "state": "Sold"
+    }
+  ],
+  "shots": [
+    {
+      "file": "market-paper-desktop.png",
+      "id": "market",
+      "route": "#/market",
+      "theme": "paper",
+      "device": "desktop",
+      "fullPage": false
+    },
+    {
+      "file": "market-paper-desktop-full.png",
+      "id": "market",
+      "route": "#/market",
+      "theme": "paper",
+      "device": "desktop",
+      "fullPage": true
+    },
+    {
+      "file": "try-paper-desktop.png",
+      "id": "try",
+      "route": "#/try",
+      "theme": "paper",
+      "device": "desktop",
+      "fullPage": false
+    },
+    {
+      "file": "try-paper-desktop-full.png",
+      "id": "try",
+      "route": "#/try",
+      "theme": "paper",
+      "device": "desktop",
+      "fullPage": true
+    },
+    {
+      "file": "sell-paper-desktop.png",
+      "id": "sell",
+      "route": "#/sell",
+      "theme": "paper",
+      "device": "desktop",
+      "fullPage": false
+    },
+    {
+      "file": "sell-paper-desktop-full.png",
+      "id": "sell",
+      "route": "#/sell",
+      "theme": "paper",
+      "device": "desktop",
+      "fullPage": true
+    },
+    {
+      "file": "contracts-paper-desktop.png",
+      "id": "contracts",
+      "route": "#/contracts",
+      "theme": "paper",
+      "device": "desktop",
+      "fullPage": false
+    },
+    {
+      "file": "contracts-paper-desktop-full.png",
+      "id": "contracts",
+      "route": "#/contracts",
+      "theme": "paper",
+      "device": "desktop",
+      "fullPage": true
+    },
+    {
+      "file": "cert-open-paper-desktop.png",
+      "id": "cert-open",
+      "route": "#/c/1",
+      "theme": "paper",
+      "device": "desktop",
+      "fullPage": false
+    },
+    {
+      "file": "cert-open-paper-desktop-full.png",
+      "id": "cert-open",
+      "route": "#/c/1",
+      "theme": "paper",
+      "device": "desktop",
+      "fullPage": true
+    },
+    {
+      "file": "cert-sold-paper-desktop.png",
+      "id": "cert-sold",
+      "route": "#/c/1",
+      "theme": "paper",
+      "device": "desktop",
+      "fullPage": false
+    },
+    {
+      "file": "cert-sold-paper-desktop-full.png",
+      "id": "cert-sold",
+      "route": "#/c/1",
+      "theme": "paper",
+      "device": "desktop",
+      "fullPage": true
+    },
+    {
+      "file": "buy-paper-desktop.png",
+      "id": "buy",
+      "route": "#/buy/1",
+      "theme": "paper",
+      "device": "desktop",
+      "fullPage": false
+    },
+    {
+      "file": "buy-paper-desktop-full.png",
+      "id": "buy",
+      "route": "#/buy/1",
+      "theme": "paper",
+      "device": "desktop",
+      "fullPage": true
+    },
+    {
+      "file": "market-paper-phone.png",
+      "id": "market",
+      "route": "#/market",
+      "theme": "paper",
+      "device": "phone",
+      "fullPage": false
+    },
+    {
+      "file": "market-paper-phone-full.png",
+      "id": "market",
+      "route": "#/market",
+      "theme": "paper",
+      "device": "phone",
+      "fullPage": true
+    },
+    {
+      "file": "try-paper-phone.png",
+      "id": "try",
+      "route": "#/try",
+      "theme": "paper",
+      "device": "phone",
+      "fullPage": false
+    },
+    {
+      "file": "try-paper-phone-full.png",
+      "id": "try",
+      "route": "#/try",
+      "theme": "paper",
+      "device": "phone",
+      "fullPage": true
+    },
+    {
+      "file": "sell-paper-phone.png",
+      "id": "sell",
+      "route": "#/sell",
+      "theme": "paper",
+      "device": "phone",
+      "fullPage": false
+    },
+    {
+      "file": "sell-paper-phone-full.png",
+      "id": "sell",
+      "route": "#/sell",
+      "theme": "paper",
+      "device": "phone",
+      "fullPage": true
+    },
+    {
+      "file": "contracts-paper-phone.png",
+      "id": "contracts",
+      "route": "#/contracts",
+      "theme": "paper",
+      "device": "phone",
+      "fullPage": false
+    },
+    {
+      "file": "contracts-paper-phone-full.png",
+      "id": "contracts",
+      "route": "#/contracts",
+      "theme": "paper",
+      "device": "phone",
+      "fullPage": true
+    },
+    {
+      "file": "cert-open-paper-phone.png",
+      "id": "cert-open",
+      "route": "#/c/1",
+      "theme": "paper",
+      "device": "phone",
+      "fullPage": false
+    },
+    {
+      "file": "cert-open-paper-phone-full.png",
+      "id": "cert-open",
+      "route": "#/c/1",
+      "theme": "paper",
+      "device": "phone",
+      "fullPage": true
+    },
+    {
+      "file": "cert-sold-paper-phone.png",
+      "id": "cert-sold",
+      "route": "#/c/1",
+      "theme": "paper",
+      "device": "phone",
+      "fullPage": false
+    },
+    {
+      "file": "cert-sold-paper-phone-full.png",
+      "id": "cert-sold",
+      "route": "#/c/1",
+      "theme": "paper",
+      "device": "phone",
+      "fullPage": true
+    },
+    {
+      "file": "buy-paper-phone.png",
+      "id": "buy",
+      "route": "#/buy/1",
+      "theme": "paper",
+      "device": "phone",
+      "fullPage": false
+    },
+    {
+      "file": "buy-paper-phone-full.png",
+      "id": "buy",
+      "route": "#/buy/1",
+      "theme": "paper",
+      "device": "phone",
+      "fullPage": true
+    },
+    {
+      "file": "market-vault-desktop.png",
+      "id": "market",
+      "route": "#/market",
+      "theme": "vault",
+      "device": "desktop",
+      "fullPage": false
+    },
+    {
+      "file": "market-vault-desktop-full.png",
+      "id": "market",
+      "route": "#/market",
+      "theme": "vault",
+      "device": "desktop",
+      "fullPage": true
+    },
+    {
+      "file": "try-vault-desktop.png",
+      "id": "try",
+      "route": "#/try",
+      "theme": "vault",
+      "device": "desktop",
+      "fullPage": false
+    },
+    {
+      "file": "try-vault-desktop-full.png",
+      "id": "try",
+      "route": "#/try",
+      "theme": "vault",
+      "device": "desktop",
+      "fullPage": true
+    },
+    {
+      "file": "sell-vault-desktop.png",
+      "id": "sell",
+      "route": "#/sell",
+      "theme": "vault",
+      "device": "desktop",
+      "fullPage": false
+    },
+    {
+      "file": "sell-vault-desktop-full.png",
+      "id": "sell",
+      "route": "#/sell",
+      "theme": "vault",
+      "device": "desktop",
+      "fullPage": true
+    },
+    {
+      "file": "contracts-vault-desktop.png",
+      "id": "contracts",
+      "route": "#/contracts",
+      "theme": "vault",
+      "device": "desktop",
+      "fullPage": false
+    },
+    {
+      "file": "contracts-vault-desktop-full.png",
+      "id": "contracts",
+      "route": "#/contracts",
+      "theme": "vault",
+      "device": "desktop",
+      "fullPage": true
+    },
+    {
+      "file": "cert-open-vault-desktop.png",
+      "id": "cert-open",
+      "route": "#/c/1",
+      "theme": "vault",
+      "device": "desktop",
+      "fullPage": false
+    },
+    {
+      "file": "cert-open-vault-desktop-full.png",
+      "id": "cert-open",
+      "route": "#/c/1",
+      "theme": "vault",
+      "device": "desktop",
+      "fullPage": true
+    },
+    {
+      "file": "cert-sold-vault-desktop.png",
+      "id": "cert-sold",
+      "route": "#/c/1",
+      "theme": "vault",
+      "device": "desktop",
+      "fullPage": false
+    },
+    {
+      "file": "cert-sold-vault-desktop-full.png",
+      "id": "cert-sold",
+      "route": "#/c/1",
+      "theme": "vault",
+      "device": "desktop",
+      "fullPage": true
+    },
+    {
+      "file": "buy-vault-desktop.png",
+      "id": "buy",
+      "route": "#/buy/1",
+      "theme": "vault",
+      "device": "desktop",
+      "fullPage": false
+    },
+    {
+      "file": "buy-vault-desktop-full.png",
+      "id": "buy",
+      "route": "#/buy/1",
+      "theme": "vault",
+      "device": "desktop",
+      "fullPage": true
+    },
+    {
+      "file": "market-vault-phone.png",
+      "id": "market",
+      "route": "#/market",
+      "theme": "vault",
+      "device": "phone",
+      "fullPage": false
+    },
+    {
+      "file": "market-vault-phone-full.png",
+      "id": "market",
+      "route": "#/market",
+      "theme": "vault",
+      "device": "phone",
+      "fullPage": true
+    },
+    {
+      "file": "try-vault-phone.png",
+      "id": "try",
+      "route": "#/try",
+      "theme": "vault",
+      "device": "phone",
+      "fullPage": false
+    },
+    {
+      "file": "try-vault-phone-full.png",
+      "id": "try",
+      "route": "#/try",
+      "theme": "vault",
+      "device": "phone",
+      "fullPage": true
+    },
+    {
+      "file": "sell-vault-phone.png",
+      "id": "sell",
+      "route": "#/sell",
+      "theme": "vault",
+      "device": "phone",
+      "fullPage": false
+    },
+    {
+      "file": "sell-vault-phone-full.png",
+      "id": "sell",
+      "route": "#/sell",
+      "theme": "vault",
+      "device": "phone",
+      "fullPage": true
+    },
+    {
+      "file": "contracts-vault-phone.png",
+      "id": "contracts",
+      "route": "#/contracts",
+      "theme": "vault",
+      "device": "phone",
+      "fullPage": false
+    },
+    {
+      "file": "contracts-vault-phone-full.png",
+      "id": "contracts",
+      "route": "#/contracts",
+      "theme": "vault",
+      "device": "phone",
+      "fullPage": true
+    },
+    {
+      "file": "cert-open-vault-phone.png",
+      "id": "cert-open",
+      "route": "#/c/1",
+      "theme": "vault",
+      "device": "phone",
+      "fullPage": false
+    },
+    {
+      "file": "cert-open-vault-phone-full.png",
+      "id": "cert-open",
+      "route": "#/c/1",
+      "theme": "vault",
+      "device": "phone",
+      "fullPage": true
+    },
+    {
+      "file": "cert-sold-vault-phone.png",
+      "id": "cert-sold",
+      "route": "#/c/1",
+      "theme": "vault",
+      "device": "phone",
+      "fullPage": false
+    },
+    {
+      "file": "cert-sold-vault-phone-full.png",
+      "id": "cert-sold",
+      "route": "#/c/1",
+      "theme": "vault",
+      "device": "phone",
+      "fullPage": true
+    },
+    {
+      "file": "buy-vault-phone.png",
+      "id": "buy",
+      "route": "#/buy/1",
+      "theme": "vault",
+      "device": "phone",
+      "fullPage": false
+    },
+    {
+      "file": "buy-vault-phone-full.png",
+      "id": "buy",
+      "route": "#/buy/1",
+      "theme": "vault",
+      "device": "phone",
+      "fullPage": true
+    }
+  ]
+}
