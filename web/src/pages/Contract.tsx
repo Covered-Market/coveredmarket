@@ -4,6 +4,7 @@ import { call, CFG, verifyClients, type Wallet } from "../lib/near";
 import { runChecks, type CheckResult } from "../lib/verify";
 import { stampFor, useOffer, useParams } from "./hooks";
 import { btcAddr, btcTx, Ext, nearAcct, OnChainRecord } from "../Explorer";
+import { BlockWait } from "../ChainClock";
 
 export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | null }) {
   const { Certificate, Button, Countdown, StatTile, SettlementTimeline, Notice, Figure, Stamp } = C();
@@ -30,7 +31,7 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
   ] as const;
   const verify = async () => { setRunning(true); try { setChecks(await runChecks(verifyClients(), offer, params as any, now)); } finally { setRunning(false); } };
   return (
-    <div style={{ padding: "24px 48px 32px", display: "grid", gridTemplateColumns: "1fr 420px", gap: 40, alignItems: "start" }}>
+    <div className="cv-split cv-pad" style={{ padding: "24px 48px 32px", display: "grid", gridTemplateColumns: "1fr 420px", gap: 40, alignItems: "start" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div className="body-small" style={{ color: "var(--ink-muted)" }}>{location.origin}/#/c/<b style={{ color: "var(--ink)" }}>{serial}</b> · public page{isSeller ? " · you are the seller" : isBuyer ? " · you are the buyer" : ""}</div>
         <Certificate contract={contract}>
@@ -60,7 +61,7 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
         )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 32 }}>
-        {offer.state === "Sold" && now < expiry + grace && <Countdown totalSeconds={expiry - Number(offer.created_s ?? expiry - 86400) + grace} secondsLeft={Math.max(0, expiry + grace - now)} label={now < expiry ? "Until the exercise window" : "Exercise window closes in"} note={dateUtc(expiry + grace)} />}
+        {offer.state === "Sold" && now < expiry + grace && <Countdown totalSeconds={Math.floor(now < expiry ? expiry - Number(offer.created_s ?? expiry - 86400) : grace)} secondsLeft={Math.floor(Math.max(0, (now < expiry ? expiry : expiry + grace) - now))} label={now < expiry ? "Until the exercise window" : "Exercise window closes in"} note={dateUtc(now < expiry ? expiry : expiry + grace)} />}
         {offer.commitment_reason && (
           <div style={{ display: "flex", alignItems: "center", gap: 16, border: "1px solid var(--rule)", background: "var(--paper-raised)", padding: 20 }}>
             <div><div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>{offer.commitment_reason === "Exercise" ? "Delivered to the buyer" : "Returned to the seller"}</div><Figure value={Number(offer.commitment_amount_sats) / 1e8} kind="btc" size="xl" /><div className="body-small" style={{ color: "var(--ink-muted)" }}>to {offer.commitment_to_address && <Ext href={btcAddr(offer.commitment_to_address)}>{offer.commitment_to_address}</Ext>}; fee {params?.fee_sats ?? "—"} sats borne by the recipient</div></div>
@@ -71,6 +72,7 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
           <StatTile label="Strike total" value={Number(offer.strike_total_units) / 1e6} kind="usd" note={offer.escrow_units !== "0" ? "in escrow until delivery confirms" : "paid by the buyer to exercise"} />
         </div>
         <SettlementTimeline steps={steps as any} />
+        {offer.state === "Signed" && <BlockWait blocks={1} what={`to include the ${offer.commitment_reason === "Exercise" ? "delivery" : "return"} transaction`} />}
         <OnChainRecord rows={[
           ["Deposit address", offer.address, btcAddr],
           ["Deposit tx", offer.collateral_txid, btcTx],
