@@ -11,6 +11,7 @@ import { Account } from "@near-js/accounts";
 import { KeyPairEd25519 } from "@near-js/crypto";
 import { JsonRpcProvider } from "@near-js/providers";
 import { KeyPairSigner } from "@near-js/signers";
+import { actionCreators } from "@near-js/transactions";
 import { readFileSync, writeFileSync } from "node:fs";
 import { buildProof, esplora, lcArgsV2, txidOf } from "../relayer/src/btc/proof.ts";
 import { verifySignedTx } from "../web/src/lib/bip143.ts";
@@ -59,10 +60,12 @@ async function account(prefix: string) {
   return { id, acc: new Account(id, p, new KeyPairSigner(kp)) };
 }
 type U = Awaited<ReturnType<typeof account>>;
-const call = (u: U, contractId: string, methodName: string, args: object, deposit = 0n, gas = 300n) => retry(() => u.acc.callFunction({ contractId, methodName, args, deposit, gas: gas * TGAS }), 4, /-429|429 Too Many/);  // only a refused request is safe to resend
+// Only a refused transaction is safe to resend: rate-limited, or rejected for a stale nonce (a load-balanced RPC
+// node a block behind can hand out the nonce the previous transaction just used).
+const call = (u: U, contractId: string, methodName: string, args: object, deposit = 0n, gas = 300n) => retry(() => u.acc.callFunction({ contractId, methodName, args, deposit, gas: gas * TGAS }), 6, /-429|429 Too Many|InvalidNonce|nonce .* must be larger/);
 async function deploy(u: U, file: string, init: string, args: object) {
-  await u.acc.deployContract(wasm(file));
-  await call(u, u.id, init, args, 0n, 100n);
+  // one transaction: no second nonce to race
+  await retry(() => u.acc.signAndSendTransaction({ receiverId: u.id, actions: [actionCreators.deployContract(wasm(file)), actionCreators.functionCall(init, args, 100n * TGAS, 0n)] }), 6, /-429|InvalidNonce|nonce .* must be larger/);
 }
 const addrFromSecret = (b: number) => addressFromScript(p2wpkhScript(secp.getPublicKey(new Uint8Array(32).fill(b), true)), "Testnet4");
 /** Minimal legacy-format tx paying `value` to `script` (stands in for the seller's deposit). */
