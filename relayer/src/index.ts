@@ -13,7 +13,7 @@ const cfg = {
   relayerId: process.env.RELAYER_ID, relayerKey: process.env.RELAYER_KEY, covered: env("COVERED_ID", "covered.testnet"),
   usdc: env("USDC_ID", "usdc.fakes.testnet"), lightClient: process.env.LIGHT_CLIENT_ID, lightClientMock: process.env.LIGHT_CLIENT_MOCK === "1",
   btcBackend: env("BTC_BACKEND", "esplora") as "esplora" | "core",
-  esplora: env("ESPLORA", "https://mempool.space/testnet4/api"),
+  esplora: env("ESPLORA", "https://mempool.space/testnet/api"),
   core: { url: env("BITCOIN_RPC", "http://bitcoind:18443"), user: env("BITCOIN_RPC_USER", "covered"), pass: env("BITCOIN_RPC_PASS", "covered") },
   port: Number(env("PORT", "8787")), tickMs: Number(env("TICK_MS", "30000")),
   fixedSpot: process.env.FIXED_SPOT_USD ? Number(process.env.FIXED_SPOT_USD) : undefined,
@@ -50,6 +50,27 @@ if (process.env.DEV_ROOT_ID && process.env.DEV_ROOT_KEY) {
   const create = devAccountCreator({ nodeUrl: cfg.nodeUrl, rootId: process.env.DEV_ROOT_ID, rootKey: process.env.DEV_ROOT_KEY, usdc: cfg.usdc });
   app.post("/api/dev/account", async (req, res) => {
     try { res.json(await create(String(req.body?.newAccountId), String(req.body?.newAccountPublicKey))); } catch (e) { res.status(400).json({ error: (e as Error).message }); }
+  });
+}
+
+// Testnet: create a wallet for a visitor through the NEAR testnet faucet helper (server-side, so no CORS and one
+// place to rate-limit), then mint them mock USDC. Off unless ACCOUNT_FAUCET=1; never on mainnet.
+if (process.env.ACCOUNT_FAUCET === "1" && cfg.networkId === "testnet") {
+  const seen = new Map<string, number[]>();
+  const HOUR = 3600_000, PER_HOUR = Number(process.env.ACCOUNT_FAUCET_PER_HOUR ?? 5);
+  app.post("/api/account", async (req, res) => {
+    const ip = String(req.headers["x-forwarded-for"] ?? req.socket.remoteAddress ?? "").split(",")[0].trim();
+    const recent = (seen.get(ip) ?? []).filter((t) => Date.now() - t < HOUR);
+    if (recent.length >= PER_HOUR) return res.status(429).json({ error: "too many new wallets from this address; try again later" });
+    const id = String(req.body?.newAccountId ?? ""), pk = String(req.body?.newAccountPublicKey ?? "");
+    if (!/^[a-z0-9][a-z0-9_-]{1,40}\.testnet$/.test(id) || !/^ed25519:[1-9A-HJ-NP-Za-km-z]{32,50}$/.test(pk)) return res.status(400).json({ error: "bad account id or key" });
+    try {
+      const r = await fetch("https://helper.testnet.near.org/account", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ newAccountId: id, newAccountPublicKey: pk }) });
+      if (!r.ok) return res.status(r.status === 409 ? 409 : 400).json({ error: (await r.text()).slice(0, 200) || "account could not be created (name taken?)" });
+      seen.set(ip, [...recent, Date.now()]);
+      if (process.env.USDC_MINT === "1") await near.callAny(cfg.usdc, "mint", { account_id: id, amount: String(100_000n * 1_000_000n) });
+      res.json({ ok: true, accountId: id, usdc: process.env.USDC_MINT === "1" ? "100000" : "0" });
+    } catch (e) { res.status(500).json({ error: (e as Error).message }); }
   });
 }
 
