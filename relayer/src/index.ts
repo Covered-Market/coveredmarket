@@ -64,7 +64,7 @@ if (process.env.DEV_ROOT_ID && process.env.DEV_ROOT_KEY) {
 // size, capped and rate-limited. Testnet: a key generated on this server (fund its address from any testnet3
 // faucet); local sandbox: the regtest miner. Never on mainnet.
 if (cfg.networkId !== "mainnet" && (process.env.BTC_FAUCET ?? "1") === "1") {
-  const MAX = BigInt(env("BTC_FAUCET_MAX_SATS", "200000")), PER_HOUR = Number(env("BTC_FAUCET_PER_HOUR", "3")), PER_DAY = Number(env("BTC_FAUCET_PER_DAY", "40"));
+  const MAX = BigInt(env("BTC_FAUCET_MAX_SATS", "200000")), PER_HOUR = Number(env("BTC_FAUCET_PER_HOUR", "6")), PER_DAY = Number(env("BTC_FAUCET_PER_DAY", "40"));
   const wallet: FaucetWallet = core
     ? { address: "regtest miner", balance: async () => ({ confirmed: 10n ** 15n, unconfirmed: 0n }), pay: async (to, sats) => { const id = await core.send(to, Number(sats) / 1e8); await core.mine(1); return id; } }
     : esploraFaucet(env("BTC_FAUCET_KEY_FILE", "/data/btc-faucet.key"), btcGet);
