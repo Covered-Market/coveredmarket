@@ -51,6 +51,7 @@ jobs:
           cat .env | grep -v KEY
           curl -fsS localhost/api/health; echo
           curl -fsS localhost/config.json; echo
+          curl -fsS localhost/api/spot | tee /dev/stderr | jq -e '.price > 1000 and .sources >= 1'
           set -a; . ./.env; set +a
           view() { curl -fsS https://rpc.testnet.fastnear.com -H 'content-type: application/json' -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"query\",\"params\":{\"request_type\":\"call_function\",\"finality\":\"optimistic\",\"account_id\":\"$1\",\"method_name\":\"$2\",\"args_base64\":\"$(printf '%s' "$3" | base64 -w0)\"}}" | jq -r '.result.result | implode'; }
           view "$COVERED_ID" get_params '{}' | jq -e '.signer == "v1.signer-prod.testnet" and .light_client == "btc-client-v4.testnet"'

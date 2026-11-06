@@ -131,6 +131,25 @@ for (const [route, name] of [["#/market", "market"], ["#/sell", "sell"], [`#/dep
   await page.goto(`${WEB}/${route}`); await page.reload(); await page.waitForTimeout(2500);
   await page.screenshot({ path: `${ART}${name}.png`, fullPage: true });
 }
+// A transaction from the UI goes through the gas relayer (NEP-366), not the direct-call fallback.
+const consoleWarn = [];
+page.on("console", (m) => { if (m.type() === "warning" || m.type() === "error") consoleWarn.push(m.text()); });
+page.on("dialog", (d) => { errors.push("dialog: " + d.message()); d.dismiss(); });
+const relayedBefore = (await (await fetch(`${WEB}/api/health`)).json()).relayed;
+const refund = (await (await fetch(`${WEB}/btc/dev/address`, { method: "POST" })).json()).address;
+const offersBefore = (await view("get_account_offers", { account: astrid.id })).length;
+await page.goto(`${WEB}/#/sell`); await page.reload(); await page.waitForTimeout(1500);
+const field = (t) => page.locator("label.cv-field", { hasText: t }).locator("input");
+await field("Size").fill("0.002"); await field("Strike").fill("150000"); await field("Premium you ask").fill("25"); await field("Return coins to").fill(refund);
+await page.getByRole("button", { name: "Continue to deposit" }).click();
+await page.waitForURL(/#\/deposit\/\d+/, { timeout: 60_000 });
+const relayedAfter = (await (await fetch(`${WEB}/api/health`)).json()).relayed;
+if (relayedAfter !== relayedBefore + 1) throw new Error(`UI create_offer did not go through the relayer (relayed ${relayedBefore} → ${relayedAfter}); console: ${consoleWarn.join(" | ")}`);
+if (consoleWarn.some((w) => w.includes("relay unavailable"))) throw new Error("UI fell back to a direct call");
+if ((await view("get_account_offers", { account: astrid.id })).length !== offersBefore + 1) throw new Error("UI offer not on chain");
+await page.screenshot({ path: `${ART}sell-relayed.png`, fullPage: true });
+log(`UI sell → create_offer relayed as a meta-transaction (relayer count ${relayedBefore} → ${relayedAfter}); now ${page.url().split("#")[1]}`);
+
 for (const [s, name] of [[k.serial, "kept"], [x.serial, "exercised"]]) {
   await page.goto(`${WEB}/#/c/${s}`); await page.reload(); await page.waitForTimeout(2000);
   await page.getByRole("button", { name: "Verify" }).click();
