@@ -42,41 +42,60 @@ export const verifyClients = (): Clients => ({
   expected: { codeHash: CFG.codeHash, contract: CFG.contract, signer: CFG.signer, lightClient: CFG.lightClient, usdc: CFG.usdc, minConf: CFG.minConf },
 });
 
-// ───────── wallet: a key in localStorage; account created by the testnet helper; gas paid by the relayer ─────────
+// ───────── wallets ─────────
+// Two kinds: a NEAR wallet the user brings (NEAR Connect, see connect.ts), or — on testnet and the local
+// sandbox only — a quick test account whose key stays in this browser. Gas goes through the relayer when it can.
 const LS = "covered.wallet";
-export interface Wallet { accountId: string; key: string }
+export interface Wallet { accountId: string; /** quick test wallet */ key?: string; /** NEAR Connect wallet id */ via?: string; viaName?: string }
 export function loadWallet(): Wallet | null { try { return JSON.parse(localStorage.getItem(LS) ?? "null"); } catch { return null; } }
-export function clearWallet() { localStorage.removeItem(LS); }
+export function saveWallet(w: Wallet | null) { try { w ? localStorage.setItem(LS, JSON.stringify(w)) : localStorage.removeItem(LS); } catch {} }
+export function clearWallet() { saveWallet(null); }
 
 export async function createWallet(name: string): Promise<Wallet> {
+  if (!CFG.faucet) throw new Error("quick test wallets exist only on testnet");
   const accountId = `${name.toLowerCase().replace(/[^a-z0-9-_]/g, "")}.${CFG.accountSuffix || CFG.network}`;
   const kp = KeyPairEd25519.fromRandom();
   const url = CFG.mode === "local" ? "/api/dev/account" : `${CFG.helper}/account`;
   const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ newAccountId: accountId, newAccountPublicKey: kp.getPublicKey().toString() }) });
   if (!r.ok) throw new Error(`account creation failed: ${await r.text()}`);
   const w = { accountId, key: kp.toString() };
-  localStorage.setItem(LS, JSON.stringify(w));
+  saveWallet(w);
   return w;
 }
 
 function account(w: Wallet) { return new Account(w.accountId, provider, new KeyPairSigner(KeyPair.fromString(w.key as any))); }
 
-/** Call a method. Tries the relayer (meta-tx, no NEAR needed); falls back to a direct transaction. */
+/** Hand a signed delegate action (base64 borsh) to the relayer; returns the inner call's value. */
+export async function relaySigned(signedDelegateB64: string) {
+  const r = await fetch("/api/relay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signedDelegate: signedDelegateB64 }) });
+  const j = await r.json().catch(() => ({}));
+  if (r.ok) return j.value !== undefined && j.value !== "" ? JSON.parse(j.value) : j;
+  if (r.status === 422) throw Object.assign(new Error(`transaction failed: ${JSON.stringify(j.failure)}`), { final: true });
+  throw new Error(`relay ${r.status}: ${j.error ?? ""}`);
+}
+
+/** Return value of the call on `receiverId` in a final execution outcome; throws if any receipt failed. */
+export function outcomeValue(outcome: any, receiverId: string) {
+  const receipts: any[] = outcome?.receipts_outcome ?? [];
+  const failed = [outcome?.status, ...receipts.map((r) => r?.outcome?.status)].find((s) => s && typeof s === "object" && "Failure" in s);
+  if (failed) throw Object.assign(new Error(`transaction failed: ${JSON.stringify(failed.Failure)}`), { final: true });
+  const inner = receipts.find((r) => r?.outcome?.executor_id === receiverId && r?.outcome?.status && "SuccessValue" in r.outcome.status);
+  const v = inner ? new TextDecoder().decode(Uint8Array.from(atob(inner.outcome.status.SuccessValue ?? ""), (c) => c.charCodeAt(0))) : "";
+  try { return v ? JSON.parse(v) : outcome; } catch { return v; }
+}
+
+/** Call a method as `w`. Gas through the relayer (NEP-366) when possible, otherwise a direct transaction. */
 export async function call(w: Wallet, receiverId: string, method: string, args: Record<string, unknown>, depositYocto = 0n, gasTgas = 150) {
   const gas = BigInt(gasTgas) * 10n ** 12n;
+  if (!w.key) { const { callConnected } = await import("./connect"); return callConnected(w, receiverId, method, args, depositYocto, gas); }
   try {
-    const acc = account(w);
-    const ak: any = await provider.query({ request_type: "view_access_key", account_id: w.accountId, public_key: KeyPair.fromString(w.key as any).getPublicKey().toString(), finality: "final" });
+    const kp = KeyPair.fromString(w.key as any);
+    const ak: any = await provider.query({ request_type: "view_access_key", account_id: w.accountId, public_key: kp.getPublicKey().toString(), finality: "final" });
     const block = await provider.block({ finality: "final" });
-    const delegate = buildDelegateAction({ senderId: w.accountId, receiverId, actions: [actionCreators.functionCall(method, args, gas, depositYocto)], nonce: BigInt(ak.nonce) + 1n, maxBlockHeight: BigInt(block.header.height) + 100n, publicKey: KeyPair.fromString(w.key as any).getPublicKey() });
-    const [, signedDelegateAction] = await new KeyPairSigner(KeyPair.fromString(w.key as any)).signDelegateAction(delegate);
-    void acc;
+    const delegate = buildDelegateAction({ senderId: w.accountId, receiverId, actions: [actionCreators.functionCall(method, args, gas, depositYocto)], nonce: BigInt(ak.nonce) + 1n, maxBlockHeight: BigInt(block.header.height) + 100n, publicKey: kp.getPublicKey() });
+    const [, signedDelegateAction] = await new KeyPairSigner(kp).signDelegateAction(delegate);
     const bytes = encodeSignedDelegate(signedDelegateAction);
-    const r = await fetch("/api/relay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signedDelegate: btoa(String.fromCharCode(...bytes)) }) });
-    const j = await r.json().catch(() => ({}));
-    if (r.ok) return j.value !== undefined && j.value !== "" ? JSON.parse(j.value) : j;
-    if (r.status === 422) throw Object.assign(new Error(`transaction failed: ${JSON.stringify(j.failure)}`), { final: true });
-    throw new Error(`relay ${r.status}: ${j.error ?? ""}`);
+    return await relaySigned(btoa(String.fromCharCode(...bytes)));
   } catch (e) {
     if ((e as any).final) throw e; // the relayed transaction ran and failed: do not resend it
     console.warn("relay unavailable, sending directly", e);
