@@ -57,7 +57,7 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
             <b>Save your rescue kit first.</b> It is your way out if NEAR ever stops. <Button size="sm" variant="primary" onClick={() => { downloadKit(k.kit); location.reload(); }}>Download rescue kit</Button>
           </div>) : null; })()}
         {offer.state === "Created" && <PayHelpers serial={serial} address={offer.address} sats={Number(offer.size_sats)} wallets={detectBtcWallets()} />}
-        <Notice>Send from a wallet you control, in one output, the exact amount. Any other amount is not accepted; you can recover it to {offer.refund_address} from your contracts page.</Notice>
+        <Notice>Send from a wallet you control, in one output, the exact amount. Any other amount does not fund the offer; the contract can still return it to {offer.refund_address} through its recover method, with a Bitcoin inclusion proof.</Notice>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 44 }}>
         <div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>Watching Bitcoin</div>
