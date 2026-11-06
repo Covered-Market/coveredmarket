@@ -16,6 +16,7 @@ services:
     volumes:
       - wasm:/wasm:ro
       - ../.env:/env/.env
+      - ../params:/params:ro
     environment:
       NEAR_RPC: ${NEAR_RPC:-https://rpc.testnet.fastnear.com}
 volumes:

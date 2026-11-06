@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { C, usd } from "../ds";
-import { call, CFG, toSats, toUsdcUnits, type Wallet } from "../lib/near";
+import { call, CFG, toSats, toUsdcUnits, view, type Wallet } from "../lib/near";
+import { hex } from "../lib/derive";
+import { downloadKit, makeKit, newRescueKey, storeKit } from "../lib/rescue";
 import { annualised, useSpot, useParams } from "./hooks";
 
 const next0800 = (daysAhead: number) => { const d = new Date(); d.setUTCHours(8, 0, 0, 0); d.setUTCDate(d.getUTCDate() + daysAhead); return Math.floor(d.getTime() / 1000); };
@@ -15,6 +17,7 @@ export function Sell({ wallet }: { wallet: Wallet }) {
   const [premium, setPremium] = useState("");
   const [refund, setRefund] = useState("");
   const [busy, setBusy] = useState(false);
+  const [rescue] = useState(newRescueKey); // made here; never leaves this browser except in the kit you download
   const s = parseFloat(size) || 0, k = parseFloat(strike) || 0, pr = parseFloat(premium) || 0;
   const expiry = next0800(days);
   const ann = annualised(pr, s, spot, expiry);
@@ -24,8 +27,12 @@ export function Sell({ wallet }: { wallet: Wallet }) {
   const submit = async () => {
     setBusy(true);
     try {
-      const serial = await call(wallet, CFG.contract, "create_offer", { terms: { size_sats: String(toSats(s)), strike_units: String(toUsdcUnits(k)), premium_units: String(toUsdcUnits(pr)), expiry_s: String(expiry), refund_address: refund } }, 10n ** 23n, 60);
+      const serial = await call(wallet, CFG.contract, "create_offer", { terms: { size_sats: String(toSats(s)), strike_units: String(toUsdcUnits(k)), premium_units: String(toUsdcUnits(pr)), expiry_s: String(expiry), refund_address: refund, rescue_pubkey: hex.to(rescue.pub33) } }, 10n ** 23n, 60);
       const id = typeof serial === "number" ? serial : typeof serial === "string" ? Number(serial) : (serial as any)?.status?.SuccessValue ? Number(atob((serial as any).status.SuccessValue)) : null;
+      if (id) {
+        // The rescue kit: everything needed to sweep the coins with only Bitcoin, after the unlock time.
+        for (let i = 0; i < 10; i++) { try { const o: any = await view("get_offer", { serial: id }); if (o) { const kit = makeKit(o, rescue.priv); storeKit(kit); downloadKit(kit); break; } } catch {} await new Promise((r) => setTimeout(r, 1000)); }
+      }
       location.hash = id ? `#/deposit/${id}` : "#/contracts";
     } catch (e) { alert((e as Error).message); } finally { setBusy(false); }
   };
@@ -48,6 +55,12 @@ export function Sell({ wallet }: { wallet: Wallet }) {
         </div>
         <Field label="Premium you ask" value={premium} onChange={(e) => setPremium(e.target.value)} adorn="USD" help={`${ann.toFixed(1)}% annualised on ${usd(s * spot * 1e6)} of Bitcoin. Paid in USDC on NEAR; claim any time.`} inputMode="decimal" />
         <Field label="Return coins to" value={refund} onChange={(e) => setRefund(e.target.value)} placeholder={`${hrp}q…`} help="Your own Bitcoin address (bech32, v0). Coins come back here if kept or withdrawn." />
+        <div style={{ border: "1px solid var(--rule)", background: "var(--paper-raised)", padding: "12px 14px" }}>
+          <div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)", marginBottom: 4 }}>Your exit, if NEAR ever stops</div>
+          <div className="body-small" style={{ color: "var(--ink-muted)" }}>
+            The deposit address also lets <b>a rescue key only you hold</b> move the coins, starting {Math.round(((params as any)?.rescue_delay_s ?? 2592000) / 86400) >= 1 ? `${Math.round(((params as any)?.rescue_delay_s ?? 2592000) / 86400)} days` : `${Math.round(((params as any)?.rescue_delay_s ?? 2592000) / 3600)} hours`} after the exercise window closes, with no NEAR involved. The key was just made in this browser; continuing downloads your <b>rescue kit</b> (keep it private and safe).
+          </div>
+        </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <Button variant="primary" size="lg" disabled={busy || !s || !k || !pr || !refund || strikeBad} onClick={submit}>{busy ? "Creating…" : "Continue to deposit"}</Button>
           <span className="body-small" style={{ color: "var(--ink-muted)" }}>Nothing is deposited yet. Step 2 shows the address.</span>

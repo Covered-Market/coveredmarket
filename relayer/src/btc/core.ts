@@ -49,7 +49,15 @@ export class Core implements Esplora {
     return { block_height: block.height, merkle: branch(txids, pos), pos };
   }
   async blockHashAt(height: number) { return this.rpc<string>("getblockhash", [height]); }
-  async block(hash: string) { const b = await this.rpc("getblock", [hash, 1]); return { id: b.hash, height: b.height, merkle_root: b.merkleroot, tx_count: b.nTx }; }
+  async block(hash: string) { const b = await this.rpc("getblock", [hash, 1]); return { id: b.hash, height: b.height, merkle_root: b.merkleroot, tx_count: b.nTx, timestamp: b.time, mediantime: b.mediantime }; }
+  async tipHash() { return this.rpc<string>("getbestblockhash"); }
+  /** Esplora-style confirmed UTXOs of an address, from the UTXO set. */
+  async utxos(address: string) {
+    const r = await this.rpc("scantxoutset", ["start", [`addr(${address})`]]);
+    return (r.unspents ?? []).map((u: any) => ({ txid: u.txid, vout: u.vout, value: Math.round(u.amount * 1e8), status: { confirmed: true, block_height: u.height } }));
+  }
+  /** Regtest only: move the node's clock (block timestamps, and so median time past, follow after mining). */
+  async mocktime(t: number) { return this.rpc("setmocktime", [t]); }
   async tipHeight() { return this.rpc<number>("getblockcount"); }
   async blockTxids(hash: string) { return (await this.rpc("getblock", [hash, 1])).tx as string[]; }
 

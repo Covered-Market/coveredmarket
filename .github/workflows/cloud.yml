@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: apply (create/update + deploy), deploy (code only) or destroy
+        description: apply (create/update + deploy), deploy (code only), reset-contract (deploy + a fresh locked testnet contract) or destroy
         type: choice
-        options: [apply, deploy, destroy]
+        options: [apply, deploy, reset-contract, destroy]
         default: apply
       domain:
         description: optional domain (nameservers at DigitalOcean); empty = <ip>.sslip.io
@@ -68,6 +68,8 @@ jobs:
         run: cd infra/cloud && terraform destroy -input=false -auto-approve
       - name: deploy
         if: env.ACTION != 'destroy'
+        env:
+          RESET_CONTRACT: ${{ env.ACTION == 'reset-contract' && '1' || '' }}
         run: bin/covered deploy
       - name: save terraform state
         if: always()

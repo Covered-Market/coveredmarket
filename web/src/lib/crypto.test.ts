@@ -1,13 +1,22 @@
 import { describe, expect, it } from "vitest";
 import vectors from "../vectors.json";
 import { buildSpend, verifySignedTx } from "./bip143.js";
-import { deriveAddress, derivePubkey, hex, scriptFromAddress, addressFromScript } from "./derive.js";
+import { depositAddress, derivePubkey, hex, scriptFromAddress, addressFromScript, scriptNum } from "./derive.js";
 
 describe("derivation matches the contract", () => {
-  it("derives the same pubkey and address", () => {
+  it("derives the same key, deposit script (with the seller's exit) and P2WSH address", () => {
     const pk = derivePubkey(vectors.root_key_hex, vectors.prefix, vectors.predecessor, vectors.path);
     expect(hex.to(pk)).toBe(vectors.derived_pubkey);
-    expect(deriveAddress(vectors.root_key_hex, vectors.prefix, vectors.predecessor, vectors.path, "Regtest")).toBe(vectors.address_regtest);
+    expect(vectors.unlock_s).toBe(vectors.expiry_s + vectors.grace_s + vectors.rescue_delay_s);
+    const d = depositAddress(vectors.root_key_hex, vectors.prefix, vectors.predecessor, vectors.path, hex.from(vectors.rescue_pubkey), vectors.unlock_s, "Regtest");
+    expect(hex.to(d.witnessScript)).toBe(vectors.witness_script);
+    expect(d.address).toBe(vectors.address_regtest);
+    expect(hex.to(scriptFromAddress(d.address, "Regtest"))).toBe(vectors.collateral_script);
+  });
+  it("script numbers are minimal", () => {
+    expect(hex.to(scriptNum(0x7f))).toBe("7f");
+    expect(hex.to(scriptNum(0x80))).toBe("8000");
+    expect(hex.to(scriptNum(1_800_000_000))).toBe("00d2496b");
   });
   it("a different predecessor (the operator) gets a different key", () => {
     expect(hex.to(derivePubkey(vectors.root_key_hex, vectors.prefix, "covered-ops.test", vectors.path))).not.toBe(vectors.derived_pubkey);
@@ -33,14 +42,20 @@ describe("BIP-143 matches the contract", () => {
   it("rebuilds the unsigned tx, txid and sighash", () => {
     const r = buildSpend({
       collateralTxid: vectors.collateral_txid, vout: vectors.collateral_vout, valueSats: BigInt(vectors.collateral_value_sats),
-      collateralScript: hex.from(vectors.collateral_script), toScript: hex.from(vectors.to_script), feeSats: BigInt(vectors.fee_sats),
+      witnessScript: hex.from(vectors.witness_script), toScript: hex.from(vectors.to_script), feeSats: BigInt(vectors.fee_sats),
     });
     expect(r.unsignedHex).toBe(vectors.unsigned_tx);
     expect(r.txid).toBe(vectors.txid);
     expect(r.sighash).toBe(vectors.sighash);
   });
-  it("rejects a witness with the wrong key", () => {
-    const fake = "02000000" + "0001" + "01" + "11".repeat(32) + "00000000" + "00" + "ffffffff" + "01" + "e803000000000000" + "16" + "0014" + "22".repeat(20) + "02" + "03" + "aabb01" + "21" + "02" + "33".repeat(32) + "00000000";
-    expect(verifySignedTx(fake, "00".repeat(32), hex.from("02" + "44".repeat(32))).ok).toBe(false);
+  it("accepts the contract's signed settlement (MPC branch of the deposit script)", () => {
+    expect(verifySignedTx(vectors.signed_tx, vectors.sighash, hex.from(vectors.derived_pubkey), hex.from(vectors.witness_script))).toEqual({ ok: true });
+  });
+  it("rejects it against another key, another script or another sighash", () => {
+    const ws = hex.from(vectors.witness_script);
+    expect(verifySignedTx(vectors.signed_tx, vectors.sighash, hex.from("02" + "44".repeat(32)), ws).ok).toBe(false);
+    const other = ws.slice(); other[other.length - 3] ^= 1;
+    expect(verifySignedTx(vectors.signed_tx, vectors.sighash, hex.from(vectors.derived_pubkey), other).ok).toBe(false);
+    expect(verifySignedTx(vectors.signed_tx, "00".repeat(32), hex.from(vectors.derived_pubkey), ws).ok).toBe(false);
   });
 });
