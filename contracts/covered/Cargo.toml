@@ -20,4 +20,5 @@ serde_json = { workspace = true }
 [dev-dependencies]
 near-sdk = { workspace = true, features = ["unit-testing"] }
 bitcoin = { workspace = true, features = ["rand-std"] }
+bitcoinconsensus = "0.106.0"
 proptest = "1"

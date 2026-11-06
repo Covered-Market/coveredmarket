@@ -23,4 +23,18 @@ describe("watcher plan", () => {
     expect(plan([s], params, { depositsAt: {}, depthOf: { ctx: 0 } }, 0)).toEqual([]);
     expect(plan([s], params, { depositsAt: {}, depthOf: { ctx: 6 } }, 0)).toEqual([{ kind: "confirm_spend", serial: 1, txid: "ctx" }]);
   });
+  it("proves whichever committed version confirmed, including an earlier one", () => {
+    const s = { ...base, state: "Signed", commitment_txid: "v2", prior_txids: ["v1"], signed_tx: "beef", collateral_txid: "c", collateral_vout: 1 };
+    expect(plan([s], params, { depositsAt: {}, depthOf: { v2: undefined }, spentBy: { 1: { txid: "v1", depth: 6 } } }, 0)).toEqual([{ kind: "confirm_spend", serial: 1, txid: "v1" }]);
+    expect(plan([{ ...s, state: "Committed", retry_after_s: "0" }], params, { depositsAt: {}, depthOf: {}, spentBy: { 1: { txid: "v1", depth: 6 } } }, 0)).toEqual([{ kind: "confirm_spend", serial: 1, txid: "v1" }]);
+    expect(plan([s], params, { depositsAt: {}, depthOf: {}, spentBy: { 1: { txid: "v1", depth: 2 } } }, 0)).toEqual([], "waits for depth, does not rebroadcast or bump");
+  });
+  it("bumps the fee of a settlement stuck in the mempool, up to the cap", () => {
+    const p = { ...params, fee_bump_after_s: 3600, max_fee_sats: 16000 };
+    const s = { ...base, state: "Signed", commitment_txid: "v1", signed_tx: "beef", signed_at_s: "1000", commitment_fee_sats: "1000" };
+    expect(plan([s], p, { depositsAt: {}, depthOf: { v1: 0 } }, 4599)).toEqual([]);
+    expect(plan([s], p, { depositsAt: {}, depthOf: { v1: 0 } }, 4600)).toEqual([{ kind: "bump_fee", serial: 1 }]);
+    expect(plan([{ ...s, commitment_fee_sats: "16000" }], p, { depositsAt: {}, depthOf: { v1: 0 } }, 9999)).toEqual([], "at the cap");
+    expect(plan([s], p, { depositsAt: {}, depthOf: { v1: 1 } }, 9999)).toEqual([], "already in a block");
+  });
 });

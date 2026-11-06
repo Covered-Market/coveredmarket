@@ -1,5 +1,13 @@
-//! Bitcoin side of Covered: scripts, the one-input-one-output settlement
+//! Bitcoin side of Covered: the deposit script, the one-input-one-output settlement
 //! transaction, BIP-143 sighash, witness assembly and txids.
+//!
+//! The deposit address is P2WSH of
+//!     OP_IF <mpc_key> OP_CHECKSIG
+//!     OP_ELSE <unlock_s> OP_CHECKLOCKTIMEVERIFY OP_DROP <rescue_key> OP_CHECKSIG OP_ENDIF
+//! Normally only the first branch is used: the contract has the MPC sign its committed settlement.
+//! The second is the seller's exit if NEAR or the signing network ever stops: after `unlock_s`
+//! (expiry + grace + rescue delay, fixed per offer) the seller's own rescue key can sweep the coins
+//! without NEAR.
 //!
 //! Everything here is deterministic from contract state. No method takes a
 //! caller-supplied sighash, script or amount for a settlement (invariant 4).
@@ -8,10 +16,38 @@ use bitcoin::consensus::{deserialize, serialize};
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::ecdsa::Signature as SecpSignature;
 use bitcoin::sighash::{EcdsaSighashType, SighashCache};
+use bitcoin::blockdata::opcodes::all::{OP_CHECKSIG, OP_CLTV, OP_DROP, OP_ELSE, OP_ENDIF, OP_IF};
+use bitcoin::blockdata::script::{Builder, PushBytesBuf};
 use bitcoin::{
-    absolute::LockTime, transaction::Version, Amount, OutPoint, ScriptBuf, Sequence, Transaction,
-    TxIn, TxOut, Txid, Witness, WPubkeyHash,
+    absolute::LockTime, transaction::Version, Amount, OutPoint, Script, ScriptBuf, Sequence, Transaction,
+    TxIn, TxOut, Txid, WScriptHash, Witness, WPubkeyHash,
 };
+
+/// Smallest absolute lock time Bitcoin reads as a timestamp rather than a block height.
+pub const LOCKTIME_THRESHOLD: u64 = 500_000_000;
+
+/// The deposit witness script (see the module doc). `unlock_s` is a Unix time (>= 500,000,000).
+pub fn deposit_witness_script(mpc33: &[u8; 33], rescue33: &[u8; 33], unlock_s: u64) -> Vec<u8> {
+    let push = |b: &[u8; 33]| PushBytesBuf::try_from(b.to_vec()).expect("33 bytes");
+    Builder::new()
+        .push_opcode(OP_IF)
+        .push_slice(push(mpc33))
+        .push_opcode(OP_CHECKSIG)
+        .push_opcode(OP_ELSE)
+        .push_int(unlock_s as i64)
+        .push_opcode(OP_CLTV)
+        .push_opcode(OP_DROP)
+        .push_slice(push(rescue33))
+        .push_opcode(OP_CHECKSIG)
+        .push_opcode(OP_ENDIF)
+        .into_script()
+        .into_bytes()
+}
+
+/// P2WSH scriptPubKey: `OP_0 <sha256(witness_script)>`.
+pub fn p2wsh_script(witness_script: &[u8]) -> Vec<u8> {
+    ScriptBuf::new_p2wsh(&WScriptHash::hash(witness_script)).into_bytes()
+}
 use near_sdk::near;
 
 /// Network the contract was initialised for. Fixed at `new`.
@@ -88,11 +124,12 @@ pub struct Unsigned {
     pub amount_sats: u64,
 }
 
-/// Build the deterministic spend of `collateral` to `to_script`.
-/// `None` if the output would be dust (should be impossible given `min_size`).
+/// Build the deterministic MPC-branch spend of `collateral` (locked by `witness_script`) to `to_script`.
+/// Signals replace-by-fee so a stuck settlement can be re-signed with a higher fee (same input, same
+/// recipient). `None` if the output would be dust.
 pub fn build_spend(
     collateral: &Outpoint,
-    collateral_script: &[u8],
+    witness_script: &[u8],
     to_script: &[u8],
     fee_sats: u64,
 ) -> Option<Unsigned> {
@@ -109,7 +146,7 @@ pub fn build_spend(
                 vout: collateral.vout,
             },
             script_sig: ScriptBuf::new(),
-            sequence: Sequence::MAX, // no RBF signalling
+            sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
             witness: Witness::new(),
         }],
         output: vec![TxOut {
@@ -120,27 +157,64 @@ pub fn build_spend(
     let txid = tx.compute_txid().to_byte_array();
     let mut cache = SighashCache::new(&tx);
     let sighash = cache
-        .p2wpkh_signature_hash(
-            0,
-            &ScriptBuf::from_bytes(collateral_script.to_vec()),
-            Amount::from_sat(collateral.value_sats),
-            EcdsaSighashType::All,
-        )
+        .p2wsh_signature_hash(0, Script::from_bytes(witness_script), Amount::from_sat(collateral.value_sats), EcdsaSighashType::All)
         .ok()?
         .to_byte_array();
     Some(Unsigned { tx, txid, sighash, amount_sats: amount })
 }
 
-/// Attach the witness `[DER(sig) || 0x01, pubkey]` and return the raw tx.
+/// Attach the MPC-branch witness `[DER(sig) || 0x01, 0x01, witness_script]` and return the raw tx.
 /// `sig64` is the compact (r || s) signature, already low-S normalised.
-pub fn finalize(unsigned: &Unsigned, sig64: &[u8; 64], pubkey33: &[u8; 33]) -> Vec<u8> {
+pub fn finalize(unsigned: &Unsigned, sig64: &[u8; 64], witness_script: &[u8]) -> Vec<u8> {
     let sig = SecpSignature::from_compact(sig64).expect("64-byte compact signature");
     let mut der = sig.serialize_der().to_vec();
     der.push(EcdsaSighashType::All as u8);
     let mut tx = unsigned.tx.clone();
     let mut w = Witness::new();
     w.push(der);
-    w.push(pubkey33.to_vec());
+    w.push([1u8]); // OP_IF branch: the MPC key
+    w.push(witness_script);
+    tx.input[0].witness = w;
+    serialize(&tx)
+}
+
+/// The seller's exit (OP_ELSE branch): spend `collateral` to `to_script` with the rescue key, valid only
+/// once Bitcoin's median time past reaches `unlock_s`. Returns the unsigned tx and its sighash; the
+/// witness is `[DER(sig) || 0x01, <empty>, witness_script]` (see `finalize_rescue`). Reference for
+/// `scripts/rescue.ts`; the contract never builds this.
+pub fn build_rescue(collateral: &Outpoint, witness_script: &[u8], to_script: &[u8], fee_sats: u64, unlock_s: u64) -> Option<Unsigned> {
+    let amount = collateral.value_sats.checked_sub(fee_sats)?;
+    if amount <= 546 || unlock_s < LOCKTIME_THRESHOLD {
+        return None;
+    }
+    let tx = Transaction {
+        version: Version::TWO,
+        lock_time: LockTime::from_consensus(u32::try_from(unlock_s).ok()?),
+        input: vec![TxIn {
+            previous_output: OutPoint { txid: Txid::from_byte_array(collateral.txid), vout: collateral.vout },
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::ENABLE_RBF_NO_LOCKTIME, // < 0xffffffff so nLockTime is enforced
+            witness: Witness::new(),
+        }],
+        output: vec![TxOut { value: Amount::from_sat(amount), script_pubkey: ScriptBuf::from_bytes(to_script.to_vec()) }],
+    };
+    let txid = tx.compute_txid().to_byte_array();
+    let sighash = SighashCache::new(&tx)
+        .p2wsh_signature_hash(0, Script::from_bytes(witness_script), Amount::from_sat(collateral.value_sats), EcdsaSighashType::All)
+        .ok()?
+        .to_byte_array();
+    Some(Unsigned { tx, txid, sighash, amount_sats: amount })
+}
+
+pub fn finalize_rescue(unsigned: &Unsigned, sig64: &[u8; 64], witness_script: &[u8]) -> Vec<u8> {
+    let sig = SecpSignature::from_compact(sig64).expect("64-byte compact signature");
+    let mut der = sig.serialize_der().to_vec();
+    der.push(EcdsaSighashType::All as u8);
+    let mut tx = unsigned.tx.clone();
+    let mut w = Witness::new();
+    w.push(der);
+    w.push([] as [u8; 0]); // OP_ELSE branch: the rescue key
+    w.push(witness_script);
     tx.input[0].witness = w;
     serialize(&tx)
 }
@@ -192,6 +266,7 @@ mod tests {
     use super::*;
     use bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
 
+    #[allow(dead_code)]
     fn key() -> (SecretKey, [u8; 33]) {
         let secp = Secp256k1::new();
         let sk = SecretKey::from_slice(&[7u8; 32]).unwrap();
@@ -214,45 +289,82 @@ mod tests {
         assert!(script_from_address(&addr, Network::Mainnet).is_none());
     }
 
-    #[test]
-    fn spend_is_deterministic_and_signature_verifies() {
-        let (sk, pk) = key();
-        let script = p2wpkh_script(&pk);
-        let collateral = Outpoint { txid: [0xab; 32], vout: 1, value_sats: 200_000_000 };
-        let u1 = build_spend(&collateral, &script, &script, 1_000).unwrap();
-        let u2 = build_spend(&collateral, &script, &script, 1_000).unwrap();
-        assert_eq!(u1, u2);
-        assert_eq!(u1.amount_sats, 199_999_000);
-        // sign with secp256k1 and finalize
+    fn key_n(n: u8) -> (SecretKey, [u8; 33]) {
         let secp = Secp256k1::new();
-        let sig = secp.sign_ecdsa(&Message::from_digest(u1.sighash), &sk);
-        let raw = finalize(&u1, &sig.serialize_compact(), &pk);
+        let sk = SecretKey::from_slice(&[n; 32]).unwrap();
+        (sk, bitcoin::PublicKey::new(sk.public_key(&secp)).to_bytes().try_into().unwrap())
+    }
+    const UNLOCK: u64 = 1_800_100_000;
+
+    /// Check a spend of `prev_script` with Bitcoin Core's own interpreter (libbitcoinconsensus, all flags).
+    fn consensus_ok(raw: &[u8], prev_script: &[u8], value: u64) -> bool {
+        bitcoinconsensus::verify(prev_script, value, raw, None, 0).is_ok()
+    }
+
+    #[test]
+    fn mpc_branch_spend_passes_bitcoin_consensus() {
+        let (mpc_sk, mpc) = key_n(7);
+        let (_, rescue) = key_n(8);
+        let ws = deposit_witness_script(&mpc, &rescue, UNLOCK);
+        let spk = p2wsh_script(&ws);
+        assert_eq!(spk.len(), 34);
+        assert!(address_for_script(&spk, Network::Regtest).starts_with("bcrt1q"));
+        let collateral = Outpoint { txid: [0xab; 32], vout: 1, value_sats: 200_000_000 };
+        let to = p2wpkh_script(&key_n(9).1);
+        let u1 = build_spend(&collateral, &ws, &to, 1_000).unwrap();
+        assert_eq!(u1, build_spend(&collateral, &ws, &to, 1_000).unwrap(), "deterministic");
+        assert_eq!(u1.amount_sats, 199_999_000);
+        let secp = Secp256k1::new();
+        let sig = secp.sign_ecdsa(&Message::from_digest(u1.sighash), &mpc_sk).serialize_compact();
+        let raw = finalize(&u1, &sig, &ws);
         let tx: Transaction = deserialize(&raw).unwrap();
         assert_eq!(tx.compute_txid().to_byte_array(), u1.txid, "txid is witness-independent");
-        // independent verification of the witness against the sighash
-        let mut cache = SighashCache::new(&tx);
-        let sh = cache
-            .p2wpkh_signature_hash(
-                0,
-                &ScriptBuf::from_bytes(script.clone()),
-                Amount::from_sat(collateral.value_sats),
-                EcdsaSighashType::All,
-            )
-            .unwrap();
-        let der = &tx.input[0].witness[0];
-        let s = SecpSignature::from_der(&der[..der.len() - 1]).unwrap();
-        let pk_secp = bitcoin::secp256k1::PublicKey::from_slice(&pk).unwrap();
-        secp.verify_ecdsa(&Message::from_digest(sh.to_byte_array()), &s, &pk_secp).unwrap();
+        assert!(tx.input[0].sequence.is_rbf(), "signals replace-by-fee");
+        assert!(consensus_ok(&raw, &spk, collateral.value_sats), "MPC branch must satisfy Bitcoin's script rules");
+        // a different fee is a different tx paying the same recipient from the same coin
+        let u2 = build_spend(&collateral, &ws, &to, 2_000).unwrap();
+        assert_ne!(u1.txid, u2.txid);
+        assert_eq!(u2.tx.output[0].script_pubkey, u1.tx.output[0].script_pubkey);
+        assert_eq!(u2.tx.input[0].previous_output, u1.tx.input[0].previous_output);
+        // the wrong key fails
+        let (other, _) = key_n(5);
+        let bad = finalize(&u1, &secp.sign_ecdsa(&Message::from_digest(u1.sighash), &other).serialize_compact(), &ws);
+        assert!(!consensus_ok(&bad, &spk, collateral.value_sats));
+    }
+
+    #[test]
+    fn rescue_branch_needs_the_rescue_key_and_the_unlock_time() {
+        let (mpc_sk, mpc) = key_n(7);
+        let (rescue_sk, rescue) = key_n(8);
+        let ws = deposit_witness_script(&mpc, &rescue, UNLOCK);
+        let spk = p2wsh_script(&ws);
+        let collateral = Outpoint { txid: [0xcd; 32], vout: 0, value_sats: 1_000_000 };
+        let to = p2wpkh_script(&rescue);
+        let secp = Secp256k1::new();
+        let u = build_rescue(&collateral, &ws, &to, 500, UNLOCK).unwrap();
+        let raw = finalize_rescue(&u, &secp.sign_ecdsa(&Message::from_digest(u.sighash), &rescue_sk).serialize_compact(), &ws);
+        assert!(consensus_ok(&raw, &spk, collateral.value_sats), "rescue branch valid at the unlock time");
+        // the MPC key cannot use the rescue branch
+        let raw = finalize_rescue(&u, &secp.sign_ecdsa(&Message::from_digest(u.sighash), &mpc_sk).serialize_compact(), &ws);
+        assert!(!consensus_ok(&raw, &spk, collateral.value_sats));
+        // a lock time before the unlock time fails CHECKLOCKTIMEVERIFY
+        let early = build_rescue(&collateral, &ws, &to, 500, UNLOCK - 1).unwrap();
+        let raw = finalize_rescue(&early, &secp.sign_ecdsa(&Message::from_digest(early.sighash), &rescue_sk).serialize_compact(), &ws);
+        assert!(!consensus_ok(&raw, &spk, collateral.value_sats), "before unlock the seller cannot exit alone");
+        // and the rescue key cannot use the MPC branch
+        let m = build_spend(&collateral, &ws, &to, 500).unwrap();
+        let raw = finalize(&m, &secp.sign_ecdsa(&Message::from_digest(m.sighash), &rescue_sk).serialize_compact(), &ws);
+        assert!(!consensus_ok(&raw, &spk, collateral.value_sats));
     }
 
     #[test]
     fn dust_and_underflow_refused() {
-        let (_, pk) = key();
-        let script = p2wpkh_script(&pk);
+        let ws = deposit_witness_script(&key_n(7).1, &key_n(8).1, UNLOCK);
+        let script = p2wpkh_script(&key_n(9).1);
         let c = Outpoint { txid: [1; 32], vout: 0, value_sats: 1_200 };
-        assert!(build_spend(&c, &script, &script, 1_000).is_none());
+        assert!(build_spend(&c, &ws, &script, 1_000).is_none());
         let c = Outpoint { txid: [1; 32], vout: 0, value_sats: 500 };
-        assert!(build_spend(&c, &script, &script, 1_000).is_none());
+        assert!(build_spend(&c, &ws, &script, 1_000).is_none());
     }
 
     #[test]

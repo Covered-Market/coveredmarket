@@ -46,16 +46,16 @@ async fn setup() -> Result<Env> {
     let usdc = worker.dev_deploy(&wasm("mock-usdc")).await?;
     usdc.call("new").transact().await?.into_result()?;
     let covered = worker.dev_deploy(&wasm("covered")).await?;
-    covered
-        .call("new")
-        .args_json(json!({ "params": {
-            "signer": signer.id(), "light_client": lc.id(), "usdc": usdc.id(), "usdc_decimals": 6,
-            "network": "Regtest", "min_conf": 1, "fee_sats": 1000, "grace_s": 600, "buy_cutoff_s": 0,
-            "min_lead_s": 120, "escrow_timeout_s": 7 * DAY, "min_size_sats": 100000, "expiry_step_s": 60, "expiry_offset_s": 0,
-            "mpc_root_key": root, "derivation_prefix": "near-mpc-recovery v0.1.0 epsilon derivation:",
-            "sign_format": 2, "sign_deposit": "50000000000000000000000"
-        }}))
-        .transact().await?.into_result()?;
+    // The same reviewed parameter file the local stack deploys with (params/local.json), plus accounts.
+    let mut params: serde_json::Value = serde_json::from_str(include_str!("../../params/local.json"))?;
+    let p = params.as_object_mut().unwrap();
+    p.remove("_comment");
+    p.insert("signer".into(), json!(signer.id()));
+    p.insert("light_client".into(), json!(lc.id()));
+    p.insert("usdc".into(), json!(usdc.id()));
+    p.insert("mpc_root_key".into(), json!(root));
+    p.insert("escrow_timeout_s".into(), json!(7 * DAY));
+    covered.call("new").args_json(json!({ "params": params })).transact().await?.into_result()?;
     let seller = worker.dev_create_account().await?;
     let buyer = worker.dev_create_account().await?;
     let anyone = worker.dev_create_account().await?;
@@ -73,6 +73,19 @@ fn addr_from_secret(b: u8) -> String {
     let sk = bitcoin::secp256k1::SecretKey::from_slice(&[b; 32]).unwrap();
     let pk: [u8; 33] = sk.public_key(&secp).serialize();
     covered::btc::address_for_script(&covered::btc::p2wpkh_script(&pk), covered::btc::Network::Regtest)
+}
+
+/// The seller's rescue key (test wallet `b`), compressed hex.
+fn rescue_hex(b: u8) -> String {
+    let secp = bitcoin::secp256k1::Secp256k1::new();
+    hex::encode(bitcoin::secp256k1::SecretKey::from_slice(&[b; 32]).unwrap().public_key(&secp).serialize())
+}
+
+/// Bitcoin Core's own script interpreter must accept `raw` as a spend of the offer's deposit output.
+fn assert_valid_spend(view: &serde_json::Value, raw: &[u8]) {
+    let spk = covered::btc::script_from_address(view["address"].as_str().unwrap(), covered::btc::Network::Regtest).unwrap();
+    let value: u64 = view["collateral_value_sats"].as_str().unwrap().parse().unwrap();
+    bitcoinconsensus::verify(&spk, value, raw, None, 0).expect("settlement must satisfy Bitcoin's script rules");
 }
 
 /// Next expiry on the sandbox grid (whole minutes) at least `lead` seconds ahead.
@@ -96,10 +109,14 @@ fn deposit_tx(script: &[u8], value: u64) -> (String, String) {
 }
 
 async fn create_and_fund(e: &Env, size: u64, strike: u128, premium: u128) -> Result<u64> {
+    create_and_fund_as(e, &e.seller, size, strike, premium).await
+}
+
+async fn create_and_fund_as(e: &Env, seller: &Account, size: u64, strike: u128, premium: u128) -> Result<u64> {
     let now = now_s(&e.worker).await?;
     let refund = addr_from_secret(9);
-    let serial: u64 = e.seller.call(e.covered.id(), "create_offer")
-        .args_json(json!({ "terms": { "size_sats": U64(size), "strike_units": U128(strike), "premium_units": U128(premium), "expiry_s": U64(next_expiry(now, 120)), "refund_address": refund }}))
+    let serial: u64 = seller.call(e.covered.id(), "create_offer")
+        .args_json(json!({ "terms": { "size_sats": U64(size), "strike_units": U128(strike), "premium_units": U128(premium), "expiry_s": U64(next_expiry(now, 120)), "refund_address": refund, "rescue_pubkey": rescue_hex(11) }}))
         .deposit(NearToken::from_millinear(100)).transact().await?.json()?;
     let view: serde_json::Value = e.covered.view("get_offer").args_json(json!({ "serial": serial })).await?.json()?;
     let script = covered::btc::script_from_address(view["address"].as_str().unwrap(), covered::btc::Network::Regtest).unwrap();
@@ -169,6 +186,7 @@ async fn flow_kept() -> Result<()> {
     assert_eq!(tx.output.len(), 1);
     assert_eq!(tx.output[0].value.to_sat(), 200_000_000 - 1_000);
     assert_eq!(tx.compute_txid().to_string(), v["commitment_txid"].as_str().unwrap());
+    assert_valid_spend(&v, &raw);
     // confirm the spend
     let block = "11".repeat(32);
     e.lc.call("set_included").args_json(json!({ "tx_id": tx.compute_txid().to_string(), "block_hash": block, "depth": 1 })).transact().await?.into_result()?;
@@ -213,6 +231,7 @@ async fn flow_exercised_with_escrow() -> Result<()> {
     // confirm delivery → escrow to seller
     let raw = hex::decode(v["signed_tx"].as_str().unwrap())?;
     let tx: bitcoin::Transaction = deserialize(&raw)?;
+    assert_valid_spend(&v, &raw);
     let block = "22".repeat(32);
     e.lc.call("set_included").args_json(json!({ "tx_id": tx.compute_txid().to_string(), "block_hash": block, "depth": 1 })).transact().await?.into_result()?;
     e.anyone.call(e.covered.id(), "confirm_spend")
@@ -264,5 +283,54 @@ async fn wrong_key_signature_is_rejected_and_retried() -> Result<()> {
     assert_eq!(v["state"], "Committed", "a signature from the wrong key is not accepted");
     // and the offer cannot be sold while committed (A8)
     assert!(buy(&e, s, 6_000_000_000).await.is_err() || state(&e, s).await?["state"] == "Committed");
+    Ok(())
+}
+
+#[tokio::test]
+async fn seller_who_never_held_usdc_can_claim() -> Result<()> {
+    // Circle's USDC (and this NEP-141) pays only registered accounts; the contract registers the payee.
+    let e = setup().await?;
+    let fresh = e.worker.dev_create_account().await?;
+    let reg: Option<serde_json::Value> = e.usdc.view("storage_balance_of").args_json(json!({ "account_id": fresh.id() })).await?.json()?;
+    assert!(reg.is_none(), "fresh seller is not registered with the token");
+    let s = create_and_fund_as(&e, &fresh, 200_000_000, 150_000_000_000, 6_000_000_000).await?;
+    buy(&e, s, 6_000_000_000).await?;
+    fresh.call(e.covered.id(), "claim").max_gas().transact().await?.into_result()?;
+    let bal: U128 = e.usdc.view("ft_balance_of").args_json(json!({ "account_id": fresh.id() })).await?.json()?;
+    assert_eq!(bal.0, 6_000_000_000, "premium paid to a seller who was never registered");
+    let claimable: U128 = e.covered.view("get_claimable").args_json(json!({ "account": fresh.id() })).await?.json()?;
+    assert_eq!(claimable.0, 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn stuck_settlement_is_fee_bumped_and_the_old_version_still_settles() -> Result<()> {
+    let e = setup().await?;
+    let s = create_and_fund(&e, 200_000_000, 150_000_000_000, 6_000_000_000).await?;
+    e.seller.call(e.covered.id(), "withdraw").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
+    let v1 = state(&e, s).await?;
+    assert_eq!(v1["state"], "Signed");
+    let raw1 = hex::decode(v1["signed_tx"].as_str().unwrap())?;
+    assert_valid_spend(&v1, &raw1);
+    // too early
+    assert!(e.anyone.call(e.covered.id(), "bump_fee").args_json(json!({ "serial": s })).max_gas().transact().await?.is_failure());
+    let signed_at: u64 = v1["signed_at_s"].as_str().unwrap().parse()?;
+    fast_forward_to(&e, signed_at + 61).await?;
+    e.anyone.call(e.covered.id(), "bump_fee").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
+    let v2 = state(&e, s).await?;
+    assert_eq!(v2["state"], "Signed", "re-signed in the same transaction");
+    assert_eq!(v2["commitment_fee_sats"], "2000");
+    assert_eq!(v2["prior_txids"][0], v1["commitment_txid"]);
+    assert_eq!(v2["commitment_to_address"], v1["commitment_to_address"]);
+    let raw2 = hex::decode(v2["signed_tx"].as_str().unwrap())?;
+    assert_valid_spend(&v2, &raw2);
+    // the first (lower-fee) version is the one that confirmed
+    let tx1: bitcoin::Transaction = deserialize(&raw1)?;
+    let block = "33".repeat(32);
+    e.lc.call("set_included").args_json(json!({ "tx_id": tx1.compute_txid().to_string(), "block_hash": block, "depth": 1 })).transact().await?.into_result()?;
+    e.anyone.call(e.covered.id(), "confirm_spend")
+        .args_json(json!({ "serial": s, "proof": { "tx_raw": hex::encode(&raw1), "block_hash": block, "tx_index": 0, "merkle_proof": [], "coinbase_tx_id": "00".repeat(32), "coinbase_merkle_proof": [] }}))
+        .max_gas().transact().await?.into_result()?;
+    assert_eq!(state(&e, s).await?["state"], "Withdrawn");
     Ok(())
 }
