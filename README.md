@@ -103,7 +103,7 @@ git clone https://github.com/bedeho/covered && cd covered
 bin/covered up
 ```
 
-The first run takes 4 to 8 minutes, mostly compiling the contracts inside Docker; on an Apple Silicon Mac add a few minutes, because cargo-near is compiled from source there. Later runs take seconds. It ends with `Covered is at http://localhost`. Open **http://localhost**.
+The first run takes 4 to 8 minutes, mostly compiling the contracts inside Docker; on an Apple Silicon Mac it can take up to 20 minutes, because cargo-near has no arm64 build and is compiled from source. Later runs take seconds. It ends with `Covered is at http://localhost`. Open **http://localhost**.
 
 **What runs locally.** Everything is on your machine: a NEAR sandbox node, a Bitcoin Core regtest node, the `covered` contract, the relayer and the web app, plus two demo users with 1,000,000 test USDC each. Three pieces are local stand-ins for live NEAR services, with the same interfaces: a **mock MPC signer** (same key derivation as `v1.signer`), a **mock Bitcoin light client**, and a **mock USDC** token. The spot price is fixed at $97,420. The real signer and light client are exercised on testnet (see [Proven on real Bitcoin](#proven-on-real-bitcoin) and [DEVELOPING.md](docs/DEVELOPING.md#tests)).
 
