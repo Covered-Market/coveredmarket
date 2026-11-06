@@ -38,11 +38,12 @@ console.log(`open CV-${open} · kept CV-${kept} · exercised CV-${exercised} · 
 
 const DESKTOP = { width: 1440, height: 900 };
 const PHONE = { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 3 };
+const settle = async (page) => { await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {}); }; // the app polls; don't wait forever
 const browser = await chromium.launch();
 const problems = [];
 
 async function open_(route, { viewport = DESKTOP, theme = "paper", wallet = null } = {}) {
-  const ctx = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, deviceScaleFactor: viewport.deviceScaleFactor ?? 2, isMobile: !!viewport.isMobile, hasTouch: !!viewport.hasTouch, timezoneId: "UTC", locale: "en-GB" });
+  const ctx = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, deviceScaleFactor: MODE === "audit" ? 1 : viewport.deviceScaleFactor ?? 2, isMobile: !!viewport.isMobile, hasTouch: !!viewport.hasTouch, timezoneId: "UTC", locale: "en-GB" });
   await ctx.addInitScript(([w, theme]) => {
     try { w ? localStorage.setItem("covered.wallet", JSON.stringify(w)) : localStorage.removeItem("covered.wallet"); } catch {}
     new MutationObserver(() => { if (document.body && document.body.dataset.theme !== theme) document.body.dataset.theme = theme; }).observe(document, { childList: true, subtree: true });
@@ -51,7 +52,8 @@ async function open_(route, { viewport = DESKTOP, theme = "paper", wallet = null
   const errors = [];
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   page.on("pageerror", (e) => errors.push(String(e)));
-  await page.goto(`${SITE}/#${route}`, { waitUntil: "networkidle" });
+  await page.goto(`${SITE}/#${route}`, { waitUntil: "load" });
+  await settle(page);
   await page.evaluate((t) => (document.body.dataset.theme = t), theme);
   await page.waitForFunction(() => !/Loading CV-/.test(document.body.innerText), null, { timeout: 30_000 }).catch(() => {});
   await page.waitForTimeout(2500); // spot price, Bitcoin watch, fonts
@@ -90,17 +92,18 @@ if (MODE === "audit") {
     ["market", "/market", null], ["try", "/try", null], ["sell", "/sell", me, fillSell], ["sell-nowallet", "/sell", null],
     ["contracts", "/contracts", me], [`deposit-${open}`, `/deposit/${open}`, null], created && [`deposit-${created}`, `/deposit/${created}`, null],
     [`buy-${open}`, `/buy/${open}`, null], [`c-${open}-open`, `/c/${open}`, null], [`c-${kept}-kept`, `/c/${kept}`, null], [`c-${exercised}-exercised`, `/c/${exercised}`, null],
-  ].filter(Boolean);
+  ].filter((r) => r && !r[1].includes("undefined"));
   for (const [name, route, wallet, before] of routes)
     for (const [vn, vp] of [["desk", DESKTOP], ["phone", PHONE]])
       for (const theme of ["paper", "vault"]) {
         if (theme === "vault" && vn === "desk" && !["market", `c-${open}-open`].includes(name)) continue;
         await shot(`${name}.${vn}.${theme}`, route, { viewport: vp, theme, wallet, before, fullPage: true });
       }
-  // Verify on the open contract, desktop
-  await shot(`c-${open}-verify.desk.paper`, `/c/${open}`, { before: async (p) => { await p.getByRole("button", { name: "Verify" }).click(); await p.waitForFunction(() => /of 7|could not run|check failed/.test(document.body.innerText), null, { timeout: 90_000 }); }, fullPage: true });
+  // Verify on a contract, desktop
+  const v = open ?? exercised;
+  if (v) await shot(`c-${v}-verify.desk.paper`, `/c/${v}`, { before: async (p) => { await p.getByRole("button", { name: "Verify" }).click(); await p.waitForFunction(() => /of 7|could not run|check failed/.test(document.body.innerText), null, { timeout: 90_000 }); }, fullPage: true });
 } else {
-  const cert = ".cv-certificate, [data-cv=certificate]";
+  const cert = "[data-cv=certificate]";
   const verify = async (p) => { await p.getByRole("button", { name: "Verify" }).click(); await p.waitForFunction(() => /7 of 7/.test(document.body.innerText), null, { timeout: 120_000 }); };
   const list = [
     ["S1", `/c/${open}`, {}, cert],

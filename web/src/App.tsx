@@ -60,7 +60,7 @@ export function App() {
         )}
       </TopBar>
       {naming && !wallet && (
-        <div style={{ margin: "16px 48px", padding: 20, border: "1px solid var(--rule)", background: "var(--paper-raised)", maxWidth: 620, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ margin: "16px clamp(16px, 4vw, 48px)", padding: 20, border: "1px solid var(--rule)", background: "var(--paper-raised)", maxWidth: 620, display: "flex", flexDirection: "column", gap: 16 }}>
           {canConnect() && (
             <div>
               <div className="heading" style={{ marginBottom: 6 }}>Connect your NEAR wallet</div>
@@ -72,8 +72,8 @@ export function App() {
             <div style={{ borderTop: canConnect() ? "1px solid var(--rule)" : "none", paddingTop: canConnect() ? 16 : 0 }}>
               <div className="heading" style={{ marginBottom: 6 }}>{canConnect() ? "Or: a quick test wallet" : `A NEAR ${CFG.network} account for this device`}</div>
               <p className="body-small" style={{ color: "var(--ink-muted)", margin: "0 0 10px" }}>No wallet needed. A new {CFG.mode === "local" ? "sandbox" : "testnet"} account whose key stays in this browser, with test USDC to try things. Gas is paid by the relayer.</p>
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                <div style={{ flex: 1 }}><Field label="Name" placeholder="astrid" value={name} onChange={(e) => setName(e.target.value)} help={`becomes ${name || "name"}.${CFG.accountSuffix || CFG.network}`} /></div>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 200px" }}><Field label="Name" placeholder="astrid" value={name} onChange={(e) => setName(e.target.value)} help={`becomes ${name || "name"}.${CFG.accountSuffix || CFG.network}`} /></div>
                 <Button disabled={busy || !name} onClick={async () => { setBusy(true); try { setWallet(await createWallet(name)); setNaming(false); } catch (e) { alert((e as Error).message); } finally { setBusy(false); } }}>{busy ? "Creating…" : "Create"}</Button>
               </div>
             </div>
@@ -93,7 +93,7 @@ export function App() {
 function NeedWallet({ onCreate }: { onCreate: () => void }) {
   const { Button } = C();
   return (
-    <div style={{ padding: "48px" }}>
+    <div className="cv-pad" style={{ padding: "48px" }}>
       <h1 className="title" style={{ margin: "0 0 8px" }}>You need a wallet first</h1>
       <p className="body" style={{ color: "var(--ink-muted)", maxWidth: 520 }}>A NEAR account identifies you as seller or buyer. Your Bitcoin stays in your own Bitcoin wallet; this account only signs instructions.</p>
       <Button variant="primary" onClick={onCreate}>{canConnect() ? "Connect wallet" : "Create wallet"}</Button>

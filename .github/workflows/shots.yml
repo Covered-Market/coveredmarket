@@ -15,6 +15,8 @@ on:
       seller:
         description: optional — whose "My contracts" page to show
         default: ""
+permissions:
+  contents: write
 jobs:
   shots:
     runs-on: ubuntu-latest
@@ -25,6 +27,12 @@ jobs:
         with: { node-version: 22 }
       - run: cd e2e && npm ci && npx playwright install --with-deps chromium
       - run: cd e2e && SITE="${{ inputs.site }}" MODE="${{ inputs.mode }}" SELLER="${{ inputs.seller }}" node shots.mjs
+      - name: publish to the ${{ inputs.mode }}-output branch (readable with git alone)
+        if: always()
+        run: |
+          cd "e2e/artifacts/${{ inputs.mode }}" && git init -q -b out && git add -A
+          git -c user.name=shots -c user.email=shots@users.noreply.github.com commit -qm "${{ inputs.mode }} of ${{ inputs.site }} at $(date -u +%FT%TZ) from ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" out:${{ inputs.mode }}-output
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: "${{ inputs.mode }}", path: "e2e/artifacts/${{ inputs.mode }}/" }
