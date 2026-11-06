@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { C } from "./ds";
-import { CFG, clearWallet, createWallet, loadWallet, saveWallet, type Wallet } from "./lib/near";
+import { accountHasKey, CFG, clearWallet, createWallet, loadWallet, saveWallet, type Wallet } from "./lib/near";
 import { canConnect, connectWallet, disconnectWallet, restoreConnected } from "./lib/connect";
+import { autoFund, getTestFunds, initTestWallet, shortAccount, testWallet, waitForAccount } from "./lib/testwallet";
 import { Buy } from "./pages/Buy";
 import { Contract } from "./pages/Contract";
 import { Contracts } from "./pages/Contracts";
@@ -21,14 +22,47 @@ export function useRoute() {
 
 export function App() {
   const { parts } = useRoute();
-  const [wallet, setWallet] = useState<Wallet | null>(loadWallet());
+  const [role] = useState(() => (CFG.disabled ? null : initTestWallet()));
+  const [wallet, setWallet] = useState<Wallet | null>(role ? null : loadWallet());
+  const [preparing, setPreparing] = useState<string | null>(null);
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const { TopBar, Button, Field, Notice } = C();
-  useEffect(() => { if (!wallet && !CFG.disabled) restoreConnected().then((w) => { if (w) { saveWallet(w); setWallet(w); } }); }, []);
-  const connect = async () => { setBusy(true); try { const w = await connectWallet(); saveWallet(w); setWallet(w); setNaming(false); } catch (e) { if (!/reject|cancel|closed/i.test(String((e as Error)?.message ?? e))) alert((e as Error).message ?? String(e)); } finally { setBusy(false); } };
-  const forget = async () => { if (!confirm(wallet?.via ? `Disconnect ${wallet.viaName ?? "this wallet"}?` : "Forget this test wallet on this device? Its key is only stored here.")) return; if (wallet?.via) await disconnectWallet(); clearWallet(); setWallet(null); };
+  useEffect(() => {
+    if (CFG.disabled) return;
+    if (role) {
+      // Hidden test wallet (?testwallet=…): make sure its implicit account exists and has test funds, then use it.
+      const w = testWallet(role);
+      (async () => {
+        setPreparing(`Preparing the ${role} test wallet…`);
+        try {
+          const { KeyPair } = await import("@near-js/crypto");
+          const pk = KeyPair.fromString(w.key as any).getPublicKey().toString();
+          const exists = await accountHasKey(w.accountId, pk);
+          // Creates the implicit account on first use, and tops it up when low; a rate limit is fine once it exists.
+          await getTestFunds(w.accountId).catch((e) => { if (!exists) throw e; });
+          await waitForAccount((id) => accountHasKey(id, pk), w.accountId);
+          setWallet(w); setPreparing(null);
+        } catch (e) { setPreparing(`Test wallet unavailable: ${(e as Error).message}`); }
+      })();
+      return;
+    }
+    if (!wallet) restoreConnected().then((w) => { if (w) { saveWallet(w); setWallet(w); } });
+    else if (wallet.via) autoFund(wallet.accountId);
+  }, []);
+  const connect = async () => {
+    setBusy(true);
+    try { const w = await connectWallet(); saveWallet(w); setWallet(w); setNaming(false); autoFund(w.accountId); }
+    catch (e) { if (!/reject|cancel|closed/i.test(String((e as Error)?.message ?? e))) alert((e as Error).message ?? String(e)); }
+    finally { setBusy(false); }
+  };
+  const getWallet = () => (canConnect() ? connect() : setNaming(true));
+  const forget = async () => {
+    if (wallet?.testRole) { if (!confirm(`Leave test mode in this tab? The ${wallet.testRole} key stays in this browser; open ?testwallet=reset to delete it.`)) return; try { sessionStorage.removeItem("covered.testwallet.role"); } catch {} setWallet(loadWallet()); return; }
+    if (!confirm(wallet?.via ? `Disconnect ${wallet.viaName ?? "this wallet"}?` : "Forget this sandbox account on this device? Its key is only stored here.")) return;
+    if (wallet?.via) await disconnectWallet(); clearWallet(); setWallet(null);
+  };
   const nav = (on: string) => [
     { label: "Market", href: "#/market", on: on === "market" },
     { label: "Sell a call", href: "#/sell", on: on === "sell" },
@@ -39,12 +73,12 @@ export function App() {
   const content = CFG.disabled ? <NotLive /> : (() => {
     switch (page) {
       case "market": return <Market />;
-      case "sell": return wallet ? <Sell wallet={wallet} /> : <NeedWallet onCreate={() => setNaming(true)} />;
+      case "sell": return wallet ? <Sell wallet={wallet} /> : <NeedWallet onCreate={getWallet} />;
       case "deposit": return <Deposit serial={Number(parts[1])} wallet={wallet} />;
-      case "contracts": return wallet ? <Contracts wallet={wallet} /> : <NeedWallet onCreate={() => setNaming(true)} />;
+      case "contracts": return wallet ? <Contracts wallet={wallet} /> : <NeedWallet onCreate={getWallet} />;
       case "c": return <Contract serial={Number(parts[1])} wallet={wallet} />;
-      case "buy": return <Buy serial={Number(parts[1])} wallet={wallet} onCreate={() => setNaming(true)} />;
-      case "try": return <Try wallet={wallet} onCreate={() => setNaming(true)} />;
+      case "buy": return <Buy serial={Number(parts[1])} wallet={wallet} onCreate={getWallet} />;
+      case "try": return <Try wallet={wallet} onCreate={getWallet} />;
       default: return <Market />;
     }
   })();
@@ -54,30 +88,26 @@ export function App() {
       <TopBar items={CFG.disabled ? [] : nav(page)} href="#/market">
         <NetworkSwitch />
         {CFG.disabled ? null : wallet ? (
-          <Button size="sm" onClick={forget} title={wallet.via ? `Connected with ${wallet.viaName ?? wallet.via}` : "Quick test wallet (key in this browser)"}>{wallet.accountId}{wallet.key ? " · test" : ""}</Button>
+          <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+            {wallet.testRole && <span title="Hidden test wallet for automated testing: key in this browser, testnet only" style={{ padding: "3px 8px", fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", background: "var(--gilt)", color: "var(--on-gilt)" }}>Test wallet · {wallet.testRole}</span>}
+            <Button size="sm" onClick={forget} title={wallet.via ? `${wallet.accountId} · connected with ${wallet.viaName ?? wallet.via}` : wallet.accountId}>{shortAccount(wallet.accountId)}</Button>
+          </span>
+        ) : preparing ? (
+          <span className="body-small" style={{ color: "var(--ink-muted)" }}>{preparing}</span>
         ) : (
-          <Button size="sm" variant="primary" disabled={busy} onClick={() => (canConnect() && !CFG.faucet ? connect() : setNaming(true))}>{canConnect() ? "Connect wallet" : "Create wallet"}</Button>
+          <Button size="sm" variant="primary" disabled={busy} onClick={getWallet}>{busy ? "Waiting for the wallet…" : canConnect() ? "Connect wallet" : "Create account"}</Button>
         )}
       </TopBar>
-      {naming && !wallet && (
+      {naming && !wallet && !canConnect() && (
         <div style={{ margin: "16px 48px", padding: 20, border: "1px solid var(--rule)", background: "var(--paper-raised)", maxWidth: 620, display: "flex", flexDirection: "column", gap: 16 }}>
-          {canConnect() && (
-            <div>
-              <div className="heading" style={{ marginBottom: 6 }}>Connect your NEAR wallet</div>
-              <p className="body-small" style={{ color: "var(--ink-muted)", margin: "0 0 10px" }}>HOT, Meteor, Intear, MyNearWallet, OKX and others. Your keys stay in your wallet; you approve each action there. Wallets that support it sign gas-free through the Covered relayer.</p>
-              <Button variant="primary" disabled={busy} onClick={connect}>{busy ? "Waiting for the wallet…" : "Connect wallet"}</Button>
+          <div>
+            <div className="heading" style={{ marginBottom: 6 }}>A NEAR sandbox account for this device</div>
+            <p className="body-small" style={{ color: "var(--ink-muted)", margin: "0 0 10px" }}>Wallets know mainnet and testnet, not this private sandbox, so the account's key stays in this browser. It comes with test USDC; gas is paid by the relayer.</p>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+              <div style={{ flex: 1 }}><Field label="Name" placeholder="astrid" value={name} onChange={(e) => setName(e.target.value)} help={`becomes ${name || "name"}.${CFG.accountSuffix || CFG.network}`} /></div>
+              <Button disabled={busy || !name} onClick={async () => { setBusy(true); try { setWallet(await createWallet(name)); setNaming(false); } catch (e) { alert((e as Error).message); } finally { setBusy(false); } }}>{busy ? "Creating…" : "Create"}</Button>
             </div>
-          )}
-          {CFG.faucet && (
-            <div style={{ borderTop: canConnect() ? "1px solid var(--rule)" : "none", paddingTop: canConnect() ? 16 : 0 }}>
-              <div className="heading" style={{ marginBottom: 6 }}>{canConnect() ? "Or: a quick test wallet" : `A NEAR ${CFG.network} account for this device`}</div>
-              <p className="body-small" style={{ color: "var(--ink-muted)", margin: "0 0 10px" }}>No wallet needed. A new {CFG.mode === "local" ? "sandbox" : "testnet"} account whose key stays in this browser, with test USDC to try things. Gas is paid by the relayer.</p>
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                <div style={{ flex: 1 }}><Field label="Name" placeholder="astrid" value={name} onChange={(e) => setName(e.target.value)} help={`becomes ${name || "name"}.${CFG.accountSuffix || CFG.network}`} /></div>
-                <Button disabled={busy || !name} onClick={async () => { setBusy(true); try { setWallet(await createWallet(name)); setNaming(false); } catch (e) { alert((e as Error).message); } finally { setBusy(false); } }}>{busy ? "Creating…" : "Create"}</Button>
-              </div>
-            </div>
-          )}
+          </div>
           <div><Button variant="quiet" onClick={() => setNaming(false)}>Cancel</Button></div>
         </div>
       )}
@@ -96,7 +126,8 @@ function NeedWallet({ onCreate }: { onCreate: () => void }) {
     <div style={{ padding: "48px" }}>
       <h1 className="title" style={{ margin: "0 0 8px" }}>You need a wallet first</h1>
       <p className="body" style={{ color: "var(--ink-muted)", maxWidth: 520 }}>A NEAR account identifies you as seller or buyer. Your Bitcoin stays in your own Bitcoin wallet; this account only signs instructions.</p>
-      <Button variant="primary" onClick={onCreate}>{canConnect() ? "Connect wallet" : "Create wallet"}</Button>
+      <Button variant="primary" onClick={onCreate}>{canConnect() ? "Connect wallet" : "Create account"}</Button>
+      {canConnect() && <p className="body-small" style={{ color: "var(--ink-muted)", maxWidth: 520, marginTop: 12 }}>No NEAR wallet yet? <a href="https://meteorwallet.app" target="_blank" rel="noreferrer">Meteor</a> is a browser extension that works on testnet and mainnet. Your Bitcoin wallet (UniSat, Xverse, Leather…) is only needed to pay a deposit.</p>}
     </div>
   );
 }

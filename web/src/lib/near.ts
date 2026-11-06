@@ -43,19 +43,24 @@ export const verifyClients = (): Clients => ({
 });
 
 // ───────── wallets ─────────
-// Two kinds: a NEAR wallet the user brings (NEAR Connect, see connect.ts), or — on testnet and the local
-// sandbox only — a quick test account whose key stays in this browser. Gas goes through the relayer when it can.
+// People bring their own NEAR wallet (NEAR Connect, see connect.ts) on every network. A wallet whose key lives in
+// this browser exists in two places only: the local sandbox (no extension knows it), and the hidden testnet test
+// wallet for automated testing (testwallet.ts). Never on mainnet. Gas goes through the relayer when it can.
 const LS = "covered.wallet";
-export interface Wallet { accountId: string; /** quick test wallet */ key?: string; /** NEAR Connect wallet id */ via?: string; viaName?: string }
-export function loadWallet(): Wallet | null { try { return JSON.parse(localStorage.getItem(LS) ?? "null"); } catch { return null; } }
+export interface Wallet { accountId: string; /** key held in this browser (sandbox / hidden test wallet) */ key?: string; /** NEAR Connect wallet id */ via?: string; viaName?: string; /** hidden test wallet role */ testRole?: string }
+const keyAllowed = () => CFG.mode !== "mainnet" && CFG.network !== "mainnet";
+export function loadWallet(): Wallet | null {
+  try { const w: Wallet | null = JSON.parse(localStorage.getItem(LS) ?? "null"); return w?.key && !keyAllowed() ? null : w; } catch { return null; }
+}
 export function saveWallet(w: Wallet | null) { try { w ? localStorage.setItem(LS, JSON.stringify(w)) : localStorage.removeItem(LS); } catch {} }
 export function clearWallet() { saveWallet(null); }
 
+/** Local sandbox only: a named account made by the sandbox's root, key kept in this browser. */
 export async function createWallet(name: string): Promise<Wallet> {
-  if (!CFG.faucet) throw new Error("quick test wallets exist only on testnet");
+  if (CFG.mode !== "local") throw new Error("in-browser accounts exist only on the local sandbox; connect a NEAR wallet");
   const accountId = `${name.toLowerCase().replace(/[^a-z0-9-_]/g, "")}.${CFG.accountSuffix || CFG.network}`;
   const kp = KeyPairEd25519.fromRandom();
-  const url = CFG.mode === "local" ? "/api/dev/account" : `${CFG.helper}/account`;
+  const url = "/api/dev/account";
   const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ newAccountId: accountId, newAccountPublicKey: kp.getPublicKey().toString() }) });
   if (!r.ok) throw new Error(`account creation failed: ${await r.text()}`);
   // The server may name it differently (a sub-account of the relayer when the public faucet is busy).
@@ -63,6 +68,10 @@ export async function createWallet(name: string): Promise<Wallet> {
   const w = { accountId: typeof j.accountId === "string" ? j.accountId : accountId, key: kp.toString() };
   saveWallet(w);
   return w;
+}
+
+export async function accountHasKey(accountId: string, publicKey: string) {
+  try { await provider.query({ request_type: "view_access_key", account_id: accountId, public_key: publicKey, finality: "final" }); return true; } catch { return false; }
 }
 
 function account(w: Wallet) { return new Account(w.accountId, provider, new KeyPairSigner(KeyPair.fromString(w.key as any))); }
@@ -90,6 +99,7 @@ export function outcomeValue(outcome: any, receiverId: string) {
 export async function call(w: Wallet, receiverId: string, method: string, args: Record<string, unknown>, depositYocto = 0n, gasTgas = 150) {
   const gas = BigInt(gasTgas) * 10n ** 12n;
   if (!w.key) { const { callConnected } = await import("./connect"); return callConnected(w, receiverId, method, args, depositYocto, gas); }
+  if (!keyAllowed()) throw new Error("browser-held keys are not used on mainnet; connect a NEAR wallet");
   try {
     const kp = KeyPair.fromString(w.key as any);
     const ak: any = await provider.query({ request_type: "view_access_key", account_id: w.accountId, public_key: kp.getPublicKey().toString(), finality: "final" });
