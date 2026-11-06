@@ -142,7 +142,8 @@ await page.goto(`${WEB}/#/sell`); await page.reload(); await page.waitForTimeout
 const field = (t) => page.locator("label.cv-field", { hasText: t }).locator("input");
 await field("Size").fill("0.002"); await field("Strike").fill("150000"); await field("Premium you ask").fill("25"); await field("Return coins to").fill(refund);
 await page.getByRole("button", { name: "Continue to deposit" }).click();
-await page.waitForURL(/#\/deposit\/\d+/, { timeout: 60_000 });
+try { await until("UI offer on chain and deposit page shown", async () => /#\/deposit\/\d+/.test(page.url()), 60_000); }
+catch (e) { await page.screenshot({ path: `${ART}sell-failed.png`, fullPage: true }); throw new Error(`${e.message}; url ${page.url()}; console: ${consoleWarn.join(" | ")}; errors: ${errors.join(" | ")}`); }
 const relayedAfter = (await (await fetch(`${WEB}/api/health`)).json()).relayed;
 if (relayedAfter !== relayedBefore + 1) throw new Error(`UI create_offer did not go through the relayer (relayed ${relayedBefore} → ${relayedAfter}); console: ${consoleWarn.join(" | ")}`);
 if (consoleWarn.some((w) => w.includes("relay unavailable"))) throw new Error("UI fell back to a direct call");
