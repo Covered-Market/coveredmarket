@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/readme/banner-vault.png">
-    <img alt="Covered. Income on Bitcoin you still hold. Sell covered calls on native Bitcoin. No custodian, no bridge, no wrapper." src="docs/readme/banner-paper.png" width="100%">
+    <img alt="Covered. Open to anyone. Held by no one. Earning for you. Sell covered calls on native Bitcoin. No custodian, no bridge, no wrapper." src="docs/readme/banner-paper.png" width="100%">
   </picture>
 </p>
 
