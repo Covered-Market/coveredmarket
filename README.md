@@ -162,6 +162,34 @@ If NEAR or its signing network ever stopped, you would not be stuck: every depos
 
 [NEAR Chain Signatures](https://docs.near.org/chain-abstraction/chain-signatures) (`v1.signer`) to sign Bitcoin transactions from a contract · NEAR's Bitcoin light client to prove deposits and spends · NEP-366 meta-transactions, so users need no NEAR for gas · USDC on NEAR for premiums and strikes. Rust (`near-sdk`, `rust-bitcoin`) for the contract, TypeScript for the relayer and the app.
 
+## Libraries, templates and AI-written code
+
+**AI-written code.** Most of the code, tests, infrastructure and docs were written by Claude (Anthropic), working in Claude Code and claude.ai sessions directed and reviewed by the author. Commits made from Claude Code have Claude as the author or carry a `Co-Authored-By: Claude` trailer. The two initial commits on 5 Nov import code Claude wrote in claude.ai sessions on 4–5 Nov. Design decisions, the specification, testing on live testnet and review are the author's.
+
+**Contracts (Rust)** · [`Cargo.toml`](Cargo.toml)
+- `near-sdk` 5.30, `near-contract-standards` 5.30 (the mock USDC token only): NEAR smart contracts
+- `bitcoin` 0.32 (rust-bitcoin): Bitcoin transactions, scripts, addresses and sighashes
+- `k256` 0.13: secp256k1 public-key derivation matching `v1.signer`
+- `sha2`, `sha3`, `hex`, `serde`, `serde_json`, `getrandom`: hashing and encoding
+- Tests only: `near-workspaces` 0.24 (sandbox tests), `bitcoinconsensus` 0.106 (Bitcoin Core's script interpreter, which checks every spend), `tokio`, `anyhow`
+
+**Relayer and web app (TypeScript)** · [`relayer/package.json`](relayer/package.json), [`web/package.json`](web/package.json)
+- `@near-js/*` 2.x and `near-api-js` 5: NEAR RPC, keys and transactions
+- `@hot-labs/near-connect` 0.12: wallet connection in the web app
+- `@noble/curves`, `@noble/secp256k1`, `@noble/hashes`, `@scure/base`, `@scure/btc-signer`, `borsh`: cryptography, encodings and Bitcoin transactions in TypeScript
+- `express` 4: relayer HTTP API
+- `react` 18 and `vite` 5 (with `@vitejs/plugin-react`): web app
+- Development: `typescript`, `tsx`, `vitest`, `playwright` (end-to-end tests)
+
+**Run time and infrastructure**
+- Docker images: `bitcoin/bitcoin:29.5` (Bitcoin Core regtest), `near-sandbox` 0.3.5 (local NEAR node), `rust:bookworm`, `node:22`, `alpine:3.20`
+- `cargo-near` 0.23.0: contract builds
+- Terraform with the `digitalocean/digitalocean` provider: the hosted demo
+- GitHub Actions: `actions/checkout`, `actions/setup-node`, `actions/upload-artifact`, `dtolnay/rust-toolchain`, `Swatinem/rust-cache`, `hashicorp/setup-terraform`
+- Fonts: Fraunces, Instrument Sans and Spline Sans Mono, under the SIL Open Font License 1.1 (see [License](#license))
+
+**Live NEAR services we call but did not write:** the MPC signer (`v1.signer-prod.testnet` on testnet, `v1.signer` on mainnet) and NEAR's Bitcoin light client (`btc-client-v4.testnet`, `btc-client.bridge.near`). On mainnet, premiums and strikes would be Circle's USDC; on testnet and locally they are our own test token. The local stack replaces the signer and light client with stand-ins in [`contracts/`](contracts) (`mock-signer`, `mock-btc-client`, `mock-usdc`), which are our own code.
+
 ## Documentation
 
 | Read | For |
