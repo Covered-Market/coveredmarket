@@ -40,11 +40,20 @@ export async function nearClient(cfg: NearCfg) {
     if (!account) throw new Error("relayer key not configured");
     return retryNonce(() => account!.createAccount(id, publicKey as any, yocto));
   };
+  /** Native balance in yocto, or null if the account does not exist. */
+  const balance = async (id: string): Promise<bigint | null> => {
+    try { const r: any = await provider.query({ request_type: "view_account", account_id: id, finality: "optimistic" }); return BigInt(r.amount); } catch { return null; }
+  };
+  /** Send NEAR from the relayer. Sending to an implicit account that does not exist yet creates it. */
+  const transfer = async (to: string, yocto: bigint) => {
+    if (!account) throw new Error("relayer key not configured");
+    return retryNonce(() => account!.transfer({ receiverId: to, amount: yocto }));
+  };
   const relay = async (signedDelegate: any) => {
     if (!account) throw new Error("relayer key not configured");
     return retryNonce(() => account!.signAndSendTransaction({ receiverId: signedDelegate.delegateAction.senderId, actions: [actionCreators.signedDelegate(signedDelegate)], throwOnFailure: false } as any));
   };
   /** The contract's clock: latest block timestamp in seconds. Guards (window, grace) are judged against this, not wall time. */
   const chainNow = async () => Number(BigInt((await provider.block({ finality: "optimistic" })).header.timestamp_nanosec) / 1_000_000_000n);
-  return { view, call, callAny, relay, createSubAccount, accountExists, provider, chainNow };
+  return { view, call, callAny, relay, createSubAccount, accountExists, balance, transfer, provider, chainNow };
 }
