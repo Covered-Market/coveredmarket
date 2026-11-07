@@ -129,6 +129,40 @@ if (process.env.ACCOUNT_FAUCET === "1" && cfg.networkId === "testnet") {
   });
 }
 
+// Testnet: free test funds for whatever account connects — an extension wallet's account or the hidden in-browser
+// test wallet (?testwallet=…). Tops up tNEAR (creating an implicit account that does not exist yet; an offer attaches
+// a 0.1 NEAR deposit) and mints mock USDC. Same switch as the account faucet; never on mainnet.
+if (process.env.ACCOUNT_FAUCET === "1" && cfg.networkId === "testnet") {
+  const { fundable, Limits, plan } = await import("./testfunds.js");
+  const limits = new Limits(Number(process.env.TEST_FUNDS_PER_HOUR ?? 10), 10 * 60_000, Number(process.env.TEST_FUNDS_PER_DAY ?? 300));
+  const canMint = process.env.USDC_MINT === "1";
+  const ftBalance = async (id: string) => {
+    try {
+      const r: any = await near.provider.query({ request_type: "call_function", account_id: cfg.usdc, method_name: "ft_balance_of", args_base64: Buffer.from(JSON.stringify({ account_id: id })).toString("base64"), finality: "optimistic" });
+      return BigInt(JSON.parse(Buffer.from(r.result).toString()));
+    } catch { return 0n; }
+  };
+  app.post("/api/test-funds", async (req, res) => {
+    const accountId = String(req.body?.accountId ?? "");
+    const ip = String(req.headers["x-forwarded-for"] ?? req.socket.remoteAddress ?? "").split(",")[0].trim();
+    if (!fundable(accountId)) return res.status(400).json({ error: "test funds go to an implicit account or a .testnet account" });
+    try {
+      const held = await near.balance(accountId);
+      const usdc = held === null ? 0n : await ftBalance(accountId);
+      const send = plan(held, usdc, undefined, canMint);
+      if (!send.near && !send.usdc) return res.json({ ok: true, accountId, near: "0", usdc: "0", note: "already funded" });
+      if (held === null && !/^[0-9a-f]{64}$/.test(accountId)) return res.status(404).json({ error: "that account does not exist on testnet" });
+      const why = limits.check(ip, accountId);
+      if (why) return res.status(429).json({ error: why });
+      limits.record(ip, accountId);
+      if (send.near) await near.transfer(accountId, send.near);
+      if (send.usdc) await near.callAny(cfg.usdc, "mint", { account_id: accountId, amount: String(send.usdc) });
+      console.log(new Date().toISOString(), `test funds → ${accountId}: ${send.near} yocto, ${send.usdc} USDC units`);
+      res.json({ ok: true, accountId, near: String(send.near), usdc: String(send.usdc) });
+    } catch (e) { console.error(new Date().toISOString(), "test funds", (e as Error).message); res.status(500).json({ error: (e as Error).message }); }
+  });
+}
+
 // Esplora-compatible subset for the web app when running against Bitcoin Core.
 if (core) {
   const h = (f: (req: express.Request) => Promise<unknown>) => async (req: express.Request, res: express.Response) => { try { const r = await f(req); typeof r === "string" ? res.type("text").send(r) : res.json(r); } catch (e) { res.status(404).json({ error: (e as Error).message }); } };

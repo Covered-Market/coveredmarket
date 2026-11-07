@@ -1,14 +1,26 @@
+import { useState } from "react";
 import { btcProviders } from "../lib/btc";
 import { C } from "../ds";
 import { CFG, type Wallet } from "../lib/near";
+import { getTestFunds, testWalletAllowed } from "../lib/testwallet";
 
 export function Try({ wallet, onCreate }: { wallet: Wallet | null; onCreate: () => void }) {
   const { Button, Stamp, Notice } = C();
+  const [funds, setFunds] = useState<{ busy?: boolean; msg?: string }>({});
+  const topUp = async () => {
+    if (!wallet) return;
+    setFunds({ busy: true });
+    try {
+      const r = await getTestFunds(wallet.accountId);
+      const got = [BigInt(r.usdc) ? `${Number(BigInt(r.usdc) / 1_000_000n).toLocaleString()} test USDC` : "", BigInt(r.near) ? `${Number(BigInt(r.near) / 10n ** 21n) / 1000} tNEAR` : ""].filter(Boolean);
+      setFunds({ msg: got.length ? `Sent ${got.join(" and ")}.` : "You already have enough test funds." });
+    } catch (e) { setFunds({ msg: (e as Error).message }); }
+  };
   const steps = [
-    { n: 1, title: "Get a wallet", detail: "Connect your NEAR wallet, or make a quick test wallet in this browser: it comes with 100,000 test USDC.", time: "1 min" },
+    { n: 1, title: "Connect a wallet", detail: `Connect your NEAR wallet, set to testnet (Meteor, Intear, Nightly and others). Any account works, named or implicit. You get 100,000 test USDC and a little tNEAR automatically; gas is paid by the relayer.`, time: "1 min" },
     { n: 2, title: "Sell a call", detail: "Pick a size (0.001 tBTC is fine), a strike above the reference, the shortest expiry. The contract derives your deposit address.", time: "1 min" },
     { n: 3, title: "Deposit testnet coins", detail: "Press “Send it from the demo faucet” on the deposit page, or pay from your own testnet3 wallet (UniSat, Leather, OKX, Xverse buttons appear when installed). Watch the light client prove it.", time: "10–30 min" },
-    { n: 4, title: "Buy it yourself", detail: "Open a second browser profile, get another wallet, buy the call with test USDC.", time: "1 min" },
+    { n: 4, title: "Buy it yourself", detail: "Switch to a second testnet account in your wallet (or a second browser profile) and buy the call with test USDC.", time: "1 min" },
     { n: 5, title: "Watch it settle", detail: "At expiry, exercise by paying the strike or let the window pass. Open the Bitcoin transaction the contract signed.", time: "1 min" },
   ];
   const live = [
@@ -33,10 +45,12 @@ export function Try({ wallet, onCreate }: { wallet: Wallet | null; onCreate: () 
           ))}
         </ol>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          {wallet ? <Button variant="primary" size="lg" href="#/sell">Start · sell a call</Button> : <Button variant="primary" size="lg" onClick={onCreate}>Start · get a wallet</Button>}
+          {wallet ? <Button variant="primary" size="lg" href="#/sell">Start · sell a call</Button> : <Button variant="primary" size="lg" onClick={onCreate}>Start · connect a wallet</Button>}
+          {wallet && testWalletAllowed() && <Button size="lg" disabled={funds.busy} onClick={topUp}>{funds.busy ? "Sending…" : "Get test funds"}</Button>}
           <Button size="lg" href="https://coinfaucet.eu/en/btc-testnet/">testnet3 faucet</Button>
           <Button size="lg" href="https://github.com/[TEAM]/covered">Read the contract</Button>
         </div>
+        {funds.msg && <div className="body-small" role="status" style={{ color: "var(--ink-muted)" }}>{funds.msg}</div>}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 16, paddingTop: 40 }}>
         <div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>What is live, where</div>
