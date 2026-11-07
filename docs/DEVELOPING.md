@@ -6,7 +6,7 @@ How to run the whole product on your machine, what the tests cover, and where th
 
 - Docker 24+ with Compose v2 (that is all for the local stack)
 - For tests on the host: Rust 1.85+, Node 22
-- For `build`/`e2e` on the host: `rustup target add wasm32-unknown-unknown` and cargo-near (`curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/latest/download/cargo-near-installer.sh | sh`)
+- For `build`/`e2e` on the host: `rustup target add wasm32-unknown-unknown` and cargo-near (`curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/download/cargo-near-v0.23.0/cargo-near-installer.sh | sh`)
 - For the cloud: Terraform 1.6+, a DigitalOcean account, a domain
 
 ## Run everything locally
@@ -50,7 +50,7 @@ bin/covered up && bin/covered e2e-stack
 
 **L2 on live NEAR testnet** (`e2e/testnet.ts`, workflow `testnet.yml`, runs on `e2e/testnet*` branches and on demand): creates throwaway faucet accounts, deploys `covered` wired to the **real MPC signer**, and checks that (1) each deposit address equals what the signer's `derived_public_key` gives for the contract, (2) a withdrawal and (3) a full sell → buy → expiry → exercise → claim are signed by the **real MPC** through the contract and the signed transactions verify offline, and (4) the **real light client** accepts the relayer's proof of a real testnet3 transaction and rejects a tampered one. The deposits in (2)–(3) are proven through a mock light client, because a real deposit needs testnet BTC; everything else is the live network. Transcript and signed transactions are uploaded as the `testnet-l2` artifact.
 
-CI: `.github/workflows/ci.yml` (unit tests, wasm, sandbox flows, images, Terraform/Compose validation) on every push and PR; `.github/workflows/stack.yml` runs `up` + `e2e-stack` on `main`, version tags and on demand, and uploads the screenshots. Deploys happen only on version tags.
+CI: `.github/workflows/ci.yml` (unit tests, wasm, sandbox flows, images, Terraform/Compose validation) on every push and PR; `.github/workflows/stack.yml` runs `up` + `e2e-stack` on x86-64 and arm64 on every pull request (except docs-only changes), on `main`, version tags and on demand, and uploads the screenshots. Deploys happen only on version tags.
 
 ## Configuration
 
