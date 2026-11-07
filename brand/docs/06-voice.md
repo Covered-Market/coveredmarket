@@ -14,7 +14,7 @@ Covered writes like a careful broker's letter: plain, exact, a little formal, ne
 
 | Moment | Tone | Example |
 |---|---|---|
-| Hero and headlines | Quiet confidence, Fraunces | *Open to anyone. Held by no one. Earning for you.* |
+| Hero and headlines | Quiet confidence, Fraunces | *Earn on Bitcoin you still hold.* |
 | Explaining the product | Patient, concrete, one story | "Astrid sells Marcus the right to buy her 2 BTC at $150,000 on 31 December. He pays her $6,000 now. If Bitcoin ends below $150,000, she keeps the coins and the $6,000. If above, she sells at $150,000 and still keeps the $6,000." |
 | Inside the app | Terse, labelled, every number present | "Premium $6,000 · paid by marcus.near · received on Base" |
 | A refusal | Specific, what to do next | "Deposit refused: 1.9998 BTC received, offer size is 2.0000 BTC. Top up 0.0002 BTC or reduce the size." |
