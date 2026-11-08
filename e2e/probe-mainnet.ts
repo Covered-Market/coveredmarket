@@ -32,7 +32,7 @@ fact("signer.version", await view(SIGNER, "version").catch((e) => String(e)));
 const root: string = await view(SIGNER, "public_key", { domain_id: 0 });
 fact("signer.public_key", root);
 must(root.startsWith("secp256k1:"), "signer root key is secp256k1:<base58>");
-for (const [pred, path] of [["covered.near", "astrid.near/CV-1"], ["some-app.near", "x/y"]]) {
+for (const [pred, path] of [["coveredmarket.near", "astrid.near/CV-1"], ["some-app.near", "x/y"]]) {
   const live: string = await view(SIGNER, "derived_public_key", { path, predecessor: pred, domain_id: 0 });
   const ours = hex.to(derivePubkey(parseRootKey(root), PREFIX, pred, path));
   const theirs = hex.to(secp.ProjectivePoint.fromHex(parseRootKey(live)).toRawBytes(true));

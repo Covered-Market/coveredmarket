@@ -1,4 +1,4 @@
-//! NEP-297 events, standard `covered`, version `1.0.0`.
+//! NEP-297 events, standard `coveredmarket`, version `1.0.0`.
 
 use near_sdk::env;
 
@@ -8,7 +8,7 @@ pub fn emit(event: &str, serial: u64, data: serde_json::Value) {
         m.insert("serial".into(), serde_json::Value::from(serial));
     }
     let v = serde_json::json!({
-        "standard": "covered",
+        "standard": "coveredmarket",
         "version": "1.0.0",
         "event": event,
         "data": [d],

@@ -9,13 +9,13 @@ import { base58 } from "@scure/base";
 import type { Clients } from "./verify.js";
 import { btcFetch, btcJson, btcText } from "./btc";
 
-/** Runtime configuration, served as /config.json by the web container (written by `covered up` / the cloud bootstrap). */
+/** Runtime configuration, served as /config.json by the web container (written by `coveredmarket up` / the cloud bootstrap). */
 export interface Config { network: string; rpc: string; contract: string; usdc: string; esplora: string; explorerBtc: string; explorerNear: string; codeHash: string; signer: string; lightClient: string; minConf: number; helper: string; accountSuffix: string; mode: "local" | "testnet" | "mainnet";
   /** Network without a contract yet: the app shows "not live". */ disabled?: boolean;
   /** The other network's site, for the header switch. */ switchUrl?: string;
   /** Quick in-browser test wallets and test funds (testnet, local). */ faucet?: boolean }
-const defaults: Config = { network: "testnet", rpc: "https://rpc.testnet.fastnear.com", contract: "covered.testnet", usdc: "usdc.fakes.testnet", esplora: "https://mempool.space/testnet/api,https://blockstream.info/testnet/api", explorerBtc: "https://mempool.space/testnet", explorerNear: "https://testnet.nearblocks.io", codeHash: "", signer: "v1.signer-prod.testnet", lightClient: "btc-client-v4.testnet", minConf: 1, helper: "/api", accountSuffix: "testnet", mode: "testnet", faucet: true };
-export const CFG: Config = { ...defaults, ...((window as any).COVERED_CONFIG ?? {}) };
+const defaults: Config = { network: "testnet", rpc: "https://rpc.testnet.fastnear.com", contract: "coveredmarket.testnet", usdc: "usdc.fakes.testnet", esplora: "https://mempool.space/testnet/api,https://blockstream.info/testnet/api", explorerBtc: "https://mempool.space/testnet", explorerNear: "https://testnet.nearblocks.io", codeHash: "", signer: "v1.signer-prod.testnet", lightClient: "btc-client-v4.testnet", minConf: 1, helper: "/api", accountSuffix: "testnet", mode: "testnet", faucet: true };
+export const CFG: Config = { ...defaults, ...((window as any).COVEREDMARKET_CONFIG ?? {}) };
 export async function loadConfig() {
   try { const r = await fetch("/config.json", { cache: "no-store" }); if (r.ok) Object.assign(CFG, await r.json()); } catch {}
 }
@@ -46,7 +46,7 @@ export const verifyClients = (): Clients => ({
 // People bring their own NEAR wallet (NEAR Connect, see connect.ts) on every network. A wallet whose key lives in
 // this browser exists in two places only: the local sandbox (no extension knows it), and the hidden testnet test
 // wallet for automated testing (testwallet.ts). Never on mainnet. Gas goes through the relayer when it can.
-const LS = "covered.wallet";
+const LS = "coveredmarket.wallet";
 export interface Wallet { accountId: string; /** key held in this browser (sandbox / hidden test wallet) */ key?: string; /** NEAR Connect wallet id */ via?: string; viaName?: string; /** hidden test wallet role */ testRole?: string }
 const keyAllowed = () => CFG.mode !== "mainnet" && CFG.network !== "mainnet";
 export function loadWallet(): Wallet | null {

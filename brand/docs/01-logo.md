@@ -10,18 +10,18 @@ Files, under `assets/Logos/`:
 
 | File | Use |
 |---|---|
-| `covered-symbol.svg` | Primary: intaglio coin, gilt lid, on Paper. |
-| `covered-symbol-on-vault.svg` | Primary reversed: cream coin, gilt lid, thinned. |
-| `covered-symbol-copper.svg` | Copper coin, intaglio lid. Only where the coin is the subject. |
-| `covered-symbol-ink.svg`, `-intaglio.svg`, `-reversed.svg` | One colour: ink or intaglio on Paper; thinned cream on Vault. Print, stamps, embroidery. |
-| `covered-symbol-small.svg`, `-small-on-vault.svg` | The small cut, 24px and below: a wider gap, lower lid. |
-| `covered-symbol-state-open / -kept / -exercised.svg` | The lid lifted (open contract), down to a seam (kept), lifted high (exercised). For stamps, timelines and motion. |
-| `covered-wordmark.svg`, `-on-vault.svg` | "Covered" in Fraunces 480 at optical size 144, kerned, as outlines. |
-| `covered-wordmark-caps.svg` | "COVERED" tracked 0.14em: kickers, stamps, the certificate header. |
-| `covered-lockup.svg`, `-ink`, `-copper`, `-on-vault` | Horizontal: symbol at 64, gap 20, wordmark at 56. |
-| `covered-lockup-stacked.svg`, `-on-vault` | Symbol above the wordmark, for squares and the end card. |
-| `covered-lockup-with-partner-rule.svg` | The lockup with a hairline to its right where a partner mark (NEAR) sits at the same cap height. |
-| `covered-seal.svg`, `-ink`, `-on-vault` | The Lid inside two rings and outlined microtext: the certificate's seal and the stamp on documents. |
+| `coveredmarket-symbol.svg` | Primary: intaglio coin, gilt lid, on Paper. |
+| `coveredmarket-symbol-on-vault.svg` | Primary reversed: cream coin, gilt lid, thinned. |
+| `coveredmarket-symbol-copper.svg` | Copper coin, intaglio lid. Only where the coin is the subject. |
+| `coveredmarket-symbol-ink.svg`, `-intaglio.svg`, `-reversed.svg` | One colour: ink or intaglio on Paper; thinned cream on Vault. Print, stamps, embroidery. |
+| `coveredmarket-symbol-small.svg`, `-small-on-vault.svg` | The small cut, 24px and below: a wider gap, lower lid. |
+| `coveredmarket-symbol-state-open / -kept / -exercised.svg` | The lid lifted (open contract), down to a seam (kept), lifted high (exercised). For stamps, timelines and motion. |
+| `coveredmarket-wordmark.svg`, `-on-vault.svg` | "CoveredMarket" in Fraunces 480 at optical size 144, kerned, as outlines. |
+| `coveredmarket-wordmark-caps.svg` | "COVEREDMARKET" tracked 0.14em: kickers, stamps, the certificate header. |
+| `coveredmarket-lockup.svg`, `-ink`, `-copper`, `-on-vault` | Horizontal: symbol at 64, gap 20, wordmark at 56. |
+| `coveredmarket-lockup-stacked.svg`, `-on-vault` | Symbol above the wordmark, for squares and the end card. |
+| `coveredmarket-lockup-with-partner-rule.svg` | The lockup with a hairline to its right where a partner mark (NEAR) sits at the same cap height. |
+| `coveredmarket-seal.svg`, `-ink`, `-on-vault` | The Lid inside two rings and outlined microtext: the certificate's seal and the stamp on documents. |
 | `app-icon-1024.svg`, `-rounded.svg`, `app-icon-192.svg` | Vault ground, cream coin, gilt lid at 62%. The rounded version is 22% radius for stores that don't mask. |
 | `favicon.svg`, `favicon-on-vault.svg` | The small cut on a ground, 16–32px. |
 
@@ -33,7 +33,7 @@ Files, under `assets/Logos/`:
 - **Colour**: coin in `intaglio`, `copper`, `ink`, or cream; lid in `gilt`, `intaglio` or the coin's colour. Never the Bitcoin orange `#F7931A`, never a gradient, never an outline.
 - **Do not** rotate, add a shadow, place in a circle (the seal's rings are the one exception), or redraw it. Use the files.
 - **With NEAR**: the partner-rule lockup, both marks in `ink` or both reversed, NEAR's mark at the wordmark's cap height.
-- **The wordmark is not a typeface**: set "Covered" in running text in the sans. Only the logo files use the outlined Fraunces.
+- **The wordmark is not a typeface**: set "CoveredMarket" in running text in the sans. Only the logo files use the outlined Fraunces.
 
 ## The lid in motion
 

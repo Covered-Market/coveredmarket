@@ -1,18 +1,18 @@
-# Covered — Product & Technical Specification
+# CoveredMarket — Product & Technical Specification
 
 Nov 5, 2026 · @Bedeho
 
 ## Summary
 
-Covered lets a Bitcoin holder sell a covered call on coins that never leave Bitcoin: the coins sit at a Bitcoin address only a NEAR smart contract can sign for, a buyer pays the premium from any chain, and at expiry the contract signs the coins back to the holder (KEPT) or to the buyer once the buyer has paid the strike (EXERCISED). There is no custodian, no wrapped BTC, no bridge contract holding funds, and no admin key after deploy.
+CoveredMarket lets a Bitcoin holder sell a covered call on coins that never leave Bitcoin: the coins sit at a Bitcoin address only a NEAR smart contract can sign for, a buyer pays the premium from any chain, and at expiry the contract signs the coins back to the holder (KEPT) or to the buyer once the buyer has paid the strike (EXERCISED). There is no custodian, no wrapped BTC, no bridge contract holding funds, and no admin key after deploy.
 
-The product exists because the alternative today is Deribit, Binance or OKX: the holder hands coins to an exchange to earn 10–20% annualised on a position they could otherwise hold in cold storage. Covered keeps the yield and removes the counterparty.
+The product exists because the alternative today is Deribit, Binance or OKX: the holder hands coins to an exchange to earn 10–20% annualised on a position they could otherwise hold in cold storage. CoveredMarket keeps the yield and removes the counterparty.
 
 What makes it possible is one NEAR primitive: **Chain Signatures** (`v1.signer`), which gives a NEAR contract a deterministic secp256k1 key per `(contract, path)` and signs arbitrary hashes with it only when that contract asks. Around it: the **Bitcoin light client on NEAR** (Near-One's `btc-light-client-contract`) proves deposits; **NEAR Intents (1Click)** moves premium and strike across chains; **meta-transactions** mean neither party needs NEAR for gas.
 
 Claims an engineer should try to falsify, in the order they matter:
 
-1. No account other than `covered.near` can obtain a signature that spends the collateral outpoint; a signature obtained by another account for the same path string is for a different key and cannot spend it (section 9, A1).
+1. No account other than `coveredmarket.near` can obtain a signature that spends the collateral outpoint; a signature obtained by another account for the same path string is for a different key and cannot spend it (section 9, A1).
 2. The contract commits the spend (recipient script, unsigned transaction, sighash) to state before it ever asks for a signature, and from then on only ever requests that one sighash for that outpoint. It never authorises two conflicting spends (section 6).
 3. A deposit is accepted only with an inclusion proof against a header the light client holds at depth ≥ 6, and collateral depth is re-checked before a strike is accepted (section 7).
 4. Exercise never depends on a price feed: the buyer exercises by paying the strike inside the window `[expiry, expiry + 2h)` measured by NEAR block time. A reference price is displayed and never changes eligibility (section 8).
@@ -24,7 +24,7 @@ Scope of this version: one product, a European covered call with a two-hour exer
 
 The problem is narrow and real: long-term Bitcoin holders have an asset that pays nothing, and the only way to earn option premium on it is to give the coins to an exchange. Covered calls are the most conservative options strategy there is (the seller caps upside, never adds downside beyond holding), yet on-chain they do not exist for native Bitcoin.
 
-| Actor | Who they are | Today | Why today is worse | What Covered gives them |
+| Actor | Who they are | Today | Why today is worse | What CoveredMarket gives them |
 | --- | --- | --- | --- | --- |
 | **Holder / seller** (Astrid) | Owns BTC in self-custody, wants income, will not hand coins to an exchange | Deribit, OKX, Binance covered-call products, or nothing | Full custodial counterparty risk on 100% of the position to earn 10–20% a year; KYC; withdrawal limits; exchange insolvency history | Coins stay on Bitcoin at an address only the contract can sign for; premium arrives in any asset on any chain |
 | **Buyer** (Marcus) | Trader or fund that wants leveraged upside for a fixed premium | Same exchanges, or OTC desks | Must hold margin on the exchange; the seller’s collateral is an exchange IOU, not coins; OTC needs trust and settlement risk | Sees the exact UTXO backing the call before paying; pays from Solana, Base or anywhere Intents reaches; exercise is a payment, not a request |
@@ -49,7 +49,7 @@ Astrid lists at $6,000; no buyer appears. In `Funded` she may call `withdraw` at
 
 ### Use case 4 — the operator misbehaves
 
-Covered’s server is down, malicious or seized. Nothing changes: settlement can be triggered by anyone, the Bitcoin transaction can be broadcast by anyone, and the MPC answers only `covered.near`. The only loss is convenience (the relayer normally submits proofs and pays gas). The operator page in the design canvas records this being tried and refused.
+CoveredMarket’s server is down, malicious or seized. Nothing changes: settlement can be triggered by anyone, the Bitcoin transaction can be broadcast by anyone, and the MPC answers only `coveredmarket.near`. The only loss is convenience (the relayer normally submits proofs and pays gas). The operator page in the design canvas records this being tried and refused.
 
 ### Use case 5 — the judge tries it
 
@@ -66,7 +66,7 @@ Each requirement has an id so tests (section 13) can cite it. MUST items are nee
 | F1 | A seller can create an offer `(size_sats, strike_usdc_units, expiry_unix, premium_usdc_units, refund_btc_script)` and receive a unique P2WPKH deposit address derived by the contract | MUST |
 | F2 | The contract accepts a deposit only with a valid inclusion proof for a transaction with one output paying exactly `size_sats` to the derived script, at ≥ `min_conf` confirmations on the light client; the collateral outpoint is recorded | MUST |
 | F3 | A funded, unsold offer can be withdrawn by the seller; the contract commits and signs a return transaction to the refund script | MUST |
-| F4 | A buyer purchases by `usdc.ft_transfer_call(covered.near, premium, msg{serial, btc_script})` from their own NEAR account; in that receipt the contract records `buyer = sender`, credits the premium to the seller’s claimable balance and refunds any excess. The sale is final when the receipt succeeds | MUST |
+| F4 | A buyer purchases by `usdc.ft_transfer_call(coveredmarket.near, premium, msg{serial, btc_script})` from their own NEAR account; in that receipt the contract records `buyer = sender`, credits the premium to the seller’s claimable balance and refunds any excess. The sale is final when the receipt succeeds | MUST |
 | F5 | Inside `[expiry, expiry + grace)` by block timestamp, the buyer exercises by `ft_transfer_call` of `strike_total` from the buyer account with `msg{serial, exercise}`; the contract re-verifies collateral depth, escrows the strike, commits and signs delivery to the buyer’s script | MUST |
 | F6 | At or after `expiry + grace`, anyone can call `settle(serial)`; if not exercised the contract commits and signs the return transaction to the seller | MUST |
 | F7 | Every spend the contract authorises is committed to state (recipient script, unsigned tx, sighash) before the first signature request, and only that sighash is ever requested for that outpoint | MUST |
@@ -84,7 +84,7 @@ Each requirement has an id so tests (section 13) can cite it. MUST items are nee
 
 | Id | Requirement |
 | --- | --- |
-| N1 | No full-access key on `covered.near` after deployment; the code contains no upgrade, pause, owner or key-adding method, and the reproducible code hash is published |
+| N1 | No full-access key on `coveredmarket.near` after deployment; the code contains no upgrade, pause, owner or key-adding method, and the reproducible code hash is published |
 | N2 | USDC held by the contract is exactly the sum of claimable balances plus strikes in escrow; an accounting view exposes both and `Verify` checks it against the token balance |
 | N3 | All amounts are integers: satoshis, USDC smallest units (6 decimals). Checked arithmetic everywhere; no floats in the crate |
 | N4 | Every state transition emits a NEP-297 event; the indexer is built from events; `Verify` reads state, not events |
@@ -109,7 +109,7 @@ Each requirement has an id so tests (section 13) can cite it. MUST items are nee
 
 ## Product specification
 
-The app is one web frontend with three roles decided by wallet, plus a public layer that needs no wallet. High-fidelity screens are on the [design canvas](https://claude.ai/artifact/4az4t9r5WgTNMnXLEpy5ES); components and tokens come from the [Covered design system](https://claude.ai/artifact/1gormfHod4MU3fRZuTRF2m). The spec below is what each screen must do, not how it looks.
+The app is one web frontend with three roles decided by wallet, plus a public layer that needs no wallet. High-fidelity screens are on the [design canvas](https://claude.ai/artifact/4az4t9r5WgTNMnXLEpy5ES); components and tokens come from the [CoveredMarket design system](https://claude.ai/artifact/1gormfHod4MU3fRZuTRF2m). The spec below is what each screen must do, not how it looks.
 
 ### Routes and screens
 
@@ -147,7 +147,7 @@ The app is one web frontend with three roles decided by wallet, plus a public la
 - Dates: `25 Dec 2026, 08:00 UTC`; unix seconds in APIs. Expiry is any day at 08:00 UTC, at least 24 h after creation (demo deployments use shorter, disclosed parameters; section 12).
 - Addresses and hashes: full on the certificate, in deposit instructions and in Verify; truncated `bc1q…5mdq` elsewhere.
 - Outcomes are written as sentences with the figures: “If Bitcoin is above $150,000 at 08:00 UTC on 25 Dec and the buyer pays $300,000 within two hours, your 2.00000000 BTC are delivered to the buyer, less the 880-sat network fee, and you keep the $6,000.”
-- Trust is named, not hidden: “Only the Covered contract can ask NEAR’s signing network to spend this address. Covered the company cannot. If the signing network stopped, settlement would stop with it.”
+- Trust is named, not hidden: “Only the CoveredMarket contract can ask NEAR’s signing network to spend this address. CoveredMarket the company cannot. If the signing network stopped, settlement would stop with it.”
 
 ### Annualised yield (display only, never in the contract)
 
@@ -166,30 +166,30 @@ Each check reports **verified**, **failed** or **unavailable** (RPC unreachable)
 | # | Check | Reads | Verified when |
 | --- | --- | --- | --- |
 | 1 | Deployed code and configuration | NEAR `view_code` hash, `view_access_key_list`, `get_params` | code hash equals the README’s reproducible build hash; access key list empty; `params.signer`, `params.light_client`, `params.usdc` equal the published ids |
-| 2 | Address derivation | `get_offer`, `v1.signer.public_key` (root) | browser derives `(covered.near, <seller>/CV-<n>)` → P2WPKH and it equals `offer.address` |
+| 2 | Address derivation | `get_offer`, `v1.signer.public_key` (root) | browser derives `(coveredmarket.near, <seller>/CV-<n>)` → P2WPKH and it equals `offer.address` |
 | 3 | Collateral inclusion and current status | Bitcoin RPC `gettxout`/mempool.space outspends; light client tip | deposit tx is in the main chain at depth ≥ 6 and the outpoint is unspent (before settlement) or spent by exactly the committed tx (after) |
-| 4 | Payment receipts and authorisation | NEAR receipts for the `ft_transfer_call` that set `buyer`, `claimable`, `escrow` | `sender_id == offer.buyer`, amounts ≥ premium / strike, `get_accounting()` equals the USDC balance of `covered.near` |
+| 4 | Payment receipts and authorisation | NEAR receipts for the `ft_transfer_call` that set `buyer`, `claimable`, `escrow` | `sender_id == offer.buyer`, amounts ≥ premium / strike, `get_accounting()` equals the USDC balance of `coveredmarket.near` |
 | 5 | State transitions and timestamps | NEP-297 events with block timestamps | each transition’s guard holds for the block it happened in (window, grace, timeout) |
 | 6 | Committed transaction and signature | `get_commitment(serial)`, `get_signed_tx(serial)` | browser rebuilds the unsigned tx from offer fields, its sighash equals the committed one, the witness signature verifies against the derived key |
 | 7 | Bitcoin confirmation | Bitcoin RPC | the signed tx id is in the main chain, pays the committed script the committed amount |
 
 ## Architecture overview
 
-One contract on NEAR owns the whole state machine; everything Covered itself runs sits outside the trust boundary and can be replaced by anyone running the open-source relayer.
+One contract on NEAR owns the whole state machine; everything CoveredMarket itself runs sits outside the trust boundary and can be replaced by anyone running the open-source relayer.
 
-&#91;embedded content: Covered architecture · 11 components, one trust boundary\]
+&#91;embedded content: CoveredMarket architecture · 11 components, one trust boundary\]
 
-The seller’s coins go straight to Bitcoin (left edge) and the buyer’s money goes straight to Solana or Base (right edge); neither passes through a Covered server. The relayer only forwards meta-transactions and Bitcoin proofs to `covered.near`, which alone can ask `v1.signer` for a signature on a path it owns and `btc-light-client` whether a deposit is real. Premium and strike reach the contract as NEP-141 transfers from `intents.near` after solvers fill the buyer’s 1Click order.
+The seller’s coins go straight to Bitcoin (left edge) and the buyer’s money goes straight to Solana or Base (right edge); neither passes through a CoveredMarket server. The relayer only forwards meta-transactions and Bitcoin proofs to `coveredmarket.near`, which alone can ask `v1.signer` for a signature on a path it owns and `btc-light-client` whether a deposit is real. Premium and strike reach the contract as NEP-141 transfers from `intents.near` after solvers fill the buyer’s 1Click order.
 
 ### Components
 
 | Component | Runs where | Trust | Replaceable by |
 | --- | --- | --- | --- |
-| `covered.near` (Rust, near-sdk) | NEAR mainnet / `covered.testnet` | Trusted code; no owner key | Nothing; it is the product |
+| `coveredmarket.near` (Rust, near-sdk) | NEAR mainnet / `coveredmarket.testnet` | Trusted code; no owner key | Nothing; it is the product |
 | `v1.signer` / `v1.signer-prod.testnet` | NEAR MPC network | Threshold of the participant set published in the contract | Nothing; NEAR-operated |
 | `btc-light-client` | NEAR | Bitcoin proof-of-work plus honest relayers submitting headers | Anyone can relay headers; we run our own instance if no public one is live (section 12, L2) |
 | `intents.near` + 1Click API | NEAR + chaindefuser.com | Solvers are untrusted: a fill either lands as `ft_on_transfer` or the buyer is refunded by the 1Click deadline | Direct `ft_transfer_call` of USDC on NEAR, no 1Click |
-| Relayer + indexer (TypeScript, Postgres) | Covered’s server | Untrusted | Any node running the repo’s `relayer/`; the contract works without it |
+| Relayer + indexer (TypeScript, Postgres) | CoveredMarket’s server | Untrusted | Any node running the repo’s `relayer/`; the contract works without it |
 | Frontend (static) | Any CDN | Untrusted; reads RPCs directly | A local build |
 | Price attestation (OutLayer WASM in TDX) | OutLayer workers | Trusted only for the convenience path (section 8); never for exercise | Waiting out the grace window |
 
@@ -198,7 +198,7 @@ The seller’s coins go straight to Bitcoin (left edge) and the buyer’s money 
 - **Bitcoin consensus**: 6 confirmations before a deposit counts; a deeper reorg is the only way to fake a deposit.
 - **NEAR consensus**: the contract executes as written; final after 2 blocks.
 - **MPC threshold**: a colluding threshold of `v1.signer` participants could sign anything for any path. This is the largest single assumption and the demo says so.
-- **Our code**: a bug in `covered.near` can lock or misdirect coins of open contracts. There is no admin fix; the mitigation is the test plan and small demo amounts.
+- **Our code**: a bug in `coveredmarket.near` can lock or misdirect coins of open contracts. There is no admin fix; the mitigation is the test plan and small demo amounts.
 
 ## Infrastructure and data flows
 
@@ -208,17 +208,17 @@ Every piece of information has exactly one writer; everything else reads it. The
 
 | Information | Written by | Written where | Read by | Read how |
 | --- | --- | --- | --- | --- |
-| Offer terms, state, serial | `covered.near` | NEAR state + NEP-297 events | Frontend, indexer, `Verify` | RPC `view` calls (`get_offer`, `get_offers`); indexer tails events |
-| Derived public key / deposit address | `v1.signer` (derivation), cached by `covered.near` | NEAR state | Seller’s wallet (as a QR), `Verify` (recomputed locally) | `get_address(serial)`; browser recomputes from `(covered.near, path)` and the MPC root key |
-| Bitcoin headers | Bitcoin miners; relayed by the header relayer | `btc-light-client` state | `covered.near` (inclusion), relayer (depth) | cross-contract call; `get_last_block_header` view |
-| Deposit transaction and merkle proof | Seller’s wallet (tx); relayer builds the proof | Bitcoin chain; proof passed as call args | `covered.near` | `confirm_deposit(serial, proof)`; proof from a Bitcoin Core node (`gettxoutproof`) or mempool.space `/tx/:id/merkle-proof` |
-| Buyer identity, buyer Bitcoin address | Buyer, inside `msg` of the USDC transfer | NEAR state via `ft_on_transfer` | `covered.near`, frontend | event `sold` |
-| Premium / strike payment | Solvers via `intents.near` → `usdc.ft_transfer_call` | USDC contract balances, then forwarded | `covered.near` (callback), seller’s wallet | `ft_on_transfer`; 1Click `/v0/status` for the buyer’s progress |
+| Offer terms, state, serial | `coveredmarket.near` | NEAR state + NEP-297 events | Frontend, indexer, `Verify` | RPC `view` calls (`get_offer`, `get_offers`); indexer tails events |
+| Derived public key / deposit address | `v1.signer` (derivation), cached by `coveredmarket.near` | NEAR state | Seller’s wallet (as a QR), `Verify` (recomputed locally) | `get_address(serial)`; browser recomputes from `(coveredmarket.near, path)` and the MPC root key |
+| Bitcoin headers | Bitcoin miners; relayed by the header relayer | `btc-light-client` state | `coveredmarket.near` (inclusion), relayer (depth) | cross-contract call; `get_last_block_header` view |
+| Deposit transaction and merkle proof | Seller’s wallet (tx); relayer builds the proof | Bitcoin chain; proof passed as call args | `coveredmarket.near` | `confirm_deposit(serial, proof)`; proof from a Bitcoin Core node (`gettxoutproof`) or mempool.space `/tx/:id/merkle-proof` |
+| Buyer identity, buyer Bitcoin address | Buyer, inside `msg` of the USDC transfer | NEAR state via `ft_on_transfer` | `coveredmarket.near`, frontend | event `sold` |
+| Premium / strike payment | Solvers via `intents.near` → `usdc.ft_transfer_call` | USDC contract balances, then forwarded | `coveredmarket.near` (callback), seller’s wallet | `ft_on_transfer`; 1Click `/v0/status` for the buyer’s progress |
 | 1Click quote and deposit address | 1Click API | 1Click’s own database | Buyer’s browser only | `POST /v0/quote` directly from the browser; the relayer never sees it |
-| Signature `(big_r, s, recovery_id)` | `v1.signer` MPC | Promise result into `covered.near` callback | `covered.near` | yield/resume callback; stored as `signed_tx` |
-| Signed Bitcoin transaction hex | `covered.near` | NEAR state | Relayer (broadcast), anyone (`/c/:serial`) | `get_signed_tx(serial)` |
+| Signature `(big_r, s, recovery_id)` | `v1.signer` MPC | Promise result into `coveredmarket.near` callback | `coveredmarket.near` | yield/resume callback; stored as `signed_tx` |
+| Signed Bitcoin transaction hex | `coveredmarket.near` | NEAR state | Relayer (broadcast), anyone (`/c/:serial`) | `get_signed_tx(serial)` |
 | Spend confirmation | Bitcoin chain; proof by relayer | NEAR state via `confirm_spend` | Frontend, `Verify` | event `spend_confirmed` |
-| Settlement price attestation | OutLayer enclave | Passed as call arg to `settle` | `covered.near` | signature + WASM hash check; stored for display |
+| Settlement price attestation | OutLayer enclave | Passed as call arg to `settle` | `coveredmarket.near` | signature + WASM hash check; stored for display |
 | Spot price on `/market` and `/sell` | Indexer (median of 5 public tickers, 60 s cache) | Indexer DB | Frontend | `GET /api/spot`; display only, never on chain |
 | Mempool status (0-conf) | mempool.space | — | Frontend | WebSocket `track-address` |
 | Relayer queue (proofs pending, broadcasts, retries) | Relayer | Postgres | `/ops` page | internal API |
@@ -228,11 +228,11 @@ Every piece of information has exactly one writer; everything else reads it. The
 | Piece | Runs on | Needs | Secrets held |
 | --- | --- | --- | --- |
 | Frontend | Static hosting (Vercel/Cloudflare Pages) | NEAR RPC URL, mempool.space URL, 1Click base URL, contract ids | None |
-| Relayer | One VM or container (Node 20), Postgres 15 | NEAR RPC (FastNEAR or near.org), Bitcoin Core node, mempool.space fallback | A **full-access key on `relayer.near`** (needed to sign the outer transaction of a NEP-366 meta-transaction) with a small NEAR balance; no key of any kind on `covered.near`. Direct calls (`confirm_*`, `settle`, `request_signature`) are sent from the same account |
+| Relayer | One VM or container (Node 20), Postgres 15 | NEAR RPC (FastNEAR or near.org), Bitcoin Core node, mempool.space fallback | A **full-access key on `relayer.near`** (needed to sign the outer transaction of a NEP-366 meta-transaction) with a small NEAR balance; no key of any kind on `coveredmarket.near`. Direct calls (`confirm_*`, `settle`, `request_signature`) are sent from the same account |
 | Header relayer (if we deploy the light client ourselves) | Same VM | Bitcoin Core node (`getblockheader`) | A function-call key on `relayer.near` scoped to our light-client instance’s `submit_blocks` |
 | Indexer | Same VM | NEAR RPC polling or a NEAR Lake stream; Postgres | None |
 | Bitcoin Core node | Same VM, pruned is fine for mainnet (`getblock` serves proofs while the block is retained; `gettxoutproof` needs `-txindex` or the block hash hint); testnet4 and regtest full | Disk: 10 GB pruned mainnet, 2 GB testnet4 | RPC credentials, local only |
-| Meta-transaction relay | Part of the relayer | Validates each `DelegateAction`: receiver is `covered.near`, or `params.usdc` with method `ft_transfer_call` and receiver arg `covered.near`; gas cap; per-account rate limit | Same relayer key |
+| Meta-transaction relay | Part of the relayer | Validates each `DelegateAction`: receiver is `coveredmarket.near`, or `params.usdc` with method `ft_transfer_call` and receiver arg `coveredmarket.near`; gas cap; per-account rate limit | Same relayer key |
 | Reference price | Part of the indexer; OutLayer attestation as stretch | Five exchange endpoints | None |
 | Monitoring | Uptime check on relayer; alerts when the light-client tip lags by more than 3 blocks, when any contract sits in `Committed` for more than 30 minutes, or when the contract’s NEAR balance is under 1 NEAR | — | — |
 
@@ -242,8 +242,8 @@ If the operator disappears: the frontend keeps working from any static host; any
 
 | Role | Needs | Does not need |
 | --- | --- | --- |
-| Seller | A browser; a Bitcoin wallet that can send to a `bc1q` address (any modern wallet); a NEAR account for identity, created in-browser with a passkey if they have none; a wallet on the chain where they want the premium (or just the NEAR account) | NEAR tokens for gas (meta-tx); a Bitcoin node; any Covered software |
-| Buyer | A browser; a wallet with USDC on Solana, Base or NEAR; a Bitcoin receive address they control (only used if they exercise); a NEAR account for identity, created in-browser | NEAR for gas; to understand Intents; to trust Covered’s server |
+| Seller | A browser; a Bitcoin wallet that can send to a `bc1q` address (any modern wallet); a NEAR account for identity, created in-browser with a passkey if they have none; a wallet on the chain where they want the premium (or just the NEAR account) | NEAR tokens for gas (meta-tx); a Bitcoin node; any CoveredMarket software |
+| Buyer | A browser; a wallet with USDC on Solana, Base or NEAR; a Bitcoin receive address they control (only used if they exercise); a NEAR account for identity, created in-browser | NEAR for gas; to understand Intents; to trust CoveredMarket’s server |
 | Verifier / judge | A browser; nothing else. `Verify` talks to public RPCs. Optionally the repo and a NEAR key to call `settle` themselves | An account anywhere |
 | Judge on `/try` | A browser with a passkey; the faucet gives a testnet4 wallet (in-browser, keys shown for export) and testnet USDC | Any install |
 | Developer | Rust 1.80+, `cargo-near`, Docker (regtest + sandbox), Node 20, `near-cli-rs`; a testnet account; for L2 a funded testnet4 wallet; for L4 \~0.01 BTC and \~$50 USDC on a team wallet | Mainnet access before L4 |
@@ -256,7 +256,7 @@ If the operator disappears: the frontend keeps working from any static host; any
 
 ## Contract design
 
-`covered.near` is a single Rust contract (near-sdk 5.x) with no owner. Its job is to be a state machine whose only side effects are two cross-contract calls: `verify_transaction_inclusion` on the light client and `sign` on `v1.signer`. Everything else (listing, matching, indexing) is off-chain and advisory.
+`coveredmarket.near` is a single Rust contract (near-sdk 5.x) with no owner. Its job is to be a state machine whose only side effects are two cross-contract calls: `verify_transaction_inclusion` on the light client and `sign` on `v1.signer`. Everything else (listing, matching, indexing) is off-chain and advisory.
 
 ### State machine
 
@@ -321,7 +321,7 @@ Commitment { to_script: Vec<u8>, amount_sats: u64, unsigned_tx: Vec<u8>, sighash
 | Method | Kind | Gas budget | Notes |
 | --- | --- | --- | --- |
 | `new(params)` | init, once | — | The deployer then deletes its full-access key; the code has no method that adds keys, deploys code or changes params |
-| `create_offer(terms) -> serial` | call, payable (storage) | 30 Tgas + 1 view promise | `derived_public_key(path, covered.near)` on the signer; address stored in the `#[private]` callback; offer unusable until then |
+| `create_offer(terms) -> serial` | call, payable (storage) | 30 Tgas + 1 view promise | `derived_public_key(path, coveredmarket.near)` on the signer; address stored in the `#[private]` callback; offer unusable until then |
 | `confirm_deposit(serial, proof)` / `confirm_spend(serial, proof)` / `recover(serial, proof)` | call | 60 Tgas + light client promise | proof per section 7; the contract parses the raw tx and computes the non-witness txid itself |
 | `withdraw(serial)` / `settle(serial)` | call | 120 Tgas + sign promise | build commitment, store it, then `sign`; the callback only records the result |
 | `request_signature(serial)` | call | 100 Tgas + sign promise | retry with the stored sighash |
@@ -333,13 +333,13 @@ Commitment { to_script: Vec<u8>, amount_sats: u64, unsigned_tx: Vec<u8>, sighash
 
 ### Key derivation
 
-The MPC root public key is fixed per network. For a NEAR account `A` and path `p`, the derived secp256k1 public key is `root + H("near-mpc-recovery v0.1.0 epsilon derivation:" || A || "," || p) · G` (the epsilon scheme used by `chainsig.js`; confirm the exact prefix string against the signer contract version at build time). The contract computes it once via the signer’s `derived_public_key` view and stores it; `Verify` recomputes it in the browser from `A = covered.near` and `p = <seller>/CV-<serial>` and must get the same address. That recomputation is what proves no one else can have the key.
+The MPC root public key is fixed per network. For a NEAR account `A` and path `p`, the derived secp256k1 public key is `root + H("near-mpc-recovery v0.1.0 epsilon derivation:" || A || "," || p) · G` (the epsilon scheme used by `chainsig.js`; confirm the exact prefix string against the signer contract version at build time). The contract computes it once via the signer’s `derived_public_key` view and stores it; `Verify` recomputes it in the browser from `A = coveredmarket.near` and `p = <seller>/CV-<serial>` and must get the same address. That recomputation is what proves no one else can have the key.
 
 ### Bitcoin transaction built by the contract
 
 One input: the collateral outpoint. One output: `collateral.value − fee_sats` to the committed script. `fee_sats` is an immutable param (plan: 1,000 sats mainnet, covering \~9 sat/vB at 110 vB; 300 sats testnet4). Sighash is BIP-143 `SIGHASH_ALL` over the collateral’s `scriptCode` and value. The MPC returns `(big_r, s, recovery_id)`; the contract verifies the signature against `derived_pubkey` for the committed sighash before accepting it, normalises `s` to low-S, DER-encodes, appends `0x01`, assembles the witness `[sig, derived_pubkey]` and stores the final hex. The txid stored in the commitment is the non-witness double-SHA256, computed before signing, so `confirm_spend` can match it. No change output, no RBF flag, `nLockTime = 0`, version 2. The recipient script may be P2WPKH or P2WSH (both 1-output shapes are 110 vB or 121 vB; `fee_sats` covers either).
 
-### Events (NEP-297, standard `covered`, version `1.0.0`)
+### Events (NEP-297, standard `coveredmarket`, version `1.0.0`)
 
 `offer_created`, `funded`, `sold`, `strike_paid`, `signature_requested`, `signed`, `spend_confirmed`, `cancelled`, each carrying `serial` and the fields that changed. The indexer and `Verify` consume only these.
 
@@ -374,15 +374,15 @@ Money reaches the contract in exactly one way: a NEP-141 `ft_transfer_call` of U
 ### Premium
 
 1. The buyer has USDC in their own NEAR account. If it is on Solana or Base, the frontend offers 1Click with `destinationAsset = nep141:<usdc>`, `recipientType = DESTINATION_CHAIN`, `recipient = <buyer NEAR account>`; this is a swap into the buyer’s wallet and the contract never sees it ([1Click API](https://docs.near-intents.org/near-intents/1click-api)).
-2. The buyer calls `usdc.ft_transfer_call(covered.near, premium, msg = {"serial":37,"btc_script":"0014…"})` from that account (through the relayer as a meta-transaction if they hold no NEAR).
-3. `covered.near.ft_on_transfer` runs inside the token contract’s receipt: checks `predecessor == params.usdc`, serial is `Funded`, `amount ≥ premium`, `now < expiry − buy_cutoff`; writes `buyer = sender_id`, `buyer_script`, `claimable[seller] += premium`; returns `amount − premium` so the token contract refunds any excess. No promise is created. The purchase is final when this receipt succeeds.
+2. The buyer calls `usdc.ft_transfer_call(coveredmarket.near, premium, msg = {"serial":37,"btc_script":"0014…"})` from that account (through the relayer as a meta-transaction if they hold no NEAR).
+3. `coveredmarket.near.ft_on_transfer` runs inside the token contract’s receipt: checks `predecessor == params.usdc`, serial is `Funded`, `amount ≥ premium`, `now < expiry − buy_cutoff`; writes `buyer = sender_id`, `buyer_script`, `claimable[seller] += premium`; returns `amount − premium` so the token contract refunds any excess. No promise is created. The purchase is final when this receipt succeeds.
 4. The seller calls `claim()` whenever they like; the contract zeroes the balance, calls `usdc.ft_transfer(seller, amount)`, and restores the balance in a `#[private]` callback if the transfer failed (for example, missing storage deposit on the token).
 
 Why not deliver straight from Intents into the contract: `recipientType = INTENTS` credits an account inside Intents, not a NEAR contract, and `customRecipientMsg` on a withdrawal to NEAR arrives from the Intents contract, so `sender_id` would be an intermediary, not the buyer. An account name inside `msg` is not authorisation. Requiring `sender_id == buyer` for both purchase and exercise is the whole identity model, and it costs the buyer one extra click.
 
 ### Strike (exercise)
 
-Inside the window `expiry ≤ block_timestamp < expiry + grace`, the buyer calls `ft_transfer_call(covered.near, strike_total, msg = {"serial":37,"exercise":true})` from the buyer account. `ft_on_transfer` checks `sender_id == buyer`, the window, `amount ≥ strike_total` and that no commitment exists; it sets `escrow = strike_total`, state `ExercisePending`, returns the excess, and then (as the only promise this method ever makes) asks the light client for the collateral’s current depth. The `#[private]` callback either commits delivery to `buyer_script` and requests the signature, or, if depth is insufficient or the light client is stale, moves the escrow to `claimable[buyer]` and returns the state to `Sold`. A late payment (receipt executes at or after `expiry + grace`) is refused in full by the same guard; the tokens never leave the buyer. Paying is exercising; there is no other exercise path.
+Inside the window `expiry ≤ block_timestamp < expiry + grace`, the buyer calls `ft_transfer_call(coveredmarket.near, strike_total, msg = {"serial":37,"exercise":true})` from the buyer account. `ft_on_transfer` checks `sender_id == buyer`, the window, `amount ≥ strike_total` and that no commitment exists; it sets `escrow = strike_total`, state `ExercisePending`, returns the excess, and then (as the only promise this method ever makes) asks the light client for the collateral’s current depth. The `#[private]` callback either commits delivery to `buyer_script` and requests the signature, or, if depth is insufficient or the light client is stale, moves the escrow to `claimable[buyer]` and returns the state to `Sold`. A late payment (receipt executes at or after `expiry + grace`) is refused in full by the same guard; the tokens never leave the buyer. Paying is exercising; there is no other exercise path.
 
 ### Seller payout
 
@@ -404,18 +404,18 @@ The certificate shows a reference price at expiry (median of Coinbase, Kraken, B
 
 ### Gas and who pays it
 
-Seller and buyer transactions can go through the relayer as NEP-366 meta-transactions: the user signs a `DelegateAction` (for example a `FunctionCall` on `usdc` or on `covered.near`), and `relayer.near` wraps it in a transaction it pays for. That needs a full-access key on `relayer.near` itself (a function-call key cannot sign a `Delegate` action); the relayer holds that key and a small NEAR balance, and nothing on `covered.near`. The relayer accepts only delegate actions whose receiver is `covered.near` or `params.usdc` with `ft_transfer_call` to `covered.near`. `settle`, `confirm_deposit`, `confirm_spend` and `request_signature` are called by the relayer on a timer and by anyone from `/c/:serial`. The NEAR attached to `sign` comes from the contract’s balance; `fund()` lets anyone top it up and `Verify` check 1 shows the balance, because an empty reserve is a liveness failure.
+Seller and buyer transactions can go through the relayer as NEP-366 meta-transactions: the user signs a `DelegateAction` (for example a `FunctionCall` on `usdc` or on `coveredmarket.near`), and `relayer.near` wraps it in a transaction it pays for. That needs a full-access key on `relayer.near` itself (a function-call key cannot sign a `Delegate` action); the relayer holds that key and a small NEAR balance, and nothing on `coveredmarket.near`. The relayer accepts only delegate actions whose receiver is `coveredmarket.near` or `params.usdc` with `ft_transfer_call` to `coveredmarket.near`. `settle`, `confirm_deposit`, `confirm_spend` and `request_signature` are called by the relayer on a timer and by anyone from `/c/:serial`. The NEAR attached to `sign` comes from the contract’s balance; `fund()` lets anyone top it up and `Verify` check 1 shows the balance, because an empty reserve is a liveness failure.
 
 ## Security model
 
-The guarantee Covered makes is narrow and checkable, and it is conditional: **given an honest `v1.signer` threshold, a correct `covered.near` and a light client that tracks the real Bitcoin chain, the collateral outpoint can be spent only by the one transaction the contract committed for it, and that commitment is to the seller’s refund script unless the buyer paid the strike inside the exercise window.** Everything below is either a reason that holds or a reason it might not.
+The guarantee CoveredMarket makes is narrow and checkable, and it is conditional: **given an honest `v1.signer` threshold, a correct `coveredmarket.near` and a light client that tracks the real Bitcoin chain, the collateral outpoint can be spent only by the one transaction the contract committed for it, and that commitment is to the seller’s refund script unless the buyer paid the strike inside the exercise window.** Everything below is either a reason that holds or a reason it might not.
 
 ### Trust assumptions
 
 | Assumption | What breaks if false | Residual risk accepted |
 | --- | --- | --- |
 | `v1.signer` only signs for `(predecessor, path)` when that predecessor calls it, and a threshold of its participants is honest | A colluding threshold can sign any spend from any derived address: total loss across all open contracts | Yes; it is NEAR’s stated model and the same assumption every Chain Signatures product makes. Stated on the certificate page |
-| NEAR executes `covered.near` as deployed and the code hash never changes | Terms or signing rules could change under users | Guaranteed by deleting the full-access key; `Verify` check 2 |
+| NEAR executes `coveredmarket.near` as deployed and the code hash never changes | Terms or signing rules could change under users | Guaranteed by deleting the full-access key; `Verify` check 2 |
 | The Bitcoin light client’s main chain is the real heaviest chain at depth ≥ 6 | A fake deposit could be “proven”, selling a call backed by nothing; buyer loses the premium, nothing more (no coins to steal) | Yes; a 6-block Bitcoin reorg or a captured light client with no honest relayer |
 | USDC on NEAR is the token contract we pinned | A fake token could “pay” a premium or strike | None; the contract checks `predecessor == params.usdc` |
 | Intents solvers deliver or 1Click refunds by the deadline | Buyer’s money is stuck or late; no effect on coins | Buyer-side risk only, bounded by 1Click’s refund rules |
@@ -428,7 +428,7 @@ The guarantee Covered makes is narrow and checkable, and it is conditional: **gi
 - **G3 Exercise is payment.** A delivery commitment to the buyer is created only in a receipt where `sender_id == buyer`, `amount ≥ strike_total`, the window is open, and a depth re-check succeeded.
 - **G4 Purchase is final.** The premium is credited to the seller in the same receipt that records the buyer; there is no pending state between them.
 - **G5 One spend per outpoint.** A commitment is written before the first signature request and never replaced; every retry requests the same sighash; the contract never authorises two conflicting spends of the same outpoint, and a recovered or settled outpoint can never become collateral.
-- **G6 Public verifiability.** Each guarantee maps to a `Verify` check that reads Bitcoin and NEAR directly; no Covered endpoint is in the loop. Observable facts (empty key list, code hash, balances) are distinguished from code-enforced properties (no upgrade method, invariants) and from external assumptions (MPC, light client).
+- **G6 Public verifiability.** Each guarantee maps to a `Verify` check that reads Bitcoin and NEAR directly; no CoveredMarket endpoint is in the loop. Observable facts (empty key list, code hash, balances) are distinguished from code-enforced properties (no upgrade method, invariants) and from external assumptions (MPC, light client).
 
 ### Non-guarantees (said out loud in the product)
 
@@ -480,7 +480,7 @@ These are the four lines a reviewer should read first in `settlement.rs`.
 
 ## Privacy
 
-Covered is public by default, and the site should say so rather than imply otherwise: verifiability and privacy pull in opposite directions, and for now verifiability wins.
+CoveredMarket is public by default, and the site should say so rather than imply otherwise: verifiability and privacy pull in opposite directions, and for now verifiability wins.
 
 | Data | Visible to | Where | Could it be hidden later |
 | --- | --- | --- | --- |
@@ -529,11 +529,11 @@ Effort estimate, two engineers plus one on frontend:
 | Fee spike on mainnet above `fee_sats_per_vb` | Low | Low | 8 sat/vB plus CPFP by recipient | — |
 | Gas limit exceeded on `settle` (sighash + sign promise) | Low | Medium | Sighash is cheap; measured in L1 with `near-workspaces` gas reports | Day 2 |
 | OutLayer attestation not ready | High | Low | Drop; grace-window settlement is the primary path anyway | Day 5 |
-| Name/trademark conflict on “Covered” | Unknown | Low | Not checked; rename is a find-and-replace in tokens.json | — |
+| Name/trademark conflict on “CoveredMarket” | Unknown | Low | Not checked; rename is a find-and-replace in tokens.json | — |
 
 ### Utility check against the selection criteria
 
-- Real problem, worse today: covered calls on BTC are offered by custodial venues (Deribit, OKX, Binance) and, non-custodially, by DLC products (Atomic Finance ran DLC covered calls; 10101 and Lendasat use DLCs for loans). DLCs need an oracle to attest the price, both parties online and interactive at setup, and cash settlement in BTC; they cannot take a premium from Solana. Covered needs no oracle at settlement, the seller is non-interactive after the deposit, delivery is physical, and the buyer pays from any chain via their NEAR account. That is the difference, not “only way”.
+- Real problem, worse today: covered calls on BTC are offered by custodial venues (Deribit, OKX, Binance) and, non-custodially, by DLC products (Atomic Finance ran DLC covered calls; 10101 and Lendasat use DLCs for loans). DLCs need an oracle to attest the price, both parties online and interactive at setup, and cash settlement in BTC; they cannot take a premium from Solana. CoveredMarket needs no oracle at settlement, the seller is non-interactive after the deposit, delivery is physical, and the buyer pays from any chain via their NEAR account. That is the difference, not “only way”.
 - Tech is the hard part: without a contract-held Bitcoin key with on-chain policy there is no non-interactive, oracle-free version; Chain Signatures is the production system that provides that today.
 - Buyer motivation (the weaker side): a buyer gets identifiable collateral they can verify before paying, a window to exercise after seeing the expiry price, and no venue account. They accept manual exercise, full strike funding, a 7-day worst-case settlement delay, no resale, and MPC risk. The first buyers are therefore people who already want physical BTC at a known price (treasuries, miners hedging), not retail speculators. Who quotes executable premiums is open (section 14, #11).
 - Payoff, stated plainly: the seller keeps all downside of holding BTC, caps the upside at the strike, and earns the premium; this implementation adds MPC and contract risk on top. “Annualised premium” is a yield on the strike decision, not an expected return; the “10–20%” figure is removed from the pitch unless sourced from Deribit’s own term structure on the recording day.
@@ -582,7 +582,7 @@ Gate: a premium paid from a Phantom wallet lands as `ft_on_transfer` and the sel
 
 ### L4 — Mainnet dry run (days 7–8)
 
-What changes: deploy `covered.near` with the mainnet params, delete the full-access key on camera, fund the signer deposit balance. Run one contract with 0.001 BTC, strike $40,000 (strike total $40) and a $5 premium through KEPT, and one through EXERCISED, between team wallets. Aggregate cap for the whole level: 0.01 BTC and $100 USDC. Mainnet happens only if every L0–L3 gate passed; otherwise the submission is testnet-only and says so.
+What changes: deploy `coveredmarket.near` with the mainnet params, delete the full-access key on camera, fund the signer deposit balance. Run one contract with 0.001 BTC, strike $40,000 (strike total $40) and a $5 premium through KEPT, and one through EXERCISED, between team wallets. Aggregate cap for the whole level: 0.01 BTC and $100 USDC. Mainnet happens only if every L0–L3 gate passed; otherwise the submission is testnet-only and says so.
 
 Gate: both Bitcoin mainnet transactions confirmed; `Verify` green on mainnet; `view_access_key_list` empty; transcripts and explorer links saved for the film.
 
@@ -593,8 +593,8 @@ Record the film against the real mainnet contract (the CV-0037 numbers in the br
 ### Repository layout
 
 ```
-covered/
-  contracts/covered/        near-sdk Rust, no-std bitcoin
+coveredmarket/
+  contracts/coveredmarket/        near-sdk Rust, no-std bitcoin
   contracts/mock-signer/    L1 only
   contracts/mock-btc-client/ L1 only
   relayer/                  TypeScript: header relay, proofs, meta-tx, broadcast, indexer
@@ -655,7 +655,7 @@ Tests are organised by level so that a failure tells you which assumption broke.
 ### L4–L5 — mainnet and rehearsal
 
 - Two real contracts (KEPT, EXERCISED) at 0.001 BTC with full transcripts.
-- `near view-state covered.near` and `view_access_key_list` saved as evidence.
+- `near view-state coveredmarket.near` and `view_access_key_list` saved as evidence.
 - The judge flow rehearsed twice from a clean browser profile, timed; target under 6 minutes excluding Bitcoin confirmation.
 - Film reviewed by someone outside the team for any claim not backed by a transcript.
 
@@ -684,7 +684,7 @@ Each item has an owner-less default so work never blocks; the default stands unl
 | 7 | Is the P2WSH CSV exit (F15) worth the day? | Build it only if all core gates passed by day 4 | Day 4 |
 | 8 | Buyer NEAR identity for a Solana-native user: passkey account created in the browser, funded via 1Click | Passkey account; `sender_id` is that account | Day 3 |
 | 9 | `fee_sats` for mainnet | 1,000 sats; re-read mempool.space on day 7 and raise if the 1-hour floor exceeds 8 sat/vB | Day 7 |
-| 10 | Name and trademark check for “Covered” | Unchecked; rename is a tokens.json change | — |
+| 10 | Name and trademark check for “CoveredMarket” | Unchecked; rename is a tokens.json change | — |
 | 11 | Who quotes executable premiums at launch, and the fee model | Sellers quote; zero fee; mention once | — |
 
 ### Sources
@@ -693,7 +693,7 @@ Each item has an owner-less default so work never blocks; the default stands unl
 - [NEAR Intents 1Click API](https://docs.near-intents.org/near-intents/1click-api): quote fields, `recipientType`, statuses, `customRecipientMsg` warning, 0.1% fee without JWT.
 - [Omni Bridge implementation details](https://docs.near.org/chain-abstraction/omnibridge/implementation-details): Bitcoin requires full transaction signing; light-client trust model.
 - [Near-One/btc-light-client-contract](https://github.com/Near-One/btc-light-client-contract): contract, relayer and merkle tools.
-- [Covered design canvas](https://claude.ai/artifact/4az4t9r5WgTNMnXLEpy5ES) and [design system](https://claude.ai/artifact/1gormfHod4MU3fRZuTRF2m); project docs *Covered — Demo Brief* and *Covered — Brand Identity*.
+- [CoveredMarket design canvas](https://claude.ai/artifact/4az4t9r5WgTNMnXLEpy5ES) and [design system](https://claude.ai/artifact/1gormfHod4MU3fRZuTRF2m); project docs *CoveredMarket — Demo Brief* and *CoveredMarket — Brand Identity*.
 
 
 ## Addendum — mainnet hardening (6 Nov 2026)
@@ -708,4 +708,4 @@ These changes supersede the corresponding parts above where they differ.
 
 **Caps and depth.** `max_size_sats` per deployment; `min_conf` 3 on mainnet. All parameters per network live in `params/*.json`.
 
-**Signing check.** `selftest_sign()` signs a constant under the reserved path `covered/selftest` and verifies it against the derived key on chain; the mainnet deploy aborts before deleting the key if it fails.
+**Signing check.** `selftest_sign()` signs a constant under the reserved path `coveredmarket/selftest` and verifies it against the derived key on chain; the mainnet deploy aborts before deleting the key if it fails.

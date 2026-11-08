@@ -1,4 +1,4 @@
-/** Sandbox-only helper: create `<name>.<root>` funded with NEAR and mock USDC. Never enabled outside `covered up`. */
+/** Sandbox-only helper: create `<name>.<root>` funded with NEAR and mock USDC. Never enabled outside `coveredmarket up`. */
 import { Account } from "@near-js/accounts";
 import { KeyPair, PublicKey } from "@near-js/crypto";
 import { JsonRpcProvider } from "@near-js/providers";

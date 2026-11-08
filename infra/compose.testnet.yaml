@@ -1,4 +1,4 @@
-# Cloud first start on testnet: build the wasm and run the testnet bootstrap once (`bin/covered serve`).
+# Cloud first start on testnet: build the wasm and run the testnet bootstrap once (`bin/coveredmarket serve`).
 services:
   contracts:
     restart: "no"

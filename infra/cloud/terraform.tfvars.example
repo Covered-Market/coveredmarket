@@ -1,16 +1,16 @@
 # Minimum: a DigitalOcean API token and the public half of a deploy key (ssh-keygen -t ed25519 -f deploy_key -N "").
 do_token      = "dop_v1_..."
-deploy_pubkey = "ssh-ed25519 AAAA... covered-deploy"
+deploy_pubkey = "ssh-ed25519 AAAA... coveredmarket-deploy"
 
 # Optional. Without a domain the site is https://<ip-with-dashes>.sslip.io (real TLS, no DNS to set up).
-# Adding or changing it later: set it here, `bin/covered provision` (DNS only; the VM is kept).
-# domain = "covered.example"
+# Adding or changing it later: set it here, `bin/coveredmarket provision` (DNS only; the VM is kept).
+# domain = "coveredmarket.example"
 
 # Optional: also let in an SSH key already in your DigitalOcean account.
 # ssh_key_name = "my-laptop"
 
 # Optional: a production .env (see .env.example). Leave out on testnet: the VM then creates its own throwaway
-# testnet accounts, deploys and locks `covered` against the real MPC signer and light client, and a mock USDC.
+# testnet accounts, deploys and locks `coveredmarket` against the real MPC signer and light client, and a mock USDC.
 # env_file = <<EOT
 # ...
 # EOT

@@ -1,4 +1,4 @@
-"""Engraved mark v2 for Covered, plus a kerned wordmark via HarfBuzz."""
+"""Engraved mark v2 for CoveredMarket, plus a kerned wordmark via HarfBuzz."""
 import math, os
 import uharfbuzz as hb
 from fontTools.ttLib import TTFont
@@ -117,10 +117,16 @@ def svg(w, h, body, bg=None):
 
 def wordmark(x, y, size, ink, caps=False):
     if caps:
-        d, w = shaped_path('COVERED', *FRAUNCES, size * 0.78, x, y, tracking=0.14)
+        d, w = shaped_path('COVEREDMARKET', *FRAUNCES, size * 0.78, x, y, tracking=0.14)
     else:
-        d, w = shaped_path('Covered', *FRAUNCES, size, x, y, tracking=-0.004)
+        # Fraunces has no d–M kern, so their serifs collide; open the pair to match r–k.
+        d1, w1 = shaped_path('Covered', *FRAUNCES, size, x, y, tracking=-0.004)
+        gap = DM_KERN * size
+        d2, w2 = shaped_path('Market', *FRAUNCES, size, x + w1 + gap, y, tracking=-0.004)
+        d, w = d1 + ' ' + d2, w1 + gap + w2
     return f'<path d="{d}" fill="{ink}"/>', w
+
+DM_KERN = 0.025  # em, extra space between the d and M of CoveredMarket
 
 if __name__ == '__main__':
     os.makedirs('previews', exist_ok=True)

@@ -1,6 +1,6 @@
 # Patterns
 
-The engraved textures, all under `assets/Patterns/`, all single-ink SVGs drawn by code. They are what makes a Covered surface look like a security rather than a web page.
+The engraved textures, all under `assets/Patterns/`, all single-ink SVGs drawn by code. They are what makes a CoveredMarket surface look like a security rather than a web page.
 
 | Pattern | File | Where |
 |---|---|---|

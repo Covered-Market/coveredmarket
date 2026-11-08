@@ -1,5 +1,5 @@
 # Local overlay: a NEAR sandbox, a Bitcoin regtest node, the contracts built to wasm,
-# and a bootstrap that deploys and wires everything. `covered up` = compose with both files.
+# and a bootstrap that deploys and wires everything. `coveredmarket up` = compose with both files.
 services:
   near-sandbox:
     build: ./local/sandbox
@@ -15,12 +15,12 @@ services:
     image: bitcoin/bitcoin:29.5
     command: >
       bitcoind -regtest -server -txindex -fallbackfee=0.0001 -rpcbind=0.0.0.0 -rpcallowip=0.0.0.0/0
-      -rpcuser=covered -rpcpassword=covered -printtoconsole
+      -rpcuser=coveredmarket -rpcpassword=coveredmarket -printtoconsole
     ports: ["18443:18443"]
     volumes:
       - bitcoin_data:/home/bitcoin/.bitcoin
     healthcheck:
-      test: ["CMD", "bitcoin-cli", "-regtest", "-rpcuser=covered", "-rpcpassword=covered", "getblockchaininfo"]
+      test: ["CMD", "bitcoin-cli", "-regtest", "-rpcuser=coveredmarket", "-rpcpassword=coveredmarket", "getblockchaininfo"]
       interval: 5s
       timeout: 5s
       retries: 60
@@ -54,8 +54,8 @@ services:
     environment:
       BTC_BACKEND: core
       BITCOIN_RPC: http://bitcoind:18443
-      BITCOIN_RPC_USER: covered
-      BITCOIN_RPC_PASS: covered
+      BITCOIN_RPC_USER: coveredmarket
+      BITCOIN_RPC_PASS: coveredmarket
       LIGHT_CLIENT_MOCK: "1"
       TICK_MS: "5000"
       FIXED_SPOT_USD: "97420"

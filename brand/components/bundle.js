@@ -1,4 +1,4 @@
-/* @ds-bundle: {"format":4,"namespace":"Covered","components":[{"name":"Button"},{"name":"Stamp"},{"name":"Figure"},{"name":"Coin"},{"name":"Field"},{"name":"StatTile"},{"name":"OfferCard"},{"name":"PositionsTable"},{"name":"Countdown"},{"name":"SettlementTimeline"},{"name":"Notice"},{"name":"TopBar"},{"name":"Certificate"},{"name":"Mark"}]} */
+/* @ds-bundle: {"format":4,"namespace":"CoveredMarket","components":[{"name":"Button"},{"name":"Stamp"},{"name":"Figure"},{"name":"Coin"},{"name":"Field"},{"name":"StatTile"},{"name":"OfferCard"},{"name":"PositionsTable"},{"name":"Countdown"},{"name":"SettlementTimeline"},{"name":"Notice"},{"name":"TopBar"},{"name":"Certificate"},{"name":"Mark"}]} */
 (function () {
   var R = window.React, h = R.createElement;
   function cx() { var out = []; for (var i = 0; i < arguments.length; i++) if (arguments[i]) out.push(arguments[i]); return out.join(' '); }
@@ -11,7 +11,7 @@
     var cx = 32, cy = 33.5, r = 25, k = small ? 0.45 : 0.5, gap = small ? 5 : 3.5;
     if (state === 'kept') gap = small ? 2.2 : 1.4; if (state === 'exercised') gap = small ? 9 : 7;
     var ch = cy - k * r, hw = Math.sqrt(r * r - (cy - ch) * (cy - ch));
-    return h('svg', { width: size, height: size, viewBox: '0 0 64 64', 'aria-label': 'Covered', style: p.style, className: p.className },
+    return h('svg', { width: size, height: size, viewBox: '0 0 64 64', 'aria-label': 'CoveredMarket', style: p.style, className: p.className },
       h('path', { fill: body, d: 'M' + (cx - hw) + ',' + ch + ' A' + r + ',' + r + ' 0 1 0 ' + (cx + hw) + ',' + ch + ' Z' }),
       h('path', { fill: cap, d: 'M' + (cx - hw) + ',' + (ch - gap) + ' A' + r + ',' + r + ' 0 0 1 ' + (cx + hw) + ',' + (ch - gap) + ' Z' }));
   }
@@ -153,7 +153,7 @@
   function TopBar(p) {
     var items = p.items || [];
     return h('header', { className: cx('cv-topbar', p.className) },
-      h('a', { className: 'cv-topbar__brand', href: p.href || '#' }, h(Mark, { tone: 'two-tone', size: 28 }), h('span', { className: 'cv-topbar__word' }, 'Covered')),
+      h('a', { className: 'cv-topbar__brand', href: p.href || '#' }, h(Mark, { tone: 'two-tone', size: 28 }), h('span', { className: 'cv-topbar__word' }, 'CoveredMarket')),
       h('nav', { className: 'cv-topbar__nav' }, items.map(function (it) { return h('a', { key: it.label, href: it.href || '#', className: cx('cv-topbar__link', it.on && 'cv-topbar__link--on') }, it.label); })),
       h('div', { className: 'cv-topbar__right' }, p.children));
   }
@@ -188,9 +188,9 @@
           h('span', { className: 'cv-cert__k' }, 'Coins at'), h('span', { className: 'cv-cert__addr' }, c.vault),
           h('span', { className: 'cv-cert__k' }, 'Status'), h(Stamp, { status: c.status || 'open' }))),
       h('footer', { className: 'cv-cert__foot' },
-        h('div', { className: 'cv-cert__parties' }, 'Seller ', h('b', null, c.seller), ' · Buyer ', h('b', null, c.buyer || '—'), h('br'), 'Contract ', h('span', { className: 'cv-mono' }, c.contractId || 'covered.near'), ' · settles by Chain Signatures'),
+        h('div', { className: 'cv-cert__parties' }, 'Seller ', h('b', null, c.seller), ' · Buyer ', h('b', null, c.buyer || '—'), h('br'), 'Contract ', h('span', { className: 'cv-mono' }, c.contractId || 'coveredmarket.near'), ' · settles by Chain Signatures'),
         h('div', { className: 'cv-row' }, p.children)));
   }
 
-  window.Covered = { Button: Button, Stamp: Stamp, Figure: Figure, Coin: Coin, Field: Field, StatTile: StatTile, OfferCard: OfferCard, PositionsTable: PositionsTable, Countdown: Countdown, SettlementTimeline: SettlementTimeline, Notice: Notice, TopBar: TopBar, Certificate: Certificate, Mark: Mark };
+  window.CoveredMarket = { Button: Button, Stamp: Stamp, Figure: Figure, Coin: Coin, Field: Field, StatTile: StatTile, OfferCard: OfferCard, PositionsTable: PositionsTable, Countdown: Countdown, SettlementTimeline: SettlementTimeline, Notice: Notice, TopBar: TopBar, Certificate: Certificate, Mark: Mark };
 })();

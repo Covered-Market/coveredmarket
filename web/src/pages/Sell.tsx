@@ -73,7 +73,7 @@ export function Sell({ wallet }: { wallet: Wallet }) {
           <div><div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)", marginBottom: 6 }}>If the buyer does not pay</div><div className="body">You keep the <b>{s.toFixed(8)} BTC</b> (less the {params?.fee_sats ?? 1000}-sat network fee) and the <b>{usd(pr * 1e6)}</b>.</div><div style={{ marginTop: 8 }}><Stamp status="kept" flat /></div></div>
           <div><div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)", marginBottom: 6 }}>If the buyer pays {usd(s * k * 1e6)}</div><div className="body">Your coins are delivered to the buyer; you receive the strike plus the <b>{usd(pr * 1e6)}</b> you already have.</div><div style={{ marginTop: 8 }}><Stamp status="exercised" flat /></div></div>
         </div>
-        <Notice>The contract can sign your coins only after expiry, or to the buyer once the strike is paid. Signatures come from NEAR's MPC network, not from Covered. The network fee is borne by whoever receives the coins.</Notice>
+        <Notice>The contract can sign your coins only after expiry, or to the buyer once the strike is paid. Signatures come from NEAR's MPC network, not from CoveredMarket. The network fee is borne by whoever receives the coins.</Notice>
       </div>
     </div>
   );

@@ -68,7 +68,7 @@ for (const url of ["https://helper.testnet.near.org/account", "https://helper.ne
 if (created) {
   await new Promise((r) => setTimeout(r, 3000));
   const acc = new Account(id, p, new KeyPairSigner(KeyPair.fromString(kp.toString())));
-  const payload = createHash("sha256").update("covered probe").digest();
+  const payload = createHash("sha256").update("coveredmarket probe").digest();
   for (const [label, request, gas] of [
     ["payload_v2+domain_id 300T", { payload_v2: { Ecdsa: payload.toString("hex") }, path: "probe/CV-1", domain_id: 0 }, 300n],
     ["legacy payload+key_version 300T", { payload: [...payload], path: "probe/CV-1", key_version: 0 }, 300n],

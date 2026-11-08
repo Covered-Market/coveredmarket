@@ -1,11 +1,11 @@
 /**
- * Deploy Covered to NEAR mainnet and lock it. Real money: run it deliberately, read every line it prints.
+ * Deploy CoveredMarket to NEAR mainnet and lock it. Real money: run it deliberately, read every line it prints.
  *
- *   cargo near build non-reproducible-wasm --manifest-path contracts/covered/Cargo.toml
+ *   cargo near build non-reproducible-wasm --manifest-path contracts/coveredmarket/Cargo.toml
  *   DEPLOYER_ID=you.near DEPLOYER_KEY=ed25519:… npx tsx scripts/deploy-mainnet.ts
  *
  * 1. Read-only preflight (the same facts as e2e/probe-mainnet.ts): signer derivation, light client lag, USDC.
- * 2. Create `covered.<deployer>` (6 NEAR) and `covered-relayer.<deployer>` (RELAYER_NEAR, default 5), deploy,
+ * 2. Create `coveredmarket.<deployer>` (6 NEAR) and `coveredmarket-relayer.<deployer>` (RELAYER_NEAR, default 5), deploy,
  *    init with params/mainnet.json + the live signer root key, register the contract with USDC.
  * 3. selftest_sign: the contract asks the real MPC to sign and verifies the answer on chain. If that fails the
  *    script STOPS with the contract's key still present, so nothing is locked half-working.
@@ -23,7 +23,7 @@ const SIGNER = "v1.signer", LC = "btc-client.bridge.near", USDC = "17208628f84f5
 const NEAR = 10n ** 24n, TGAS = 10n ** 12n;
 const deployerId = process.env.DEPLOYER_ID, deployerKey = process.env.DEPLOYER_KEY;
 if (!deployerId || !deployerKey) { console.error("set DEPLOYER_ID and DEPLOYER_KEY (a funded mainnet account)"); process.exit(2); }
-const wasmPath = new URL("../target/near/covered/covered.wasm", import.meta.url);
+const wasmPath = new URL("../target/near/coveredmarket/coveredmarket.wasm", import.meta.url);
 if (!existsSync(wasmPath)) { console.error("build the wasm first (see the header)"); process.exit(2); }
 const p = new JsonRpcProvider({ url: RPC }, { retries: 6, wait: 1500, backoff: 1.6 });
 const view = async (c: string, m: string, a: object = {}) => JSON.parse(Buffer.from(((await p.query({ request_type: "call_function", account_id: c, method_name: m, args_base64: Buffer.from(JSON.stringify(a)).toString("base64"), finality: "final" })) as any).result).toString() || "null");
@@ -37,7 +37,7 @@ console.log({ signer_version: await view(SIGNER, "version").catch(() => "?"), ro
 if (md.decimals !== 6) throw new Error("USDC decimals changed");
 
 const deployer = new Account(deployerId, p, new KeyPairSigner(KeyPair.fromString(deployerKey as any)));
-const covId = process.env.CONTRACT_ID ?? `covered.${deployerId}`, relId = `covered-relayer.${deployerId}`;
+const covId = process.env.CONTRACT_ID ?? `coveredmarket.${deployerId}`, relId = `coveredmarket-relayer.${deployerId}`;
 const covKey = KeyPairEd25519.fromRandom(), relKey = KeyPairEd25519.fromRandom();
 
 step(`create ${covId} and ${relId}`);

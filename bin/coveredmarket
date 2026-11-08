@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# The one entry point. `bin/covered help`.
+# The one entry point. `bin/coveredmarket help`.
 set -euo pipefail
-COVERED_CALLER_PWD="$PWD"; ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "$ROOT"
+COVEREDMARKET_CALLER_PWD="$PWD"; ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "$ROOT"
 LOCAL=(--env-file .env -f infra/compose.yaml -f infra/compose.local.yaml)
 need() { command -v "$1" >/dev/null || { echo "missing: $1 ($2)"; exit 1; }; }
 cmd=${1:-help}; shift || true
@@ -16,24 +16,24 @@ case "$cmd" in
     docker compose "${LOCAL[@]}" up -d --build relayer web config
     for i in $(seq 1 60); do curl -fsS localhost/api/health >/dev/null 2>&1 && curl -fsS localhost/config.json >/dev/null 2>&1 && break; sleep 2
       [ "$i" = 60 ] && { docker compose "${LOCAL[@]}" logs relayer web config | tail -80; echo "stack did not come up"; exit 1; }; done
-    echo; echo "Covered is at http://localhost  (NEAR sandbox :3030, bitcoind :18443). Demo users and keys: bin/covered keys" ;;
+    echo; echo "CoveredMarket is at http://localhost  (NEAR sandbox :3030, bitcoind :18443). Demo users and keys: bin/coveredmarket keys" ;;
   down)      docker compose "${LOCAL[@]}" down "$@" ;;
-  reset)     docker compose "${LOCAL[@]}" down -v; rm -f .env; echo "state wiped; run: bin/covered up" ;;
+  reset)     docker compose "${LOCAL[@]}" down -v; rm -f .env; echo "state wiped; run: bin/coveredmarket up" ;;
   e2e-stack) # full product run against the local stack: API flows (KEPT, EXERCISED) + UI + Verify; screenshots in e2e/artifacts
     (cd e2e && npm ci --silent && npx playwright install chromium >/dev/null && node run.mjs) ;;
   logs)      docker compose "${LOCAL[@]}" logs -f --tail=100 "$@" ;;
   ps)        docker compose "${LOCAL[@]}" ps ;;
-  keys)      docker compose "${LOCAL[@]}" run --rm --no-deps -v covered_config:/config alpine cat /config/demo-keys.txt ;;
+  keys)      docker compose "${LOCAL[@]}" run --rm --no-deps -v coveredmarket_config:/config alpine cat /config/demo-keys.txt ;;
   btc)       # regtest helpers: btc send <address> <btc> | btc mine [n] | btc cli <args…>
     sub=${1:-}; shift || true
     case "$sub" in
       send) curl -sS -X POST localhost/btc/dev/send -H 'content-type: application/json' -d "{\"address\":\"$1\",\"btc\":$2}"; echo; curl -sS -X POST localhost/btc/dev/mine -H 'content-type: application/json' -d '{"n":1}'; echo ;;
       mine) curl -sS -X POST localhost/btc/dev/mine -H 'content-type: application/json' -d "{\"n\":${1:-1}}"; echo ;;
-      cli)  docker compose "${LOCAL[@]}" exec bitcoind bitcoin-cli -regtest -rpcuser=covered -rpcpassword=covered "$@" ;;
+      cli)  docker compose "${LOCAL[@]}" exec bitcoind bitcoin-cli -regtest -rpcuser=coveredmarket -rpcpassword=coveredmarket "$@" ;;
       *) echo "btc send <addr> <btc> | btc mine [n] | btc cli <args>"; exit 1 ;;
     esac ;;
-  test)      cargo test -p covered && (cd relayer && npm test) && (cd web && npm test) ;;
-  build)     set -e; for c in covered mock-signer mock-btc-client mock-usdc; do cargo near build non-reproducible-wasm --manifest-path contracts/$c/Cargo.toml; done ;;
+  test)      cargo test -p coveredmarket && (cd relayer && npm test) && (cd web && npm test) ;;
+  build)     set -e; for c in coveredmarket mock-signer mock-btc-client mock-usdc; do cargo near build non-reproducible-wasm --manifest-path contracts/$c/Cargo.toml; done ;;
   e2e)       "$0" build && cargo test -p integration -- --test-threads=1 ;;
   serve)     # on the cloud VM: first start on testnet creates its own contracts, then the two-container stack
     touch .env
@@ -44,16 +44,16 @@ case "$cmd" in
     docker compose --env-file .env -f infra/compose.yaml "${PROFILES[@]}" up -d --build --remove-orphans && docker image prune -f >/dev/null
     for i in $(seq 1 90); do curl -fsS localhost/api/health >/dev/null 2>&1 && break; sleep 2; done
     curl -fsS localhost/api/health; echo ;;
-  rescue)    # the seller's exit, with only Bitcoin: bin/covered rescue <kit.json> <your-btc-address> [--fee-rate N] [--esplora URL] [--broadcast]
-    kit=${1:?usage: bin/covered rescue <kit.json> <your-btc-address> [--broadcast]}; shift
-    case "$kit" in /*) ;; *) kit="${COVERED_CALLER_PWD:-$PWD}/$kit" ;; esac
+  rescue)    # the seller's exit, with only Bitcoin: bin/coveredmarket rescue <kit.json> <your-btc-address> [--fee-rate N] [--esplora URL] [--broadcast]
+    kit=${1:?usage: bin/coveredmarket rescue <kit.json> <your-btc-address> [--broadcast]}; shift
+    case "$kit" in /*) ;; *) kit="${COVEREDMARKET_CALLER_PWD:-$PWD}/$kit" ;; esac
     if command -v node >/dev/null && [ -d relayer/node_modules ]; then (cd relayer && npx tsx src/rescue.ts "$kit" "$@")
     else touch .env; docker compose --env-file .env -f infra/compose.yaml run --rm -T --no-deps relayer node dist/rescue.js - "$@" < "$kit"; fi ;;
   provision) # create or update the VM (+ DNS if a domain is set) from infra/cloud/terraform.tfvars or TF_VAR_*, then deploy
     need terraform "https://developer.hashicorp.com/terraform/install"
     (cd infra/cloud && terraform init -input=false >/dev/null && terraform apply -input=false -auto-approve "$@")
     "$0" deploy ;;
-  deploy)    # ship the committed tree to the VM and (re)start it: bin/covered deploy [ip] [site]
+  deploy)    # ship the committed tree to the VM and (re)start it: bin/coveredmarket deploy [ip] [site]
     tf() { (cd infra/cloud && terraform output -raw "$1" 2>/dev/null) || true; }
     host=${1:-${DEPLOY_HOST:-$(tf ip)}}; site=${2:-${SITE:-$(tf site)}}
     [ -n "$host" ] || { echo "no host: pass an ip, set DEPLOY_HOST, or provision first"; exit 1; }
@@ -63,11 +63,11 @@ case "$cmd" in
       [ "$i" = 60 ] && { echo "VM not ready"; exit 1; }; done
     git archive --format=tar HEAD | "${SSH[@]}" 'cd /opt/covered && find . -mindepth 1 -maxdepth 1 ! -name .env -exec rm -rf {} + && tar -x'
     mainnet=${MAINNET_SITE:-${site:+mainnet.$site}}
-    "${SSH[@]}" "cd /opt/covered && { [ -z '$site' ] || { sed -i '/^DOMAIN=/d; /^MAINNET_DOMAIN=/d' .env; printf 'DOMAIN=%s\nMAINNET_DOMAIN=%s\n' '$site' '$mainnet' >> .env; }; } && { [ -z '${RESET_CONTRACT:-}' ] || sed -i '/^COVERED_ID=/d' .env; } && bin/covered serve"
+    "${SSH[@]}" "cd /opt/covered && { [ -z '$site' ] || { sed -i '/^DOMAIN=/d; /^MAINNET_DOMAIN=/d' .env; printf 'DOMAIN=%s\nMAINNET_DOMAIN=%s\n' '$site' '$mainnet' >> .env; }; } && { [ -z '${RESET_CONTRACT:-}' ] || sed -i '/^COVERED_ID=/d' .env; } && bin/coveredmarket serve"
     [ -n "$site" ] && { for i in $(seq 1 60); do curl -fsS "https://$site/api/health" >/dev/null 2>&1 && break; sleep 5; done; echo "live: https://$site"; } ;;
   destroy)   (cd infra/cloud && terraform destroy "$@") ;;
   help|*)    cat <<'H'
-covered — one entry point
+coveredmarket — one entry point
 
   local
     up                 start everything locally (sandbox, regtest, contracts, relayer, web) → http://localhost
