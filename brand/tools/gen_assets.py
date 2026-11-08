@@ -1,4 +1,4 @@
-"""Generate Covered brand assets as SVG. Text is converted to outlines with fontTools."""
+"""Generate CoveredMarket brand assets as SVG. Text is converted to outlines with fontTools."""
 import math, os
 from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
@@ -7,7 +7,7 @@ from fontTools.pens.transformPen import TransformPen
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 FONTS = os.path.join(ROOT, 'fonts')
-OUT = os.path.join(ROOT, 'covered', 'project', 'assets')
+OUT = os.path.join(os.path.dirname(ROOT), 'assets')
 
 PAPER = '#f2ead6'; VAULT = '#0f211b'; INK = '#132a23'; INK_V = '#ede4cc'
 INTAGLIO = '#1f4f40'; INTAGLIO_V = '#4a9a7e'; DEEP = '#143a2f'
@@ -38,7 +38,14 @@ def text_path(txt, name, axes, size, x=0, y=0, tracking=0):
         cx += gs[g].width * s + tracking * size
     return pen.getCommands(), cx - x
 
-FRAUNCES = ('Fraunces[SOFT,WONK,opsz,wght].ttf', {'wght': 500, 'opsz': 144, 'SOFT': 0, 'WONK': 0})
+def name_path(name, axes, size, x=0, y=0):
+    """'CoveredMarket' with the d–M kern from mark2 (the font has none)."""
+    d1, w1 = text_path('Covered', name, axes, size, x, y)
+    gap = mark2.DM_KERN * size
+    d2, w2 = text_path('Market', name, axes, size, x + w1 + gap, y)
+    return d1 + ' ' + d2, w1 + gap + w2
+
+FRAUNCES =('Fraunces[SOFT,WONK,opsz,wght].ttf', {'wght': 500, 'opsz': 144, 'SOFT': 0, 'WONK': 0})
 FRAUNCES_IT = ('Fraunces-Italic[SOFT,WONK,opsz,wght].ttf', {'wght': 400, 'opsz': 48, 'SOFT': 0, 'WONK': 0})
 SANS = ('InstrumentSans[wdth,wght].ttf', {'wght': 500, 'wdth': 100})
 SANS_B = ('InstrumentSans[wdth,wght].ttf', {'wght': 600, 'wdth': 100})
@@ -69,39 +76,39 @@ def wordmark(x, y, size, ink, italic=False, caps=False):
 # Logos — the Lid in every variant
 def L(name, w, h, inner, bg=None): write(f'Logos/{name}.svg', svg(w, h, inner, bg=bg))
 # symbol: primary two-tone, copper colourway, one-colour, reversed (thinned 3%), small cut
-L('covered-symbol', 64, 64, LID.lid(body=INTAGLIO, cap=GILT))
-L('covered-symbol-copper', 64, 64, LID.lid(body=COPPER, cap=INTAGLIO))
-L('covered-symbol-ink', 64, 64, LID.lid(body=INK))
-L('covered-symbol-intaglio', 64, 64, LID.lid(body=INTAGLIO))
-L('covered-symbol-on-vault', 64, 64, LID.lid(body=INK_V, cap=GILT_V, thin=0.03), bg=VAULT)
-L('covered-symbol-reversed', 64, 64, LID.lid(body=INK_V, thin=0.03), bg=VAULT)
-L('covered-symbol-small', 64, 64, LID.lid(body=INK, small=True))
-L('covered-symbol-small-on-vault', 64, 64, LID.lid(body=INK_V, cap=GILT_V, small=True), bg=VAULT)
+L('coveredmarket-symbol', 64, 64, LID.lid(body=INTAGLIO, cap=GILT))
+L('coveredmarket-symbol-copper', 64, 64, LID.lid(body=COPPER, cap=INTAGLIO))
+L('coveredmarket-symbol-ink', 64, 64, LID.lid(body=INK))
+L('coveredmarket-symbol-intaglio', 64, 64, LID.lid(body=INTAGLIO))
+L('coveredmarket-symbol-on-vault', 64, 64, LID.lid(body=INK_V, cap=GILT_V, thin=0.03), bg=VAULT)
+L('coveredmarket-symbol-reversed', 64, 64, LID.lid(body=INK_V, thin=0.03), bg=VAULT)
+L('coveredmarket-symbol-small', 64, 64, LID.lid(body=INK, small=True))
+L('coveredmarket-symbol-small-on-vault', 64, 64, LID.lid(body=INK_V, cap=GILT_V, small=True), bg=VAULT)
 # states (for the system: stamps, timelines, motion)
 for st in ('open', 'kept', 'exercised'):
-    L(f'covered-symbol-state-{st}', 64, 64, LID.lid(body=INTAGLIO, cap=GILT, state=st))
+    L(f'coveredmarket-symbol-state-{st}', 64, 64, LID.lid(body=INTAGLIO, cap=GILT, state=st))
 # wordmarks
-wm, ww = wordmark(0, 46, 56, INK); L('covered-wordmark', math.ceil(ww) + 2, 64, wm)
-wm, ww = wordmark(0, 46, 56, INK_V); L('covered-wordmark-on-vault', math.ceil(ww) + 2, 64, wm, bg=VAULT)
-wm, ww = wordmark(0, 36, 48, INK, caps=True); L('covered-wordmark-caps', math.ceil(ww) + 2, 48, wm)
+wm, ww = wordmark(0, 46, 56, INK); L('coveredmarket-wordmark', math.ceil(ww) + 2, 64, wm)
+wm, ww = wordmark(0, 46, 56, INK_V); L('coveredmarket-wordmark-on-vault', math.ceil(ww) + 2, 64, wm, bg=VAULT)
+wm, ww = wordmark(0, 36, 48, INK, caps=True); L('coveredmarket-wordmark-caps', math.ceil(ww) + 2, 48, wm)
 # horizontal lockups: symbol cap-height-plus, gap = half the symbol
-def lockup(body, cap, ink, bg=None, name='covered-lockup'):
+def lockup(body, cap, ink, bg=None, name='coveredmarket-lockup'):
     wm, ww = wordmark(84, 47, 56, ink)
     L(name, math.ceil(ww) + 88, 64, LID.lid(0, 0, 64, body=body, cap=cap, thin=(0.03 if bg else 0)) + wm, bg=bg)
 lockup(INTAGLIO, GILT, INK)
-lockup(INK, INK, INK, name='covered-lockup-ink')
-lockup(INK_V, GILT_V, INK_V, bg=VAULT, name='covered-lockup-on-vault')
-lockup(COPPER, INTAGLIO, INK, name='covered-lockup-copper')
+lockup(INK, INK, INK, name='coveredmarket-lockup-ink')
+lockup(INK_V, GILT_V, INK_V, bg=VAULT, name='coveredmarket-lockup-on-vault')
+lockup(COPPER, INTAGLIO, INK, name='coveredmarket-lockup-copper')
 # stacked
 wm, ww = wordmark(0, 0, 40, INK); W = math.ceil(ww); H = 64 + 14 + 40
-L('covered-lockup-stacked', W, H, f'<g transform="translate({W/2-32:.1f},0)">' + LID.lid(body=INTAGLIO, cap=GILT) + '</g>' + f'<g transform="translate(0,{64+14+30})">' + wm + '</g>')
+L('coveredmarket-lockup-stacked', W, H, f'<g transform="translate({W/2-32:.1f},0)">' + LID.lid(body=INTAGLIO, cap=GILT) + '</g>' + f'<g transform="translate(0,{64+14+30})">' + wm + '</g>')
 wm, ww = wordmark(0, 0, 40, INK_V)
-L('covered-lockup-stacked-on-vault', W, H, f'<g transform="translate({W/2-32:.1f},0)">' + LID.lid(body=INK_V, cap=GILT_V, thin=0.03) + '</g>' + f'<g transform="translate(0,{64+14+30})">' + wm + '</g>', bg=VAULT)
+L('coveredmarket-lockup-stacked-on-vault', W, H, f'<g transform="translate({W/2-32:.1f},0)">' + LID.lid(body=INK_V, cap=GILT_V, thin=0.03) + '</g>' + f'<g transform="translate(0,{64+14+30})">' + wm + '</g>', bg=VAULT)
 # seal: the lid inside a ring of outlined microtext
 def seal(ink, body, cap, bg=None):
-    txt = 'COVERED · NATIVE BITCOIN · NO CUSTODIAN · '
+    txt = 'COVEREDMARKET · NATIVE BITCOIN · NO CUSTODIAN · '
     out = []
-    rr, fs = 45.5, 7.4
+    rr, fs = 45.5, 6.25  # sized so the 13-letter name keeps the original ring density
     f = font(*SANS_B); gs = f.getGlyphSet(); cmap = f.getBestCmap(); upm = f['head'].unitsPerEm; sc = fs/upm
     chars = txt * 2
     adv = [ (gs[cmap[ord(c)]].width*sc if ord(c) in cmap else fs*0.3) + fs*0.14 for c in chars]
@@ -117,9 +124,9 @@ def seal(ink, body, cap, bg=None):
     out.append(f'<circle cx="64" cy="64" r="37" fill="none" stroke="{ink}" stroke-width="1.2"/>')
     out.append(f'<g transform="translate(38,38) scale(0.8125)">' + LID.lid(body=body, cap=cap) + '</g>')
     return ''.join(out)
-L('covered-seal', 128, 128, seal(INK, INTAGLIO, GILT))
-L('covered-seal-ink', 128, 128, seal(INK, INK, INK))
-L('covered-seal-on-vault', 128, 128, seal(INK_V, INK_V, GILT_V), bg=VAULT)
+L('coveredmarket-seal', 128, 128, seal(INK, INTAGLIO, GILT))
+L('coveredmarket-seal-ink', 128, 128, seal(INK, INK, INK))
+L('coveredmarket-seal-on-vault', 128, 128, seal(INK_V, INK_V, GILT_V), bg=VAULT)
 # app icons: square (iOS masks it) and a 22%-radius rounded square; symbol at 62%
 for n, size, rx in (('app-icon-1024', 1024, 0), ('app-icon-1024-rounded', 1024, 225), ('app-icon-192', 192, 0)):
     s = size / 64
@@ -130,7 +137,7 @@ L('favicon', 64, 64, LID.lid(body=INK, small=True), bg=PAPER)
 L('favicon-on-vault', 64, 64, LID.lid(body=INK_V, cap=GILT_V, small=True), bg=VAULT)
 # the "built on NEAR" rule: lockup + hairline + a text slot (NEAR's own mark goes to the right, supplied by NEAR)
 wm, ww = wordmark(84, 47, 56, INK)
-L('covered-lockup-with-partner-rule', math.ceil(ww) + 88 + 40, 64, LID.lid(0, 0, 64, body=INTAGLIO, cap=GILT) + wm + f'<line x1="{math.ceil(ww)+104}" y1="12" x2="{math.ceil(ww)+104}" y2="52" stroke="{RULE}" stroke-width="1"/>')
+L('coveredmarket-lockup-with-partner-rule', math.ceil(ww) + 88 + 40, 64, LID.lid(0, 0, 64, body=INTAGLIO, cap=GILT) + wm + f'<line x1="{math.ceil(ww)+104}" y1="12" x2="{math.ceil(ww)+104}" y2="52" stroke="{RULE}" stroke-width="1"/>')
 
 # ---------- Patterns ----------
 def rosette(cx, cy, R, ink, rings=7, sw=0.9):
@@ -186,7 +193,7 @@ def hatch(size, ink, pitch=6):
 write('Patterns/hatch.svg', svg(96, 96, hatch(96, INK)))
 
 def microtext(w, h, ink):
-    d, tw = text_path('COVERED · INCOME ON BITCOIN YOU STILL HOLD · ', *SANS_B, 7, 0, 9, tracking=0.08)
+    d, tw = text_path('COVEREDMARKET · INCOME ON BITCOIN YOU STILL HOLD · ', *SANS_B, 7, 0, 9, tracking=0.08)
     out = [f'<defs><path id="mt" d="{d}" fill="{ink}"/></defs>']
     reps = int(w / tw) + 2
     for row in range(int(h / 12)):
@@ -275,7 +282,7 @@ def title_card():
     body = f'<g opacity="0.4">' + rosette(1700, 540, 700, GILT_V, rings=9, sw=1) + '</g>'
     body += f'<rect x="64" y="64" width="{w-128}" height="{h-128}" fill="none" stroke="{RULE_V}" stroke-width="1.5"/>'
     body += f'<g transform="translate(120,112) scale(1.5)">' + mark(ink=INK_V, coin=INK_V, finial=GILT_V, two_tone=True) + '</g>'
-    d, _ = text_path('Covered', *FRAUNCES, 160, 120, 640)
+    d, _ = name_path(*FRAUNCES, 160, 120, 640)
     body += f'<path d="{d}" fill="{INK_V}"/>'
     tp, _ = tagline(124, 740, 64, GILT_V, max_w=w - 248)
     body += tp
@@ -286,11 +293,11 @@ def end_card():
     w, h = 1920, 1080
     body = f'<rect x="64" y="64" width="{w-128}" height="{h-128}" fill="none" stroke="{RULE_V}" stroke-width="1.5"/>'
     body += f'<g transform="translate({w/2-96},{h/2-300}) scale(3)">' + mark(ink=INK_V, coin=INK_V, finial=GILT_V, two_tone=True) + '</g>'
-    d, tw = text_path('Covered', *FRAUNCES, 120, 0, 0)
+    d, tw = name_path(*FRAUNCES, 120, 0, 0)
     body += f'<g transform="translate({w/2-tw/2},{h/2+60})"><path d="{d}" fill="{INK_V}"/></g>'
     d, tw = text_path('Your coins never leave Bitcoin.', *FRAUNCES_IT, 44, 0, 0)
     body += f'<g transform="translate({w/2-tw/2},{h/2+130})"><path d="{d}" fill="{GILT_V}"/></g>'
-    d, tw = text_path('github.com/…/covered  ·  Chain Signatures  ·  NEAR Intents', *SANS, 24, 0, 0, tracking=0.02)
+    d, tw = text_path('github.com/…/coveredmarket  ·  Chain Signatures  ·  NEAR Intents', *SANS, 24, 0, 0, tracking=0.02)
     body += f'<g transform="translate({w/2-tw/2},{h-140})"><path d="{d}" fill="{MUTED_V}"/></g>'
     return svg(w, h, body, bg=VAULT)
 write('Social/video-end-card-1920x1080.svg', end_card())

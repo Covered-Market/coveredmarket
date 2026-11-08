@@ -1,11 +1,11 @@
-# Covered — Brand Identity
+# CoveredMarket — Brand Identity
 
 **Product:** non-custodial covered calls on native Bitcoin (NEAR Chain Signatures + Intents) · **Written:** 5 Nov 2026
 **Full system (tokens, components, logos, patterns, social templates, fonts):** https://claude.ai/artifact/1gormfHod4MU3fRZuTRF2m
 
 ## Idea
 
-**A security, printed.** Covered looks like the thing it is: an option contract. References are engraved securities and bond certificates: cream paper, one green intaglio ink, a little gold leaf, guilloche borders, a serial number, a stamp that says what happened. Three checks: **engraved, exact, unhurried.** Line: *Open to anyone. Held by no one. Earning for you.*
+**A security, printed.** CoveredMarket looks like the thing it is: an option contract. References are engraved securities and bond certificates: cream paper, one green intaglio ink, a little gold leaf, guilloche borders, a serial number, a stamp that says what happened. Three checks: **engraved, exact, unhurried.** Line: *Open to anyone. Held by no one. Earning for you.*
 
 ## Logo: the Lid
 
@@ -42,7 +42,7 @@ Guilloche rosette and band (drawn by code), coupon edge, hatch, lid tile, microt
 
 A careful broker's letter: plain, exact, second person, honest about trust ("signatures come from NEAR's MPC network"), no exclamation marks, no emoji, "custodian" not "trustless", every claim with its figure and UTC date.
 
-## Components (window.Covered)
+## Components (window.CoveredMarket)
 
 Button, Stamp, Figure, Coin, Field, StatTile, OfferCard, PositionsTable, Countdown, SettlementTimeline, Notice, TopBar, **Certificate** (the hero object: the option as a printed security), Mark (the Lid, with tone and state props). Each has a live preview and guidelines.
 
@@ -52,6 +52,6 @@ Avatar, X header, OG image (Vault and Paper), 1080 square, video title and end c
 
 ## Open
 
-- Name check: "Covered" is a working name; domains and the NEAR account (`covered.near`) are unverified. No trademark search has been run on the mark.
+- Name check: "CoveredMarket" is a working name; domains and the NEAR account (`coveredmarket.near`) are unverified. No trademark search has been run on the mark.
 - Kept (green) and Refused (red) differ by hue, so stamps always carry word + icon; a colour-blind-safe added theme is a possible later step.
 - The earlier marks (the Cap, the engraved coin) are still in the system's asset store but no longer referenced; delete them from the page's Files when convenient.

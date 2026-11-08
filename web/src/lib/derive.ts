@@ -1,4 +1,4 @@
-/** Chain Signatures epsilon derivation, bech32 P2WPKH, hashing. Must match contracts/covered/src/derive.rs. */
+/** Chain Signatures epsilon derivation, bech32 P2WPKH, hashing. Must match contracts/coveredmarket/src/derive.rs. */
 import { sha256 } from "@noble/hashes/sha256";
 import { sha3_256 } from "@noble/hashes/sha3";
 import { ripemd160 } from "@noble/hashes/ripemd160";
@@ -68,7 +68,7 @@ export function scriptNum(n: number): Uint8Array {
 }
 
 /**
- * The deposit witness script. Must match contracts/covered/src/btc.rs `deposit_witness_script`:
+ * The deposit witness script. Must match contracts/coveredmarket/src/btc.rs `deposit_witness_script`:
  *   OP_IF <mpc> OP_CHECKSIG OP_ELSE <unlock_s> OP_CLTV OP_DROP <rescue> OP_CHECKSIG OP_ENDIF
  */
 export function depositWitnessScript(mpc33: Uint8Array, rescue33: Uint8Array, unlockS: number): Uint8Array {

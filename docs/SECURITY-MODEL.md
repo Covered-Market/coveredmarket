@@ -1,10 +1,10 @@
-# Covered — security model
+# CoveredMarket — security model
 
 The short version of what you are trusting, what the contract guarantees, and where to read the code. The full model, with the threat table (A1–A15) and who bears which loss, is in [SPEC.md § Security model](SPEC.md#security-model). To report a problem, see [SECURITY.md](../SECURITY.md).
 
 ## The one claim
 
-Given an honest MPC threshold in `v1.signer`, a correct `covered` contract and a Bitcoin light client that follows the real chain, **a deposit can be spent only by the one transaction the contract committed for it, and that transaction pays the seller back unless the buyer paid the strike inside the exercise window.**
+Given an honest MPC threshold in `v1.signer`, a correct `coveredmarket` contract and a Bitcoin light client that follows the real chain, **a deposit can be spent only by the one transaction the contract committed for it, and that transaction pays the seller back unless the buyer paid the strike inside the exercise window.**
 
 ## What you are trusting
 
@@ -24,7 +24,7 @@ What you are **not** trusting: us. The relayer and the website only relay proofs
 - **Exercise is payment.** Coins go to the buyer only in the same receipt where the buyer paid at least the full strike, inside the window.
 - **Purchase is final.** The premium is credited to the seller in the receipt that records the buyer.
 - **One spend per deposit.** A settlement is committed once, before the first signature request, and never replaced.
-- **Public verifiability.** Each guarantee maps to a Verify check that reads Bitcoin and NEAR directly, with no Covered server in the loop.
+- **Public verifiability.** Each guarantee maps to a Verify check that reads Bitcoin and NEAR directly, with no CoveredMarket server in the loop.
 
 ## Not guaranteed
 
@@ -53,7 +53,7 @@ What stands between this code and real money, and how each is handled:
 |---|---|---|
 | Mainnet services differ from testnet | Read-only probe of `v1.signer` (3.17), `btc-client.bridge.near` and Circle USDC: our SHA3 derivation equals the signer's own `derived_public_key`; our borsh proof of a real mainnet tx is accepted, tampered and over-deep ones refused; USDC is 6 decimals and needs 0.00125 NEAR registration | `mainnet-probe.yml` (on change + weekly) |
 | The real `sign` call | `selftest_sign()`: the contract has the MPC sign a constant under a reserved path and verifies it on chain. The mainnet deploy stops before locking if it fails | `e2e/testnet.ts` against `v1.signer-prod.testnet`; `scripts/deploy-mainnet.ts` |
-| NEAR or the MPC network stops | **The seller's exit.** Every deposit address is P2WSH of `IF <mpc> CHECKSIG ELSE <unlock> CLTV DROP <rescue> CHECKSIG ENDIF`. After `unlock = expiry + grace + rescue_delay` (30 days on mainnet) the seller's own rescue key sweeps the coins with nothing but Bitcoin (`bin/covered rescue kit.json <address>`). The rescue key is made in the browser and saved as a kit when the offer is created. No settlement may be committed in the last half of the rescue delay | contract tests through libbitcoinconsensus (valid at unlock, invalid one second before, wrong keys refused); TS tool pinned byte for byte to the Rust reference; `e2e-stack` sweeps a real regtest deposit (refused before unlock, accepted after) |
+| NEAR or the MPC network stops | **The seller's exit.** Every deposit address is P2WSH of `IF <mpc> CHECKSIG ELSE <unlock> CLTV DROP <rescue> CHECKSIG ENDIF`. After `unlock = expiry + grace + rescue_delay` (30 days on mainnet) the seller's own rescue key sweeps the coins with nothing but Bitcoin (`bin/coveredmarket rescue kit.json <address>`). The rescue key is made in the browser and saved as a kit when the offer is created. No settlement may be committed in the last half of the rescue delay | contract tests through libbitcoinconsensus (valid at unlock, invalid one second before, wrong keys refused); TS tool pinned byte for byte to the Rust reference; `e2e-stack` sweeps a real regtest deposit (refused before unlock, accepted after) |
 | Bitcoin fees spike after a settlement is signed | Settlements signal RBF. `bump_fee` (anyone, after `fee_bump_after_s`) re-signs the same input to the same single recipient with double the fee, up to `max_fee_sats`; whichever version confirms settles the offer. The relayer bumps stuck settlements automatically | contract + sandbox tests (old version still settles), relayer planner tests |
 | Real USDC pays only registered accounts | `claim` registers the payee first (NEP-145 `storage_deposit`, refunded if already registered), from a 0.00125 NEAR reserve each offer keeps | sandbox test with a seller who never held USDC; `e2e/testnet.ts` |
 | Unaudited code | Per-deployment `max_size_sats` (0.01 BTC on mainnet) | contract test |
@@ -63,7 +63,7 @@ Still not engineering: an audit, and the legal question of offering options to t
 
 ## Invariants to read first
 
-In `contracts/covered/src/lib.rs`: `commit_and_sign`, `accept_signature`, `ft_on_transfer`.
+In `contracts/coveredmarket/src/lib.rs`: `commit_and_sign`, `accept_signature`, `ft_on_transfer`.
 
 1. A commitment (recipient script, unsigned tx, sighash, txid) is written once, before the first `sign`, and never replaced; retries re-request the same sighash.
 2. The committed tx spends exactly the collateral outpoint to exactly one output: the seller's refund script, or the buyer's script only when `reason == Exercise`. A fee bump changes only the fee (within `max_fee_sats`), never the input or the recipient.

@@ -45,7 +45,7 @@ export function PayHelpers({ serial, address, sats, wallets }: { serial: number;
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <Button size="sm" variant="primary" disabled={!!busy || faucetHas < BigInt(sats)} onClick={fromFaucet}>{busy === "the demo faucet" ? "Sending…" : "Send it from the demo faucet"}</Button>
           <span className="body-small" style={{ color: "var(--ink-muted)" }}>
-            {faucetHas < BigInt(sats) ? <>The demo faucet is empty right now. Refill it from any testnet3 faucet: <Ext href={`${CFG.explorerBtc}/address/${faucet!.address}`} full>{faucet!.address}</Ext></> : <>Test coins with no value, from Covered's faucet ({(Number(faucetHas) / 1e8).toFixed(5)} tBTC left).</>}
+            {faucetHas < BigInt(sats) ? <>The demo faucet is empty right now. Refill it from any testnet3 faucet: <Ext href={`${CFG.explorerBtc}/address/${faucet!.address}`} full>{faucet!.address}</Ext></> : <>Test coins with no value, from CoveredMarket's faucet ({(Number(faucetHas) / 1e8).toFixed(5)} tBTC left).</>}
           </span>
         </div>
       )}

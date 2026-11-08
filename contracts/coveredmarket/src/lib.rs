@@ -1,11 +1,11 @@
-//! Covered: non-custodial covered calls on native Bitcoin.
+//! CoveredMarket: non-custodial covered calls on native Bitcoin.
 //!
 //! One contract, no owner. Two cross-contract dependencies: the Bitcoin light
 //! client (inclusion proofs) and the Chain Signatures signer (`sign`). USDC
 //! arrives only through `ft_on_transfer` from the pinned token and leaves only
 //! through `claim` / `reclaim_strike` to the account that owns the balance.
 //!
-//! Spec: "Covered — Product & Technical Specification", sections 6–9.
+//! Spec: "CoveredMarket — Product & Technical Specification", sections 6–9.
 
 pub mod btc;
 pub mod derive;
@@ -29,7 +29,7 @@ const GAS_CB_SMALL: Gas = Gas::from_tgas(15);
 const GAS_CB_SIGN: Gas = Gas::from_tgas(30);
 const RETRY_DELAY_S: u64 = 600;
 /// Reserved derivation path for `selftest_sign`; offers use `<seller>/CV-<serial>`.
-const SELFTEST_PATH: &str = "covered/selftest";
+const SELFTEST_PATH: &str = "coveredmarket/selftest";
 const DUST_SATS: u64 = 546;
 
 #[near(serializers = [json, borsh])]
@@ -763,7 +763,7 @@ impl Contract {
             .then(ext_ft::ext(self.params.usdc.clone())
             .with_attached_deposit(NearToken::from_yoctonear(1))
             .with_static_gas(GAS_FT_TRANSFER)
-            .ft_transfer(who.clone(), U128(amount), Some("covered claim".into())))
+            .ft_transfer(who.clone(), U128(amount), Some("coveredmarket claim".into())))
             .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SMALL).on_claim(who, U128(amount)))
     }
 
@@ -783,14 +783,14 @@ impl Contract {
     /// coins) and verify the answer against the key this contract derives for that path. Permissionless;
     /// the deploy script runs it before deleting the contract's key, and it can be re-run any time.
     pub fn selftest_sign(&mut self) -> Promise {
-        let digest: [u8; 32] = near_sdk::env::sha256_array(b"covered selftest");
+        let digest: [u8; 32] = near_sdk::env::sha256_array(b"coveredmarket selftest");
         self.sign_promise(SELFTEST_PATH, digest)
             .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SMALL).on_selftest_signed())
     }
 
     #[private]
     pub fn on_selftest_signed(&mut self, #[callback_result] r: Result<SignatureResponse, PromiseError>) -> bool {
-        let digest: [u8; 32] = near_sdk::env::sha256_array(b"covered selftest");
+        let digest: [u8; 32] = near_sdk::env::sha256_array(b"coveredmarket selftest");
         let pk = derive::derive_pubkey(&self.root_key, &self.params.derivation_prefix, env::current_account_id().as_str(), SELFTEST_PATH)
             .unwrap_or_else(|| env::panic_str("derivation failed"));
         let ok = r.ok().and_then(|x| x.compact()).map(|sig| derive::verify_sig(&pk, &digest, &derive::normalize_low_s(&sig))).unwrap_or(false);

@@ -1,4 +1,4 @@
-// End-to-end run of the product against `bin/covered up`:
+// End-to-end run of the product against `bin/coveredmarket up`:
 //   1. KEPT: create → deposit on regtest → relayer proves it → buy → window passes → relayer settles,
 //      mock MPC signs, relayer broadcasts → mined → relayer confirms → seller claims.
 //   2. EXERCISED: same until expiry → buyer pays the strike in the window → relayer requests the
@@ -136,7 +136,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 await page.goto(WEB + "/#/market");
-await page.evaluate((w) => localStorage.setItem("covered.wallet", JSON.stringify(w)), { accountId: astrid.id, key: astrid.key });
+await page.evaluate((w) => localStorage.setItem("coveredmarket.wallet", JSON.stringify(w)), { accountId: astrid.id, key: astrid.key });
 for (const [route, name] of [["#/market", "market"], ["#/sell", "sell"], [`#/deposit/${k.serial}`, "deposit"], ["#/contracts", "contracts"], ["#/try", "try"]]) {
   await page.goto(`${WEB}/${route}`); await page.reload(); await page.waitForTimeout(2500);
   await page.screenshot({ path: `${ART}${name}.png`, fullPage: true });
@@ -163,7 +163,7 @@ if ((await view("get_account_offers", { account: astrid.id })).length !== offers
   const dl = await kitDownload; const path = `${ART}ui-rescue-kit.json`; await dl.saveAs(path);
   const kit = JSON.parse(readFileSync(path, "utf8"));
   const uiOffer = await offer(Number(page.url().match(/#\/deposit\/(\d+)/)[1]));
-  if (kit.kind !== "covered-rescue-kit" || kit.address !== uiOffer.address || kit.rescue_public_key !== uiOffer.rescue_pubkey || kit.witness_script !== uiOffer.witness_script) throw new Error("UI rescue kit does not match the offer");
+  if (kit.kind !== "coveredmarket-rescue-kit" || kit.address !== uiOffer.address || kit.rescue_public_key !== uiOffer.rescue_pubkey || kit.witness_script !== uiOffer.witness_script) throw new Error("UI rescue kit does not match the offer");
   log(`UI sell downloaded a rescue kit for ${uiOffer.address} (exit unlocks ${kit.unlock_utc})`);
 }
 await page.screenshot({ path: `${ART}sell-relayed.png`, fullPage: true });
@@ -194,7 +194,7 @@ await browser.close();
 {
   const r = await createAndFund(astrid, { sizeBtc: 0.002, strike: 150000, premium: 20 });
   const o = await offer(r.serial);
-  const kit = { kind: "covered-rescue-kit", version: 1, bitcoin_network: "regtest", hrp: "bcrt", contract: cfg.contract, near_network: cfg.network, serial: r.serial, address: o.address, witness_script: o.witness_script, unlock_s: Number(o.unlock_s), unlock_utc: new Date(Number(o.unlock_s) * 1000).toISOString(), size_sats: o.size_sats, rescue_private_key_wif: wif(r.rescue.priv), rescue_public_key: r.rescue.pub, refund_address: o.refund_address };
+  const kit = { kind: "coveredmarket-rescue-kit", version: 1, bitcoin_network: "regtest", hrp: "bcrt", contract: cfg.contract, near_network: cfg.network, serial: r.serial, address: o.address, witness_script: o.witness_script, unlock_s: Number(o.unlock_s), unlock_utc: new Date(Number(o.unlock_s) * 1000).toISOString(), size_sats: o.size_sats, rescue_private_key_wif: wif(r.rescue.priv), rescue_public_key: r.rescue.pub, refund_address: o.refund_address };
   writeFileSync(`${ART}rescue-kit-CV-${r.serial}.json`, JSON.stringify(kit, null, 2));
   const dest = (await post("/btc/dev/address")).address;
   const ROOT = new URL("..", import.meta.url).pathname;

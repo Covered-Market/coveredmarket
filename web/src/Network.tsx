@@ -38,8 +38,8 @@ export function NotLive() {
     <div style={{ padding: "64px 48px", maxWidth: 640 }}>
       <div className="label" style={{ color: "var(--ink-muted)", marginBottom: 8 }}>Mainnet</div>
       <h1 className="title" style={{ margin: "0 0 12px" }}>Not live yet</h1>
-      <p className="body" style={{ color: "var(--ink-muted)" }}>Covered on Bitcoin mainnet opens once its contract is deployed and locked. Until then everything works on testnet with test coins — same contract code, same signing network, same Bitcoin light client design.</p>
-      {CFG.switchUrl && <p><a href={CFG.switchUrl} className="body" style={{ color: "var(--intaglio)", fontWeight: 600 }}>Use Covered on testnet →</a></p>}
+      <p className="body" style={{ color: "var(--ink-muted)" }}>CoveredMarket on Bitcoin mainnet opens once its contract is deployed and locked. Until then everything works on testnet with test coins — same contract code, same signing network, same Bitcoin light client design.</p>
+      {CFG.switchUrl && <p><a href={CFG.switchUrl} className="body" style={{ color: "var(--intaglio)", fontWeight: 600 }}>Use CoveredMarket on testnet →</a></p>}
     </div>
   );
 }

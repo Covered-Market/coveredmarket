@@ -1,4 +1,4 @@
-"""The Lid: Covered's mark. One coin, its top lifted off. Geometry on a 64 grid, scaled by size."""
+"""The Lid: CoveredMarket's mark. One coin, its top lifted off. Geometry on a 64 grid, scaled by size."""
 import math
 
 PAPER = '#f2ead6'; VAULT = '#0f211b'; INK = '#132a23'; INK_V = '#ede4cc'
@@ -21,7 +21,7 @@ def lid(x=0, y=0, size=64, body=INK, cap=None, state='open', small=False, thin=0
     lid_d = f'M{cx-hw:.2f},{ch-gap:.2f} A{r:.2f},{r:.2f} 0 0 1 {cx+hw:.2f},{ch-gap:.2f} Z'
     return f'<path fill="{body}" d="{body_d}"/><path fill="{cap}" d="{lid_d}"/>'
 
-def svg(w, h, inner, bg=None, title='Covered'):
+def svg(w, h, inner, bg=None, title='CoveredMarket'):
     bgr = f'<rect width="{w}" height="{h}" fill="{bg}"/>' if bg else ''
     return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}" role="img" aria-label="{title}">{bgr}{inner}</svg>'
 

@@ -52,4 +52,4 @@ export interface CertificateProps { contract: Contract; children?: React.ReactNo
 /** The option as a security: the hero object of the brand. Children are the action buttons in the footer. */
 export declare function Certificate(props: CertificateProps): React.ReactElement;
 
-declare global { interface Window { Covered: { Mark: typeof Mark; Button: typeof Button; Stamp: typeof Stamp; Figure: typeof Figure; Coin: typeof Coin; Field: typeof Field; StatTile: typeof StatTile; OfferCard: typeof OfferCard; PositionsTable: typeof PositionsTable; Countdown: typeof Countdown; SettlementTimeline: typeof SettlementTimeline; Notice: typeof Notice; TopBar: typeof TopBar; Certificate: typeof Certificate } } }
+declare global { interface Window { CoveredMarket: { Mark: typeof Mark; Button: typeof Button; Stamp: typeof Stamp; Figure: typeof Figure; Coin: typeof Coin; Field: typeof Field; StatTile: typeof StatTile; OfferCard: typeof OfferCard; PositionsTable: typeof PositionsTable; Countdown: typeof Countdown; SettlementTimeline: typeof SettlementTimeline; Notice: typeof Notice; TopBar: typeof TopBar; Certificate: typeof Certificate } } }

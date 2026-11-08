@@ -15,8 +15,8 @@
 import { KeyPairEd25519 } from "@near-js/crypto";
 import { CFG, type Wallet } from "./near";
 
-const KEY = (role: string) => `covered.testwallet.${role}`;
-const ROLE = "covered.testwallet.role";
+const KEY = (role: string) => `coveredmarket.testwallet.${role}`;
+const ROLE = "coveredmarket.testwallet.role";
 
 export const testWalletAllowed = () => CFG.mode === "testnet" && CFG.network === "testnet" && !!CFG.faucet;
 
@@ -34,7 +34,7 @@ export function initTestWallet(): string | null {
   const f = flag();
   if (f === "reset") {
     try {
-      for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k?.startsWith("covered.testwallet.")) localStorage.removeItem(k); }
+      for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k?.startsWith("coveredmarket.testwallet.")) localStorage.removeItem(k); }
       sessionStorage.removeItem(ROLE);
     } catch {}
     return null;
@@ -71,7 +71,7 @@ export async function getTestFunds(accountId: string): Promise<{ near: string; u
 /** Once per account per browser: fund a freshly connected testnet account without the user asking. */
 export async function autoFund(accountId: string) {
   if (!testWalletAllowed()) return;
-  const k = `covered.funded.${accountId}`;
+  const k = `coveredmarket.funded.${accountId}`;
   try { if (localStorage.getItem(k)) return; } catch {}
   try { await getTestFunds(accountId); try { localStorage.setItem(k, String(Date.now())); } catch {} }
   catch (e) { console.warn("test funds", (e as Error).message); }

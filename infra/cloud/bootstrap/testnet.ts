@@ -1,6 +1,6 @@
 /**
- * Cloud first start on NEAR testnet, when .env names no contract yet (`bin/covered serve` runs it once).
- * Creates throwaway accounts with the testnet faucet helper, deploys `covered` wired to the REAL MPC signer
+ * Cloud first start on NEAR testnet, when .env names no contract yet (`bin/coveredmarket serve` runs it once).
+ * Creates throwaway accounts with the testnet faucet helper, deploys `coveredmarket` wired to the REAL MPC signer
  * and the REAL Bitcoin light client (btc-client-v4.testnet, which follows Bitcoin testnet3) plus a mock USDC
  * anyone can mint (Circle's testnet USDC cannot be minted), deletes the contract's only key, and writes the
  * ids, the relayer key and the code hash into /env/.env. Nothing here holds funds of value.
@@ -53,7 +53,7 @@ async function sub(prefix: string, near: bigint) {
 
 async function account(prefix: string) {
   const kp = KeyPairEd25519.fromRandom();
-  const id = `covered-${prefix}-${tag}.testnet`;
+  const id = `coveredmarket-${prefix}-${tag}.testnet`;
   for (let i = 0; ; i++) {
     const r = await fetch(HELPER, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ newAccountId: id, newAccountPublicKey: kp.getPublicKey().toString() }) });
     if (r.ok) break;
@@ -66,12 +66,12 @@ async function account(prefix: string) {
 const wasm = (n: string) => readFileSync(`/wasm/${n}.wasm`);
 const view = async (c: string, m: string, a: object = {}) => JSON.parse(Buffer.from(((await p.query({ request_type: "call_function", account_id: c, method_name: m, args_base64: Buffer.from(JSON.stringify(a)).toString("base64"), finality: "optimistic" })) as any).result).toString());
 
-let covered, usdc, relayer;
+let coveredmarket, usdc, relayer;
 if (funder) {
-  covered = await sub("app", 8n); usdc = await sub("usdc", 4n);
+  coveredmarket = await sub("app", 8n); usdc = await sub("usdc", 4n);
   relayer = { id: funderId!, kp: KeyPair.fromString(funderKey as any), acc: funder }; // the relayer stays, with its NEAR
 } else {
-  covered = await account("app"); usdc = await account("usdc"); relayer = await account("relayer");
+  coveredmarket = await account("app"); usdc = await account("usdc"); relayer = await account("relayer");
   // The relayer pays everyone's gas (NEP-366); top it up from two more faucet accounts.
   for (const k of ["gas1", "gas2"]) { const g = await account(k); await g.acc.transfer({ receiverId: relayer.id, amount: 9n * NEAR }); }
 }
@@ -81,18 +81,18 @@ const rootKey: string = await view(SIGNER, "public_key", { domain_id: 0 });
 // Reviewed parameters for testnet (params/testnet.json; network "Testnet4" = hrp `tb`, testnet3 and testnet4 alike).
 const { _comment, ...tuned } = JSON.parse(readFileSync("/params/testnet.json", "utf8"));
 const params = { ...tuned, signer: SIGNER, light_client: LC, usdc: usdc.id, mpc_root_key: rootKey };
-await retryNonce(() => covered.acc.signAndSendTransaction({ receiverId: covered.id, actions: [actionCreators.deployContract(wasm("covered")), actionCreators.functionCall("new", { params }, 100n * TGAS, 0n)] }));
-await retryNonce(() => covered.acc.callFunction({ contractId: usdc.id, methodName: "storage_deposit", args: {}, deposit: 10n ** 22n, gas: 30n * TGAS }));
+await retryNonce(() => coveredmarket.acc.signAndSendTransaction({ receiverId: coveredmarket.id, actions: [actionCreators.deployContract(wasm("coveredmarket")), actionCreators.functionCall("new", { params }, 100n * TGAS, 0n)] }));
+await retryNonce(() => coveredmarket.acc.callFunction({ contractId: usdc.id, methodName: "storage_deposit", args: {}, deposit: 10n ** 22n, gas: 30n * TGAS }));
 // Lock: the contract keeps no key. From here on only its own code can act for it.
-await retryNonce(() => covered.acc.signAndSendTransaction({ receiverId: covered.id, actions: [actionCreators.deleteKey(covered.kp.getPublicKey())] }));
+await retryNonce(() => coveredmarket.acc.signAndSendTransaction({ receiverId: coveredmarket.id, actions: [actionCreators.deleteKey(coveredmarket.kp.getPublicKey())] }));
 // Reads hit a load-balanced RPC that can trail the node that ran the transaction; wait for it to catch up.
 for (let i = 0; ; i++) {
-  const keys: any = await p.query({ request_type: "view_access_key_list", account_id: covered.id, finality: "final" });
+  const keys: any = await p.query({ request_type: "view_access_key_list", account_id: coveredmarket.id, finality: "final" });
   if (!keys.keys.length) break;
   if (i > 20) throw new Error("contract still has access keys");
   await sleep(2000);
 }
-const codeHash: string = ((await p.query({ request_type: "view_account", account_id: covered.id, finality: "final" })) as any).code_hash;
+const codeHash: string = ((await p.query({ request_type: "view_account", account_id: coveredmarket.id, finality: "final" })) as any).code_hash;
 if (/^1+$/.test(codeHash)) throw new Error("contract code not visible yet");
 
 const lines = `
@@ -100,7 +100,7 @@ const lines = `
 MODE=testnet
 NEAR_NETWORK=testnet
 NEAR_RPC=${RPC}
-COVERED_ID=${covered.id}
+COVERED_ID=${coveredmarket.id}
 USDC_ID=${usdc.id}
 USDC_MINT=1
 SIGNER_ID=${SIGNER}
@@ -120,4 +120,4 @@ CODE_HASH=${codeHash}
 const ours = new Set(lines.split("\n").filter((l) => /^[A-Z_]+=/.test(l)).map((l) => l.split("=")[0]));
 const kept = env.split("\n").filter((l) => !ours.has(l.split("=")[0]));
 writeFileSync(ENV, kept.join("\n").trim() + "\n" + lines);
-console.log(`testnet bootstrap: covered=${covered.id} (locked, code ${codeHash}) usdc=${usdc.id} relayer=${relayer.id}`);
+console.log(`testnet bootstrap: coveredmarket=${coveredmarket.id} (locked, code ${codeHash}) usdc=${usdc.id} relayer=${relayer.id}`);

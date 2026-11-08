@@ -70,7 +70,7 @@ jobs:
         if: env.ACTION != 'destroy'
         env:
           RESET_CONTRACT: ${{ env.ACTION == 'reset-contract' && '1' || '' }}
-        run: bin/covered deploy
+        run: bin/coveredmarket deploy
       - name: save terraform state
         if: always()
         uses: actions/upload-artifact@v4

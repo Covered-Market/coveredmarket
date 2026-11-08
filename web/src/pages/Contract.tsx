@@ -57,7 +57,7 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
               </div>
             ))}
             <div className="body-small" style={{ marginTop: 8, color: "var(--ink-muted)", fontFamily: "var(--font-sans)" }}>
-              {checks.every((k) => k.status === "verified") ? <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}><Stamp status="settled" flat>verified</Stamp> 7 of 7 from Bitcoin and NEAR RPCs; nothing from Covered.</span> : checks.some((k) => k.status === "unavailable") ? "Some checks could not run: an RPC was unreachable. This is not a failure of the contract." : "A check failed. Do not rely on this contract until you understand why."}
+              {checks.every((k) => k.status === "verified") ? <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}><Stamp status="settled" flat>verified</Stamp> 7 of 7 from Bitcoin and NEAR RPCs; nothing from CoveredMarket.</span> : checks.some((k) => k.status === "unavailable") ? "Some checks could not run: an RPC was unreachable. This is not a failure of the contract." : "A check failed. Do not rely on this contract until you understand why."}
             </div>
           </div>
         )}
@@ -88,7 +88,7 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
           ["Signer", CFG.signer, nearAcct],
           ["Light client", CFG.lightClient, nearAcct],
         ]} />
-        <Notice>Only {CFG.contract} can ask NEAR's signing network ({CFG.signer}) to spend {offer.address.slice(0, 8)}…. It does so for exactly one transaction, committed on chain before the request. Covered's servers can only relay.</Notice>
+        <Notice>Only {CFG.contract} can ask NEAR's signing network ({CFG.signer}) to spend {offer.address.slice(0, 8)}…. It does so for exactly one transaction, committed on chain before the request. CoveredMarket's servers can only relay.</Notice>
       </div>
     </div>
   );

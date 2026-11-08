@@ -5,7 +5,7 @@ import { JsonRpcProvider } from "@near-js/providers";
 import { KeyPairSigner } from "@near-js/signers";
 import { actionCreators } from "@near-js/transactions";
 
-export interface NearCfg { networkId: string; nodeUrl: string; relayerId?: string; relayerKey?: string; covered: string }
+export interface NearCfg { networkId: string; nodeUrl: string; relayerId?: string; relayerKey?: string; coveredmarket: string }
 
 /** Resend a transaction the network REJECTED (stale nonce or expired block hash: it never ran): a load-balanced RPC node a block
  *  behind can hand out the nonce the previous transaction just used. Any other error is final. */
@@ -19,14 +19,14 @@ export async function retryNonce<T>(f: () => Promise<T>, tries = 6): Promise<T> 
 export async function nearClient(cfg: NearCfg) {
   const provider = new JsonRpcProvider({ url: cfg.nodeUrl });
   const view = async <T>(method: string, args: Record<string, unknown> = {}): Promise<T> => {
-    const r: any = await provider.query({ request_type: "call_function", account_id: cfg.covered, method_name: method, args_base64: Buffer.from(JSON.stringify(args)).toString("base64"), finality: "optimistic" });
+    const r: any = await provider.query({ request_type: "call_function", account_id: cfg.coveredmarket, method_name: method, args_base64: Buffer.from(JSON.stringify(args)).toString("base64"), finality: "optimistic" });
     return JSON.parse(Buffer.from(r.result).toString());
   };
   let account: Account | undefined;
   if (cfg.relayerId && cfg.relayerKey) account = new Account(cfg.relayerId, provider, new KeyPairSigner(KeyPair.fromString(cfg.relayerKey as any)));
   const call = async (method: string, args: Record<string, unknown>, gasTgas = 300) => {
     if (!account) throw new Error("relayer key not configured");
-    return retryNonce(() => account!.callFunction({ contractId: cfg.covered, methodName: method, args, gas: BigInt(gasTgas) * 10n ** 12n }));
+    return retryNonce(() => account!.callFunction({ contractId: cfg.coveredmarket, methodName: method, args, gas: BigInt(gasTgas) * 10n ** 12n }));
   };
   const callAny = async (contractId: string, method: string, args: Record<string, unknown>, gasTgas = 50) => {
     if (!account) throw new Error("relayer key not configured");

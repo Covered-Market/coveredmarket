@@ -1,6 +1,6 @@
-"""Write components/<Comp>/preview.html and README.md for the Covered system."""
+"""Write components/<Comp>/preview.html and README.md for the CoveredMarket system."""
 import os
-ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'covered', 'project', 'components')
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'coveredmarket', 'project', 'components')
 
 def preview(name, group, height, script, width=None, pad=24):
     w = f' width={width}' if width else ''
@@ -12,7 +12,7 @@ def preview(name, group, height, script, width=None, pad=24):
 <body>
 <div id="root" class="cv-root"></div>
 <script>
-var C = window.Covered, h = React.createElement;
+var C = window.CoveredMarket, h = React.createElement;
 ReactDOM.createRoot(document.getElementById('root')).render({script});
 </script>
 </body>
@@ -24,7 +24,7 @@ COMPS = {
   h(C.Mark, {size:64}),
   h(C.Mark, {size:64, tone:'two-tone'}),
   h('span', {style:{color:'var(--intaglio)'}}, h(C.Mark, {size:40})),
-  h('span', {style:{display:'inline-flex', alignItems:'center', gap:12}}, h(C.Mark, {size:28, tone:'two-tone'}), h('span', {style:{fontFamily:'var(--font-display)', fontSize:24, fontWeight:500, letterSpacing:'-0.01em'}}, 'Covered')))""",
+  h('span', {style:{display:'inline-flex', alignItems:'center', gap:12}}, h(C.Mark, {size:28, tone:'two-tone'}), h('span', {style:{fontFamily:'var(--font-display)', fontSize:24, fontWeight:500, letterSpacing:'-0.01em'}}, 'CoveredMarket')))""",
 """# Mark
 
 The Cap, drawn inline so it takes `currentColor`: a coin whose segment above the strike line is hatched, because a covered call gives away the upside above the strike. Use `tone: 'two-tone'` (copper disc, gilt strike line) on brand surfaces and in the TopBar; the single-ink form anywhere it sits in running text or at 24px and below.
@@ -52,7 +52,7 @@ Verb first, sentence case, no exclamation marks: “Sell this call”, “Buy”
   h(C.Stamp, {status:'kept', flat:true}, 'Kept · 2.0000 BTC returned'))""",
 """# Stamp
 
-Every state in Covered is stamped with its word. The six statuses: **Open** (gilt, an offer awaiting a buyer or a live contract), **Kept** (intaglio, expiry passed below strike, coins returned), **Exercised** (copper, coins sold at strike), **Settled** (ink, money moved both ways), **Pending** (muted, dashed: waiting on a chain), **Refused** (oxblood, the contract said no).
+Every state in CoveredMarket is stamped with its word. The six statuses: **Open** (gilt, an offer awaiting a buyer or a live contract), **Kept** (intaglio, expiry passed below strike, coins returned), **Exercised** (copper, coins sold at strike), **Settled** (ink, money moved both ways), **Pending** (muted, dashed: waiting on a chain), **Refused** (oxblood, the contract said no).
 
 - Colour never carries state alone; the word is always printed. Kept and Refused are green and red, so the icon and word do the telling.
 - Rotated by default, like a hand stamp on a certificate. Use `flat` in tables and lists.
@@ -168,7 +168,7 @@ The product’s one navigation bar: lockup left (two-tone Mark and the word in F
 - Children render on the right: the person’s coin balance as a small Figure and their account as a quiet small Button.
 - On Vault theme nothing changes but the tokens; do not restyle the bar for dark.""", 0),
 
-'Certificate': ('Market', 440, """h(C.Certificate, {contract:{serial:'CV-0037', issued:'4 Nov 2026', size:2, strike:150000, expiry:'31 Dec 2026, 08:00 UTC', premium:6000, vault:'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', seller:'astrid.near', buyer:'marcus.near', contractId:'covered.near', status:'open'}},
+'Certificate': ('Market', 440, """h(C.Certificate, {contract:{serial:'CV-0037', issued:'4 Nov 2026', size:2, strike:150000, expiry:'31 Dec 2026, 08:00 UTC', premium:6000, vault:'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', seller:'astrid.near', buyer:'marcus.near', contractId:'coveredmarket.near', status:'open'}},
   h(C.Button, null, 'Verify on NEAR'), h(C.Button, {variant:'primary'}, 'View settlement'))""",
 """# Certificate
 

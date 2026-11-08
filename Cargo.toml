@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["contracts/covered", "contracts/mock-signer", "contracts/mock-btc-client", "contracts/mock-usdc", "integration"]
+members = ["contracts/coveredmarket", "contracts/mock-signer", "contracts/mock-btc-client", "contracts/mock-usdc", "integration"]
 
 [workspace.dependencies]
 near-sdk = "5.30"

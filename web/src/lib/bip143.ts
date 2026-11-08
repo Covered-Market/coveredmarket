@@ -1,4 +1,4 @@
-/** The contract's settlement transaction, rebuilt in the browser (Verify check 6). Must match contracts/covered/src/btc.rs. */
+/** The contract's settlement transaction, rebuilt in the browser (Verify check 6). Must match contracts/coveredmarket/src/btc.rs. */
 import * as secp from "@noble/secp256k1";
 import { hex, sha256d } from "./derive.js";
 

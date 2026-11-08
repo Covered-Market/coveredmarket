@@ -1,6 +1,6 @@
 #cloud-config
 # First boot only prepares the machine: Docker, swap (the contract build wants it on 2 GB), a firewall and a
-# `deploy` user. The code arrives with `bin/covered deploy` (git archive over ssh), so the repo can stay private.
+# `deploy` user. The code arrives with `bin/coveredmarket deploy` (git archive over ssh), so the repo can stay private.
 package_update: true
 packages: [ca-certificates, curl, ufw]
 users:

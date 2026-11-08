@@ -1,6 +1,6 @@
 # Motion
 
-A certificate does not move. Motion in Covered is rare, short and means something.
+A certificate does not move. Motion in CoveredMarket is rare, short and means something.
 
 - **Hover and focus**: 120ms linear colour change. No lift, no scale.
 - **The stamp lands**: when a status changes on screen (an offer sold, a contract kept), the `Stamp` appears once in 180ms, from scale 1.15 and rotation -4° to its resting 1 and -1.5°, ease-out. The only "celebration" in the product.

@@ -28,7 +28,7 @@
 <body>
   <div class="frame"></div>
   <img class="rosette" id="rosette" alt="">
-  <img class="lockup" id="lockup" alt="Covered">
+  <img class="lockup" id="lockup" alt="CoveredMarket">
   <h1>Open to anyone. Held by no one. Earning for you.</h1>
   <p>Sell covered calls on <b>native Bitcoin</b>. No custodian, no bridge, no wrapper.</p>
   <div class="serial">No. CV-1 · exercised on Bitcoin testnet3 · 6 Nov 2026 11:10 UTC</div>
@@ -37,7 +37,7 @@
   const vault = new URLSearchParams(location.search).get("theme") === "vault";
   document.documentElement.dataset.theme = vault ? "vault" : "paper";
   const A = "../../brand/assets/";
-  document.getElementById("lockup").src = A + (vault ? "Logos/covered-lockup-on-vault.svg" : "Logos/covered-lockup.svg");
+  document.getElementById("lockup").src = A + (vault ? "Logos/coveredmarket-lockup-on-vault.svg" : "Logos/coveredmarket-lockup.svg");
   document.getElementById("rosette").src = A + (vault ? "Patterns/guilloche-rosette-gilt-on-vault.svg" : "Patterns/guilloche-rosette.svg");
 </script>
 </body>
