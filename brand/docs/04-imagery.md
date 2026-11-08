@@ -1,6 +1,6 @@
 # Imagery
 
-Covered does not use stock photography, 3D coins, glowing charts or illustrations of people. Its pictures are of two kinds.
+CoveredMarket does not use stock photography, 3D coins, glowing charts or illustrations of people. Its pictures are of two kinds.
 
 ## 1. The product, photographed like a document
 
@@ -25,4 +25,4 @@ Charts are figures, so they are mono and hairline: a line in `intaglio` at `stro
 
 ## What a picture is for
 
-Every image in Covered answers one of two questions: *where are the coins?* or *what did the contract do?* If a picture answers neither, leave the space to the paper.
+Every image in CoveredMarket answers one of two questions: *where are the coins?* or *what did the contract do?* If a picture answers neither, leave the space to the paper.

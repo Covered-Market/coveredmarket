@@ -2,7 +2,7 @@
  * Bitcoin Core RPC backend. Implements the Esplora interface the proof builder
  * uses, plus the handful of Esplora routes the web app calls, so a local stack
  * needs no electrs/esplora. Address lookups use `scantxoutset`/`listunspent`
- * on a watch-only wallet named `covered` (created on start).
+ * on a watch-only wallet named `coveredmarket` (created on start).
  */
 import type { Esplora } from "./proof.js";
 import { txidOf, branch } from "./proof.js";
@@ -15,7 +15,7 @@ export class Core implements Esplora {
   constructor(private cfg: CoreCfg, private fetchFn: typeof fetch = fetch) {}
 
   async rpc<T = any>(method: string, params: unknown[] = [], wallet = false): Promise<T> {
-    const url = wallet ? `${this.cfg.url}/wallet/${this.cfg.wallet ?? "covered"}` : this.cfg.url;
+    const url = wallet ? `${this.cfg.url}/wallet/${this.cfg.wallet ?? "coveredmarket"}` : this.cfg.url;
     const r = await this.fetchFn(url, { method: "POST", headers: { "content-type": "application/json", authorization: "Basic " + Buffer.from(`${this.cfg.user}:${this.cfg.pass}`).toString("base64") }, body: JSON.stringify({ jsonrpc: "1.0", id: ++this.id, method, params }) });
     const j = await r.json();
     if (j.error) throw new Error(`${method}: ${j.error.message}`);
@@ -23,7 +23,7 @@ export class Core implements Esplora {
   }
   /** Create the watch-only wallet once; import addresses as they are watched. */
   async ensureWallet() {
-    const name = this.cfg.wallet ?? "covered";
+    const name = this.cfg.wallet ?? "coveredmarket";
     const list: string[] = await this.rpc("listwallets");
     if (!list.includes(name)) {
       try { await this.rpc("loadwallet", [name]); } catch { await this.rpc("createwallet", [name, true, true, "", false, true]); }
@@ -33,7 +33,7 @@ export class Core implements Esplora {
   /** Watch an address; rescans from genesis the first time (regtest/testnet4 chains are small enough). */
   async watch(address: string) {
     if (this.watched.has(address)) return;
-    await this.rpc("importdescriptors", [[{ desc: await this.descriptor(address), timestamp: 0, label: "covered" }]], true);
+    await this.rpc("importdescriptors", [[{ desc: await this.descriptor(address), timestamp: 0, label: "coveredmarket" }]], true);
     this.watched.add(address);
   }
   private async descriptor(address: string) { const d = await this.rpc("getdescriptorinfo", [`addr(${address})`]); return d.descriptor; }

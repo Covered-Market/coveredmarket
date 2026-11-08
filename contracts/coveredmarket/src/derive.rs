@@ -107,12 +107,12 @@ mod tests {
         let r = Scalar::from_repr([5u8; 32].into()).unwrap();
         let root = (ProjectivePoint::GENERATOR * r).to_affine().to_encoded_point(false);
         let root65: [u8; 65] = root.as_bytes().try_into().unwrap();
-        let d = derive_pubkey(&root65, DEFAULT_PREFIX, "covered.near", "astrid.near/CV-37").unwrap();
-        let eps = Scalar::from_repr(epsilon(DEFAULT_PREFIX, "covered.near", "astrid.near/CV-37").into()).unwrap();
+        let d = derive_pubkey(&root65, DEFAULT_PREFIX, "coveredmarket.near", "astrid.near/CV-37").unwrap();
+        let eps = Scalar::from_repr(epsilon(DEFAULT_PREFIX, "coveredmarket.near", "astrid.near/CV-37").into()).unwrap();
         let expect = (ProjectivePoint::GENERATOR * (r + eps)).to_affine().to_encoded_point(true);
         assert_eq!(&d[..], expect.as_bytes());
         // a different predecessor (A1: the operator) gives a different key
-        let d2 = derive_pubkey(&root65, DEFAULT_PREFIX, "covered-ops.near", "astrid.near/CV-37").unwrap();
+        let d2 = derive_pubkey(&root65, DEFAULT_PREFIX, "coveredmarket-ops.near", "astrid.near/CV-37").unwrap();
         assert_ne!(d, d2);
     }
 

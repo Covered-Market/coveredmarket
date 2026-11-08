@@ -13,7 +13,7 @@ const offer: Offer = {
 const clients = (over: Partial<Clients["expected"]> = {}, bal = "0"): Clients => ({
   near: { codeHash: async () => "abc", accessKeys: async () => 0, view: async () => ({ claimable_total: "0", escrow_total: "0", near_balance: "1" }) as any, ftBalance: async () => bal },
   btc: { outspend: async () => ({ spent: false }), txStatus: async (id) => (id === vectors.collateral_txid ? { confirmed: true, depth: 9 } : id === vectors.txid ? { confirmed: true, depth: 1 } : null) },
-  expected: { codeHash: "abc", contract: "covered.test", signer: "signer.test", lightClient: "btc.test", usdc: "usdc.test", minConf: 6, ...over },
+  expected: { codeHash: "abc", contract: "coveredmarket.test", signer: "signer.test", lightClient: "btc.test", usdc: "usdc.test", minConf: 6, ...over },
 });
 
 describe("verify checks", () => {

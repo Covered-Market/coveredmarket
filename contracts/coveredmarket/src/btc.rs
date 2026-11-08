@@ -1,4 +1,4 @@
-//! Bitcoin side of Covered: the deposit script, the one-input-one-output settlement
+//! Bitcoin side of CoveredMarket: the deposit script, the one-input-one-output settlement
 //! transaction, BIP-143 sighash, witness assembly and txids.
 //!
 //! The deposit address is P2WSH of

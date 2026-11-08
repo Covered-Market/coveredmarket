@@ -4,12 +4,12 @@ labels: [bug]
 body:
   - type: markdown
     attributes:
-      value: "If this could let someone move coins, take USDC or fake a Verify result, **stop** and [report it privately](https://github.com/bedeho/covered/security/advisories/new) instead."
+      value: "If this could let someone move coins, take USDC or fake a Verify result, **stop** and [report it privately](https://github.com/bedeho/coveredmarket/security/advisories/new) instead."
   - type: dropdown
     id: where
     attributes:
       label: Where
-      options: [Testnet site, Local stack (bin/covered up), Contract, Relayer, Web app, Deployment, Docs]
+      options: [Testnet site, Local stack (bin/coveredmarket up), Contract, Relayer, Web app, Deployment, Docs]
     validations: { required: true }
   - type: textarea
     id: what

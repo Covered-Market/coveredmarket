@@ -1,5 +1,5 @@
 # One VM on DigitalOcean + DNS for the domain + a firewall. Nothing else.
-# `bin/covered provision` = terraform apply, then `bin/covered deploy`. Inputs: terraform.tfvars (gitignored) or TF_VAR_* (CI).
+# `bin/coveredmarket provision` = terraform apply, then `bin/coveredmarket deploy`. Inputs: terraform.tfvars (gitignored) or TF_VAR_* (CI).
 terraform {
   required_version = ">= 1.6"
   required_providers {
@@ -22,7 +22,7 @@ variable "do_token" {
 variable "domain" {
   type        = string
   default     = ""
-  description = "optional, e.g. covered.money (nameservers → ns1/ns2/ns3.digitalocean.com). Empty: the site is https://<ip-with-dashes>.sslip.io"
+  description = "optional, e.g. example.com (nameservers → ns1/ns2/ns3.digitalocean.com). Empty: the site is https://<ip-with-dashes>.sslip.io"
 }
 
 variable "region" {

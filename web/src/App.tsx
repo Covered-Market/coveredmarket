@@ -59,7 +59,7 @@ export function App() {
   };
   const getWallet = () => (canConnect() ? connect() : setNaming(true));
   const forget = async () => {
-    if (wallet?.testRole) { if (!confirm(`Leave test mode in this tab? The ${wallet.testRole} key stays in this browser; open ?testwallet=reset to delete it.`)) return; try { sessionStorage.removeItem("covered.testwallet.role"); } catch {} setWallet(loadWallet()); return; }
+    if (wallet?.testRole) { if (!confirm(`Leave test mode in this tab? The ${wallet.testRole} key stays in this browser; open ?testwallet=reset to delete it.`)) return; try { sessionStorage.removeItem("coveredmarket.testwallet.role"); } catch {} setWallet(loadWallet()); return; }
     if (!confirm(wallet?.via ? `Disconnect ${wallet.viaName ?? "this wallet"}?` : "Forget this sandbox account on this device? Its key is only stored here.")) return;
     if (wallet?.via) await disconnectWallet(); clearWallet(); setWallet(null);
   };
@@ -114,7 +114,7 @@ export function App() {
       {content}
       <div style={{ padding: "16px 48px 24px", borderTop: "1px solid var(--rule)", marginTop: 48 }} className="body-small cv-pad">
         <ChainClock />
-        <Notice>Covered is unaudited hackathon software.{CFG.disabled ? null : <> Only the contract <a href={`${CFG.explorerNear}/address/${CFG.contract}`} target="_blank" rel="noreferrer"><code>{CFG.contract}</code></a> can ask NEAR's signing network to spend a deposit address; Covered the company cannot. If the signing network stopped, settlement would stop with it.</>}</Notice>
+        <Notice>CoveredMarket is unaudited hackathon software.{CFG.disabled ? null : <> Only the contract <a href={`${CFG.explorerNear}/address/${CFG.contract}`} target="_blank" rel="noreferrer"><code>{CFG.contract}</code></a> can ask NEAR's signing network to spend a deposit address; CoveredMarket the company cannot. If the signing network stopped, settlement would stop with it.</>}</Notice>
       </div>
     </div>
   );

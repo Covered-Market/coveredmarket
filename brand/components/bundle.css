@@ -1,4 +1,4 @@
-/* Covered — component stylesheet. Colours, type, spacing and radii come from tokens.css (var(--…)); this file holds only structure. */
+/* CoveredMarket — component stylesheet. Colours, type, spacing and radii come from tokens.css (var(--…)); this file holds only structure. */
 .cv-root, .cv-root * { box-sizing: border-box; }
 .cv-root { font-family: var(--font-sans); color: var(--ink); background: var(--paper); font-size: 16px; line-height: 24px; -webkit-font-smoothing: antialiased; }
 .cv-row { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }

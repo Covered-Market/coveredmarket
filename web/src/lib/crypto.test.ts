@@ -19,7 +19,7 @@ describe("derivation matches the contract", () => {
     expect(hex.to(scriptNum(1_800_000_000))).toBe("00d2496b");
   });
   it("a different predecessor (the operator) gets a different key", () => {
-    expect(hex.to(derivePubkey(vectors.root_key_hex, vectors.prefix, "covered-ops.test", vectors.path))).not.toBe(vectors.derived_pubkey);
+    expect(hex.to(derivePubkey(vectors.root_key_hex, vectors.prefix, "coveredmarket-ops.test", vectors.path))).not.toBe(vectors.derived_pubkey);
   });
   it("bech32 round trip", () => {
     const s = scriptFromAddress(vectors.address_regtest, "Regtest");

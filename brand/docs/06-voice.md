@@ -1,6 +1,6 @@
 # Voice and tone
 
-Covered writes like a careful broker's letter: plain, exact, a little formal, never selling. It assumes the reader is an adult with money who would like to know what will happen to it.
+CoveredMarket writes like a careful broker's letter: plain, exact, a little formal, never selling. It assumes the reader is an adult with money who would like to know what will happen to it.
 
 ## Voice (always)
 
@@ -32,4 +32,4 @@ Avoid: assets, yield farming, APY (say "annualised"), trustless, seamless, unloc
 - Oxford comma, no exclamation marks, no emoji, no ellipses for effect (the ellipsis is reserved for truncated hashes).
 - Buttons are verb first: "Sell this call", "Deposit 2.0000 BTC", "Verify on NEAR".
 - Dates `31 Dec 2026`, times `08:00 UTC`, money `$6,000.00` in figures, `2.0000 BTC`.
-- The product is "Covered", capital C, never "COVERED" in text and never "Covered Protocol".
+- The product is "CoveredMarket", capital C, never "COVEREDMARKET" in text and never "CoveredMarket Protocol".

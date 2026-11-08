@@ -1,8 +1,8 @@
-**Covered** sells covered calls on native Bitcoin without a custodian: a holder's coins stay on Bitcoin at an address only a NEAR contract can sign for, a buyer pays a premium from any chain, and at expiry the contract either returns the coins or sells them at the strike. The line: *Open to anyone. Held by no one. Earning for you.*
+**CoveredMarket** sells covered calls on native Bitcoin without a custodian: a holder's coins stay on Bitcoin at an address only a NEAR contract can sign for, a buyer pays a premium from any chain, and at expiry the contract either returns the coins or sells them at the strike. The line: *Open to anyone. Held by no one. Earning for you.*
 
 ## The idea: a security, printed
 
-Covered looks like the thing it is: an option contract. Not a trading terminal, not a crypto launch page. The references are engraved securities and bond certificates: cream paper, one green intaglio ink, a little gold leaf, guilloche borders that are hard to forge, a serial number, a stamp that says what happened. Three words to check every design against: **engraved, exact, unhurried.**
+CoveredMarket looks like the thing it is: an option contract. Not a trading terminal, not a crypto launch page. The references are engraved securities and bond certificates: cream paper, one green intaglio ink, a little gold leaf, guilloche borders that are hard to forge, a serial number, a stamp that says what happened. Three words to check every design against: **engraved, exact, unhurried.**
 
 - *Engraved*: value lives in line, not in glow. Hairlines, hatching, braids. No gradients, no blur, no 3D.
 - *Exact*: every figure is mono and tabular; every date carries UTC; every address is printed. The page never rounds what the contract doesn't.
@@ -13,7 +13,7 @@ If a surface could belong to a neon perp DEX or to a generic fintech, it is wron
 ## How to use this system
 
 - Read `tokens.json` for every colour, type style, spacing step, radius, shadow and stroke; use them by name (`var(--intaglio)`, class `figure`). Never a raw hex or px in product code.
-- Build product UI from `components/bundle.js` (`window.Covered`): `Certificate` is the hero object, `OfferCard` and `PositionsTable` the market, `Stamp` and `SettlementTimeline` the state, `Figure` every number. Each component's README says what the consumer supplies.
+- Build product UI from `components/bundle.js` (`window.CoveredMarket`): `Certificate` is the hero object, `OfferCard` and `PositionsTable` the market, `Stamp` and `SettlementTimeline` the state, `Figure` every number. Each component's README says what the consumer supplies.
 - Take logos, patterns, icons and social templates from `assets/`, never redraw them. The mark is *the Lid*: one coin, its top lifted off.
 - Default theme is **Paper** (site, documents, print, ads). Use **Vault** for the trading app at night, video and social where cream would glare. Both are the same tokens; never style for one theme by hand.
 - Copy is written in the voice under *Voice and tone*: plain, exact, second person, no hype.

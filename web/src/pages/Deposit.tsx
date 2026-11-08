@@ -40,7 +40,7 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
         <div>
           <div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)", marginBottom: 8 }}>Step 2 of 3 · Deposit · CV-{serial}</div>
           <h1 className="display-2" style={{ margin: "0 0 8px", fontSize: 44, lineHeight: 1.02 }}>Deposit {btc8(offer.size_sats)}</h1>
-          <p className="body" style={{ margin: 0, color: "var(--ink-muted)" }}>This address was derived for CV-{serial} by the Covered contract on NEAR. Only the contract can sign from it, through Chain Signatures. Nobody holds a key.</p>
+          <p className="body" style={{ margin: 0, color: "var(--ink-muted)" }}>This address was derived for CV-{serial} by the CoveredMarket contract on NEAR. Only the contract can sign from it, through Chain Signatures. Nobody holds a key.</p>
         </div>
         <div style={{ display: "flex", gap: 20, alignItems: "center", padding: 20, background: "var(--paper-sunk)", border: "1px solid var(--rule-strong)" }}>
           <img alt="QR" width={136} height={136} style={{ background: "#fff", border: "1px solid var(--rule)" }} src={`https://api.qrserver.com/v1/create-qr-code/?size=136x136&data=bitcoin:${offer.address}?amount=${(Number(offer.size_sats) / 1e8).toFixed(8)}`} />

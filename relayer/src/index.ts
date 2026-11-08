@@ -12,11 +12,11 @@ import { spotUsd } from "./spot.js";
 const env = (k: string, d?: string) => process.env[k] ?? d ?? (() => { throw new Error(`missing env ${k}`); })();
 const cfg = {
   networkId: env("NEAR_NETWORK", "testnet"), nodeUrl: env("NEAR_RPC", "https://rpc.testnet.fastnear.com"),
-  relayerId: process.env.RELAYER_ID, relayerKey: process.env.RELAYER_KEY, covered: env("COVERED_ID", "covered.testnet"),
+  relayerId: process.env.RELAYER_ID, relayerKey: process.env.RELAYER_KEY, coveredmarket: env("COVERED_ID", "coveredmarket.testnet"),
   usdc: env("USDC_ID", "usdc.fakes.testnet"), lightClient: process.env.LIGHT_CLIENT_ID, lightClientMock: process.env.LIGHT_CLIENT_MOCK === "1",
   btcBackend: env("BTC_BACKEND", "esplora") as "esplora" | "core",
   esplora: env("ESPLORA", "https://mempool.space/testnet/api,https://blockstream.info/testnet/api"),
-  core: { url: env("BITCOIN_RPC", "http://bitcoind:18443"), user: env("BITCOIN_RPC_USER", "covered"), pass: env("BITCOIN_RPC_PASS", "covered") },
+  core: { url: env("BITCOIN_RPC", "http://bitcoind:18443"), user: env("BITCOIN_RPC_USER", "coveredmarket"), pass: env("BITCOIN_RPC_PASS", "coveredmarket") },
   port: Number(env("PORT", "8787")), tickMs: Number(env("TICK_MS", "30000")),
   fixedSpot: process.env.FIXED_SPOT_USD ? Number(process.env.FIXED_SPOT_USD) : undefined,
 };
@@ -29,7 +29,7 @@ const api: Esplora = core ?? esplora(cfg.esplora);
 const app = express();
 app.use(express.json({ limit: "256kb" }));
 let relayed = 0; // meta-transactions relayed successfully since start (the e2e asserts the UI went this way)
-app.get("/api/health", (_req, res) => res.json({ ok: true, covered: cfg.covered, network: cfg.networkId, btc: cfg.btcBackend, relayed }));
+app.get("/api/health", (_req, res) => res.json({ ok: true, coveredmarket: cfg.coveredmarket, network: cfg.networkId, btc: cfg.btcBackend, relayed }));
 
 let spot = { price: cfg.fixedSpot ?? 0, sources: cfg.fixedSpot ? 1 : 0, at: cfg.fixedSpot ? Infinity : 0 };
 app.get("/api/spot", async (_req, res) => {
@@ -39,7 +39,7 @@ app.get("/api/spot", async (_req, res) => {
 app.post("/api/relay", async (req, res) => {
   let sd: any;
   try { sd = decodeSignedDelegate(String(req.body?.signedDelegate ?? "")); } catch { return res.status(400).json({ error: "signedDelegate must be base64 borsh" }); }
-  const v = checkDelegate(viewOf(sd), { covered: cfg.covered, usdc: cfg.usdc, maxGas: 300n * 10n ** 12n, maxDepositYocto: 10n ** 24n });
+  const v = checkDelegate(viewOf(sd), { coveredmarket: cfg.coveredmarket, usdc: cfg.usdc, maxGas: 300n * 10n ** 12n, maxDepositYocto: 10n ** 24n });
   if (!v.ok) return res.status(400).json({ error: v.reason });
   try {
     const outcome: any = await near.relay(sd);
@@ -186,7 +186,7 @@ if (core) {
   // Regtest only: jump Bitcoin's clock forward and mine so median time past follows (tests the seller's exit).
   app.post("/btc/dev/mocktime", h(async (r) => { await core.mocktime(Number(r.body.t)); return { blocks: await core.mine(Number(r.body?.mine ?? 12)) }; }));
 }
-app.listen(cfg.port, () => console.log(`relayer on :${cfg.port} → ${cfg.covered} (${cfg.networkId}), btc=${cfg.btcBackend}`));
+app.listen(cfg.port, () => console.log(`relayer on :${cfg.port} → ${cfg.coveredmarket} (${cfg.networkId}), btc=${cfg.btcBackend}`));
 
 const services: Services = {
   near,

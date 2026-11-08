@@ -1,7 +1,7 @@
 /**
  * Bring your own NEAR wallet (HOT, Meteor, Intear, MyNearWallet, OKX, Nightly, …) through NEAR Connect.
  * Wallets run in a sandboxed iframe; we only ever see the account id and what the user signs.
- * Gas: a wallet that can sign delegate actions (NEP-366) goes through the Covered relayer and needs no NEAR;
+ * Gas: a wallet that can sign delegate actions (NEP-366) goes through the CoveredMarket relayer and needs no NEAR;
  * any other wallet sends the transaction itself and pays a little gas.
  */
 import { NearConnector, type NearWalletBase } from "@hot-labs/near-connect";

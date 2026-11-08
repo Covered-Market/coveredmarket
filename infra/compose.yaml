@@ -1,5 +1,5 @@
 # Base stack: what runs in the cloud. One VM, two containers, Caddy does TLS.
-# `covered up` layers compose.local.yaml on top for the all-local stack.
+# `coveredmarket up` layers compose.local.yaml on top for the all-local stack.
 name: covered
 services:
   relayer:
@@ -17,7 +17,7 @@ services:
       interval: 15s
       timeout: 3s
       retries: 10
-  # Mainnet runs beside testnet on the same VM once .env.mainnet names a contract (`bin/covered serve`
+  # Mainnet runs beside testnet on the same VM once .env.mainnet names a contract (`bin/coveredmarket serve`
   # enables the profile). Until then the mainnet site says it is not live yet.
   relayer-mainnet:
     profiles: ["mainnet"]

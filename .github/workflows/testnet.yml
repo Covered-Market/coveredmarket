@@ -29,7 +29,7 @@ jobs:
         with: { targets: wasm32-unknown-unknown }
       - uses: Swatinem/rust-cache@v2
       - run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/download/cargo-near-v0.23.0/cargo-near-installer.sh | sh
-      - run: for c in covered mock-btc-client mock-usdc; do cargo near build non-reproducible-wasm --manifest-path contracts/$c/Cargo.toml; done
+      - run: for c in coveredmarket mock-btc-client mock-usdc; do cargo near build non-reproducible-wasm --manifest-path contracts/$c/Cargo.toml; done
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: (cd relayer && npm ci) && (cd web && npm ci) && (cd e2e && npm ci)
@@ -37,14 +37,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: testnet-l2, path: e2e/artifacts/ }
-  # The cloud VM's exact start-up (`bin/covered serve`) on a clean runner: builds the wasm, deploys and locks a fresh
+  # The cloud VM's exact start-up (`bin/coveredmarket serve`) on a clean runner: builds the wasm, deploys and locks a fresh
   # testnet contract set via the faucet, starts relayer + web, then creates a visitor wallet through /api/account.
   cloud-rehearsal:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - run: touch .env && bin/covered serve
+      - run: touch .env && bin/coveredmarket serve
       - name: check the running stack
         run: |
           set -euo pipefail
@@ -68,7 +68,7 @@ jobs:
           set -a; . ./.env; set +a; OLD=$COVERED_ID; REL=$RELAYER_ID
           sed -i '/^COVERED_ID=/d' .env
           echo 'NEAR_HELPER_URL=https://postman-echo.com/post' >> .env   # answers 200 and creates nothing, like the rate-limited faucet
-          bin/covered serve
+          bin/coveredmarket serve
           set -a; . ./.env; set +a
           [ "$COVERED_ID" != "$OLD" ] && [ "$RELAYER_ID" = "$REL" ] && [[ "$COVERED_ID" == *".$REL" ]] || { echo "reset did not fund from the relayer: $COVERED_ID / $RELAYER_ID"; exit 1; }
           curl -fsS localhost/config.json | jq -e --arg c "$COVERED_ID" '.contract == $c'
