@@ -4,6 +4,9 @@ name: cloud
 #   DEPLOY_SSH_KEY  private half of a deploy key: ssh-keygen -t ed25519 -f deploy_key -N "" && gh secret set DEPLOY_SSH_KEY < deploy_key
 # Terraform state is carried between runs as the `tfstate` artifact (it holds no secrets: env_file stays empty,
 # the VM writes its own .env). Pushing a tag v* redeploys the current VM.
+# Optional repository variables (gh variable set NAME --body VALUE), so every run keeps the same site:
+#   DOMAIN               the site's domain; the `domain` input overrides it for one run
+#   DNS_AT_DIGITALOCEAN  false when DNS stays at the registrar (point @, * and www at the VM's IP there)
 on:
   workflow_dispatch:
     inputs:
@@ -13,7 +16,7 @@ on:
         options: [apply, deploy, reset-contract, destroy]
         default: apply
       domain:
-        description: optional domain (nameservers at DigitalOcean); empty = <ip>.sslip.io
+        description: optional domain; empty = the DOMAIN repository variable, else <ip>.sslip.io
         type: string
         default: ""
   push:
@@ -31,7 +34,8 @@ jobs:
     env:
       ACTION: ${{ inputs.action || 'deploy' }}
       TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
-      TF_VAR_domain: ${{ inputs.domain }}
+      TF_VAR_domain: ${{ inputs.domain || vars.DOMAIN }}
+      TF_VAR_dns_at_digitalocean: ${{ vars.DNS_AT_DIGITALOCEAN || 'true' }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4

@@ -27,3 +27,8 @@
 {$MAINNET_ADDRESS} {
 	import app relayer-mainnet:8787 mainnet.json
 }
+
+# www.<domain> only redirects, so the app (and wallet sessions) live on one origin.
+{$WWW_ADDRESS} {
+	redir https://{$PRIMARY_HOST}{uri} permanent
+}
