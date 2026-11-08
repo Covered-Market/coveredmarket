@@ -5,6 +5,8 @@ deploy_pubkey = "ssh-ed25519 AAAA... coveredmarket-deploy"
 # Optional. Without a domain the site is https://<ip-with-dashes>.sslip.io (real TLS, no DNS to set up).
 # Adding or changing it later: set it here, `bin/coveredmarket provision` (DNS only; the VM is kept).
 # domain = "coveredmarket.example"
+# DNS at your registrar instead of DigitalOcean: point @, * and www at `terraform output ip` there, and
+# dns_at_digitalocean = false
 
 # Optional: also let in an SSH key already in your DigitalOcean account.
 # ssh_key_name = "my-laptop"

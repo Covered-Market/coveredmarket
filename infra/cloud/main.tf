@@ -1,4 +1,4 @@
-# One VM on DigitalOcean + DNS for the domain + a firewall. Nothing else.
+# One VM on DigitalOcean + DNS for the domain (unless it stays at the registrar) + a firewall. Nothing else.
 # `bin/coveredmarket provision` = terraform apply, then `bin/coveredmarket deploy`. Inputs: terraform.tfvars (gitignored) or TF_VAR_* (CI).
 terraform {
   required_version = ">= 1.6"
@@ -23,6 +23,12 @@ variable "domain" {
   type        = string
   default     = ""
   description = "optional, e.g. example.com (nameservers → ns1/ns2/ns3.digitalocean.com). Empty: the site is https://<ip-with-dashes>.sslip.io"
+}
+
+variable "dns_at_digitalocean" {
+  type        = bool
+  default     = true
+  description = "false: DNS for the domain stays at your registrar; point @, * and www there at `terraform output ip` yourself"
 }
 
 variable "region" {
@@ -82,12 +88,12 @@ resource "digitalocean_droplet" "vm" {
 }
 
 resource "digitalocean_domain" "root" {
-  count = var.domain == "" ? 0 : 1
+  count = local.do_dns ? 1 : 0
   name  = var.domain
 }
 
 resource "digitalocean_record" "a" {
-  count  = var.domain == "" ? 0 : 1
+  count  = local.do_dns ? 1 : 0
   domain = digitalocean_domain.root[0].id
   type   = "A"
   name   = "@"
@@ -96,7 +102,7 @@ resource "digitalocean_record" "a" {
 }
 
 resource "digitalocean_record" "wildcard" {
-  count  = var.domain == "" ? 0 : 1
+  count  = local.do_dns ? 1 : 0
   domain = digitalocean_domain.root[0].id
   type   = "A"
   name   = "*"
@@ -105,7 +111,7 @@ resource "digitalocean_record" "wildcard" {
 }
 
 resource "digitalocean_record" "www" {
-  count  = var.domain == "" ? 0 : 1
+  count  = local.do_dns ? 1 : 0
   domain = digitalocean_domain.root[0].id
   type   = "CNAME"
   name   = "www"
@@ -149,7 +155,8 @@ resource "digitalocean_firewall" "fw" {
 }
 
 locals {
-  site = var.domain != "" ? var.domain : "${replace(digitalocean_droplet.vm.ipv4_address, ".", "-")}.sslip.io"
+  do_dns = var.domain != "" && var.dns_at_digitalocean
+  site   = var.domain != "" ? var.domain : "${replace(digitalocean_droplet.vm.ipv4_address, ".", "-")}.sslip.io"
 }
 
 output "ip" {
