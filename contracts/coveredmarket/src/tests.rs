@@ -60,7 +60,7 @@ fn terms(size: u64, strike: u128, premium: u128, expiry: u64) -> OfferTerms {
 
 fn ctx(pred: AccountId, t: u64, deposit: NearToken) -> VMContextBuilder {
     let mut b = VMContextBuilder::new();
-    b.current_account_id("covered.test".parse().unwrap())
+    b.current_account_id("coveredmarket.test".parse().unwrap())
         .predecessor_account_id(pred)
         .block_timestamp(t * 1_000_000_000)
         .attached_deposit(deposit)
@@ -74,7 +74,7 @@ fn set_dep(pred: &AccountId, t: u64, dep: NearToken) {
     testing_env!(ctx(pred.clone(), t, dep).build());
 }
 fn me() -> AccountId {
-    "covered.test".parse().unwrap()
+    "coveredmarket.test".parse().unwrap()
 }
 fn usdc() -> AccountId {
     "usdc.test".parse().unwrap()
@@ -178,7 +178,7 @@ fn exercise(c: &mut Contract, serial: u64, amount: u128, t: u64) {
 /// The MPC: sign a sighash with the derived private key for `path`.
 fn mpc_sign(path: &str, sighash: &[u8; 32], good: bool) -> SignatureResponse {
     let r = Scalar::from_repr(ROOT_SCALAR.into()).unwrap();
-    let eps = Scalar::from_repr(derive::epsilon(derive::DEFAULT_PREFIX, "covered.test", path).into()).unwrap();
+    let eps = Scalar::from_repr(derive::epsilon(derive::DEFAULT_PREFIX, "coveredmarket.test", path).into()).unwrap();
     let mut d = r + eps;
     if !good {
         d += Scalar::ONE;
@@ -654,7 +654,7 @@ fn print_vectors_for_web() {
         "lc_args_hex": hex::encode(ProofRef { txid_display: format!("{}01", "00".repeat(31)), block_hash: "ab".repeat(32), tx_index: 7, merkle_proof: vec!["11".repeat(32), "12".repeat(32)], coinbase_tx_id: "22".repeat(32), coinbase_merkle_proof: vec!["33".repeat(32)] }.borsh_args(6)),
         "root_key_hex": root_key_hex(),
         "prefix": derive::DEFAULT_PREFIX,
-        "predecessor": "covered.test",
+        "predecessor": "coveredmarket.test",
         "path": o.path,
         "derived_pubkey": hex::encode(&o.derived_pubkey),
         "address_regtest": c.get_address(s),
@@ -788,9 +788,9 @@ fn no_new_settlement_once_the_exit_is_near() {
 #[test]
 fn selftest_accepts_only_a_signature_by_the_derived_key() {
     let mut c = new_contract();
-    let digest: [u8; 32] = near_sdk::env::sha256_array(b"covered selftest");
+    let digest: [u8; 32] = near_sdk::env::sha256_array(b"coveredmarket selftest");
     set(&me(), T0);
-    assert!(c.on_selftest_signed(Ok(mpc_sign("covered/selftest", &digest, true))));
-    assert!(!c.on_selftest_signed(Ok(mpc_sign("covered/selftest", &digest, false))));
+    assert!(c.on_selftest_signed(Ok(mpc_sign("coveredmarket/selftest", &digest, true))));
+    assert!(!c.on_selftest_signed(Ok(mpc_sign("coveredmarket/selftest", &digest, false))));
     assert!(!c.on_selftest_signed(Ok(mpc_sign("alice.near/CV-1", &digest, true))), "another path's key is not accepted");
 }

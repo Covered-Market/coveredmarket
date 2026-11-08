@@ -1,14 +1,14 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/readme/banner-vault.png">
-    <img alt="Covered. Open to anyone. Held by no one. Earning for you. Sell covered calls on native Bitcoin. No custodian, no bridge, no wrapper." src="docs/readme/banner-paper.png" width="100%">
+    <img alt="CoveredMarket. Open to anyone. Held by no one. Earning for you. Sell covered calls on native Bitcoin. No custodian, no bridge, no wrapper." src="docs/readme/banner-paper.png" width="100%">
   </picture>
 </p>
 
 <p align="center">
-  <a href="https://github.com/bedeho/covered/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/bedeho/covered/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-  <a href="https://github.com/bedeho/covered/actions/workflows/stack.yml"><img alt="End-to-end stack" src="https://github.com/bedeho/covered/actions/workflows/stack.yml/badge.svg?branch=main"></a>
-  <a href="https://github.com/bedeho/covered/actions/workflows/live.yml"><img alt="Live contract on Bitcoin testnet3" src="https://github.com/bedeho/covered/actions/workflows/live.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/bedeho/coveredmarket/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/bedeho/coveredmarket/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/bedeho/coveredmarket/actions/workflows/stack.yml"><img alt="End-to-end stack" src="https://github.com/bedeho/coveredmarket/actions/workflows/stack.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/bedeho/coveredmarket/actions/workflows/live.yml"><img alt="Live contract on Bitcoin testnet3" src="https://github.com/bedeho/coveredmarket/actions/workflows/live.yml/badge.svg?branch=main"></a>
   <a href="https://178-62-225-161.sslip.io"><img alt="Testnet app" src="https://img.shields.io/website?url=https%3A%2F%2F178-62-225-161.sslip.io&label=testnet%20app&up_message=live&up_color=1F4F40&down_color=7E2432"></a>
   <a href="docs/SECURITY-MODEL.md"><img alt="Unaudited" src="https://img.shields.io/badge/audit-none%20yet-7E2432"></a>
   <a href="SECURITY.md"><img alt="Bug bounty up to $2,000" src="https://img.shields.io/badge/bug%20bounty-up%20to%20%242%2C000-B88A2E"></a>
@@ -25,7 +25,7 @@
 
 ---
 
-You have held Bitcoin for years and it has earned nothing. The usual way to make it earn is to hand it to an exchange or a lender and hope. **Covered pays you today for agreeing to sell your coins at a higher price later, and the coins never leave Bitcoin.**
+You have held Bitcoin for years and it has earned nothing. The usual way to make it earn is to hand it to an exchange or a lender and hope. **CoveredMarket pays you today for agreeing to sell your coins at a higher price later, and the coins never leave Bitcoin.**
 
 - **Your coins stay on Bitcoin.** They sit at an address that only a NEAR contract can sign for, through NEAR's MPC signing network. No exchange, no bridge, no wrapped token, and no key that we hold.
 - **You are paid up front.** The buyer pays the premium in USDC the moment they buy. It is yours whatever happens next.
@@ -57,7 +57,7 @@ No price feed decides the outcome. The only way to get the coins is to pay for t
 
 ## Proven on real Bitcoin
 
-On 6 Nov 2026 one full contract ran on Bitcoin testnet3 and NEAR testnet, through the deployed contract, the real MPC signer and the real light client ([run](https://github.com/bedeho/covered/actions/runs/42196248720)):
+On 6 Nov 2026 one full contract ran on Bitcoin testnet3 and NEAR testnet, through the deployed contract, the real MPC signer and the real light client ([run](https://github.com/bedeho/coveredmarket/actions/runs/42196248720)):
 
 | UTC | What happened |
 |---|---|
@@ -101,32 +101,32 @@ The [testnet site](https://178-62-225-161.sslip.io/#/try) uses test coins and te
 To run the app you need **Docker 24+ with Compose v2**, an internet connection for the first build, and ports **80**, **3030** and **18443** free. Nothing else is installed on your machine and no accounts or keys are needed.
 
 ```sh
-git clone https://github.com/bedeho/covered && cd covered
-bin/covered up
+git clone https://github.com/bedeho/coveredmarket && cd coveredmarket
+bin/coveredmarket up
 ```
 
-The first run takes 4 to 8 minutes, mostly compiling the contracts inside Docker; on an Apple Silicon Mac it can take up to 20 minutes, because cargo-near has no arm64 build and is compiled from source. Later runs take seconds. It ends with `Covered is at http://localhost`. Open **http://localhost**.
+The first run takes 4 to 8 minutes, mostly compiling the contracts inside Docker; on an Apple Silicon Mac it can take up to 20 minutes, because cargo-near has no arm64 build and is compiled from source. Later runs take seconds. It ends with `CoveredMarket is at http://localhost`. Open **http://localhost**.
 
-**What runs locally.** Everything is on your machine: a NEAR sandbox node, a Bitcoin Core regtest node, the `covered` contract, the relayer and the web app, plus two demo users with 1,000,000 test USDC each. Three pieces are local stand-ins for live NEAR services, with the same interfaces: a **mock MPC signer** (same key derivation as `v1.signer`), a **mock Bitcoin light client**, and a **mock USDC** token. The spot price is fixed at $97,420. The real signer and light client are exercised on testnet (see [Proven on real Bitcoin](#proven-on-real-bitcoin) and [DEVELOPING.md](docs/DEVELOPING.md#tests)).
+**What runs locally.** Everything is on your machine: a NEAR sandbox node, a Bitcoin Core regtest node, the `coveredmarket` contract, the relayer and the web app, plus two demo users with 1,000,000 test USDC each. Three pieces are local stand-ins for live NEAR services, with the same interfaces: a **mock MPC signer** (same key derivation as `v1.signer`), a **mock Bitcoin light client**, and a **mock USDC** token. The spot price is fixed at $97,420. The real signer and light client are exercised on testnet (see [Proven on real Bitcoin](#proven-on-real-bitcoin) and [DEVELOPING.md](docs/DEVELOPING.md#tests)).
 
 **Check that it works.** With the stack up, run the end-to-end test (needs **Node 22** on your machine; it installs its own Chromium):
 
 ```sh
-bin/covered e2e-stack
+bin/coveredmarket e2e-stack
 ```
 
 In about two minutes it drives two contracts through their whole life, one **KEPT** and one **EXERCISED**: create, deposit on regtest, proof, sale, settlement and claim. It then sells and deposits once through the web app, presses **Verify** in a real browser (7 of 7 on each certificate), and sweeps a deposit with the seller's rescue kit after its timelock. The last line is `E2E PASSED`, and screenshots land in `e2e/artifacts/`. On a fresh Linux machine, run `cd e2e && npx playwright install --with-deps chromium` once first, so the browser's system libraries are present.
 
-The same two commands run on a clean machine in CI on every pull request and every push to `main` ([stack workflow](https://github.com/bedeho/covered/actions/workflows/stack.yml)), on both x86-64 and arm64.
+The same two commands run on a clean machine in CI on every pull request and every push to `main` ([stack workflow](https://github.com/bedeho/coveredmarket/actions/workflows/stack.yml)), on both x86-64 and arm64.
 
 **Useful commands**
 
 ```sh
-bin/covered keys                  # the demo users, astrid and marcus, and their keys
-bin/covered btc send <addr> 0.01  # pay a deposit address on regtest and mine a block
-bin/covered logs relayer          # watch proofs, settlement and broadcasts
-bin/covered reset                 # wipe chain state and start over
-bin/covered rescue <kit> <addr>   # the seller's exit: sweep a deposit with only Bitcoin, after its timelock
+bin/coveredmarket keys                  # the demo users, astrid and marcus, and their keys
+bin/coveredmarket btc send <addr> 0.01  # pay a deposit address on regtest and mine a block
+bin/coveredmarket logs relayer          # watch proofs, settlement and broadcasts
+bin/coveredmarket reset                 # wipe chain state and start over
+bin/coveredmarket rescue <kit> <addr>   # the seller's exit: sweep a deposit with only Bitcoin, after its timelock
 ```
 
 **Tests**
@@ -134,9 +134,9 @@ bin/covered rescue <kit> <addr>   # the seller's exit: sweep a deposit with only
 These run on your machine rather than in Docker:
 
 ```sh
-bin/covered test        # unit tests: contract, relayer, web. Needs Rust 1.85+ and Node 22
-bin/covered e2e         # contract flows on a NEAR sandbox node. Also needs the wasm32 target and cargo-near 0.23 (see DEVELOPING.md)
-bin/covered e2e-stack   # the whole product against a running `bin/covered up`, as above
+bin/coveredmarket test        # unit tests: contract, relayer, web. Needs Rust 1.85+ and Node 22
+bin/coveredmarket e2e         # contract flows on a NEAR sandbox node. Also needs the wasm32 target and cargo-near 0.23 (see DEVELOPING.md)
+bin/coveredmarket e2e-stack   # the whole product against a running `bin/coveredmarket up`, as above
 ```
 
 **Deploy** to one DigitalOcean VM with a real certificate, no domain needed: `gh workflow run cloud.yml -f action=apply`. On testnet the VM deploys and locks its own contract on first start.
@@ -145,7 +145,7 @@ More: [local stack and tests](docs/DEVELOPING.md) · [deployment](docs/DEPLOY.md
 
 ## Security
 
-Covered is **unaudited** software. Testnet is live; mainnet is not. Read the contract before you trust it.
+CoveredMarket is **unaudited** software. Testnet is live; mainnet is not. Read the contract before you trust it.
 
 | You trust | You don't trust |
 |---|---|
@@ -153,10 +153,10 @@ Covered is **unaudited** software. Testnet is live; mainnet is not. Read the con
 | The Bitcoin light client follows the real chain | **A price feed.** Nobody's price decides who gets the coins. |
 | The contract code, which has no access keys and no upgrade method; mainnet offers are capped at 0.01 BTC while it is unaudited | **The buyer.** Coins go to the buyer only in the receipt where the full strike is paid. |
 
-If NEAR or its signing network ever stopped, you would not be stuck: every deposit address has a timelocked exit to a rescue key that only you hold, which you sweep with nothing but Bitcoin (`bin/covered rescue`).
+If NEAR or its signing network ever stopped, you would not be stuck: every deposit address has a timelocked exit to a rescue key that only you hold, which you sweep with nothing but Bitcoin (`bin/coveredmarket rescue`).
 
 - [Security model](docs/SECURITY-MODEL.md): guarantees, what is not guaranteed, mainnet readiness, the seven Verify checks, the invariants to read first.
-- **Found a problem?** Report it privately through [GitHub security advisories](https://github.com/bedeho/covered/security/advisories/new). Bounties up to **$2,000**, paid in USDC or BTC. See [SECURITY.md](SECURITY.md).
+- **Found a problem?** Report it privately through [GitHub security advisories](https://github.com/bedeho/coveredmarket/security/advisories/new). Bounties up to **$2,000**, paid in USDC or BTC. See [SECURITY.md](SECURITY.md).
 
 ## Built with
 
@@ -209,4 +209,4 @@ This section is the disclosure that the hackathon rules ask for (HACKATHON.md, Q
 
 [MIT](LICENSE). The bundled fonts (Fraunces, Instrument Sans, Spline Sans Mono, in `brand/fonts/` and `web/public/ds/fonts/`) are third-party works under the [SIL Open Font License 1.1](https://openfontlicense.org).
 
-<p align="center"><sub>Covered is unaudited. It is not a price guarantee, not investment advice, and not an offer of options to the public. Signatures come from NEAR's MPC network; if that network stops, settlement waits for it or for the seller's timelocked exit.</sub></p>
+<p align="center"><sub>CoveredMarket is unaudited. It is not a price guarantee, not investment advice, and not an offer of options to the public. Signatures come from NEAR's MPC network; if that network stops, settlement waits for it or for the seller's timelocked exit.</sub></p>

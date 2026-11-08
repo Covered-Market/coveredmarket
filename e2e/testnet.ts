@@ -1,4 +1,4 @@
-// L2 on live NEAR testnet: deploys a fresh `covered` wired to the REAL MPC signer (v1.signer-prod.testnet),
+// L2 on live NEAR testnet: deploys a fresh `coveredmarket` wired to the REAL MPC signer (v1.signer-prod.testnet),
 // then proves, end to end:
 //   1. the contract derives the same deposit address the real signer reports for it;
 //   2. WITHDRAW: the real MPC signs the committed spend through the contract; signature verifies offline;
@@ -78,31 +78,31 @@ function fakeDeposit(script: Uint8Array, value: bigint, salt: number) {
 const proofFor = (raw: string) => ({ tx_raw: raw, block_hash: "00".repeat(32), tx_index: 0, merkle_proof: [], coinbase_tx_id: "00".repeat(32), coinbase_merkle_proof: [] });
 
 // ── accounts and contracts
-const [covered, lc, usdc, seller, buyer] = [await account("cv"), await account("lc"), await account("us"), await account("sl"), await account("by")];
-log("accounts", covered.id, seller.id, buyer.id);
+const [coveredmarket, lc, usdc, seller, buyer] = [await account("cv"), await account("lc"), await account("us"), await account("sl"), await account("by")];
+log("accounts", coveredmarket.id, seller.id, buyer.id);
 const rootKey: string = await view(SIGNER, "public_key", { domain_id: 0 });
 await deploy(lc, "mock_btc_client", "new", {});
 await deploy(usdc, "mock_usdc", "new", {});
 // The reviewed testnet parameters, with a shorter window so the exercise runs in a few minutes.
 const { _comment, ...tuned } = JSON.parse(readFileSync(new URL("../params/testnet.json", import.meta.url), "utf8"));
-await deploy(covered, "covered", "new", { params: { ...tuned, grace_s: 180, min_lead_s: 60, signer: SIGNER, light_client: lc.id, usdc: usdc.id, mpc_root_key: rootKey } });
-await call(covered, usdc.id, "storage_deposit", {}, 10n ** 22n, 30n);
+await deploy(coveredmarket, "coveredmarket", "new", { params: { ...tuned, grace_s: 180, min_lead_s: 60, signer: SIGNER, light_client: lc.id, usdc: usdc.id, mpc_root_key: rootKey } });
+await call(coveredmarket, usdc.id, "storage_deposit", {}, 10n ** 22n, 30n);
 await call(usdc, usdc.id, "mint", { account_id: buyer.id, amount: "1000000000000" }, 0n, 30n);
-log("deployed covered with the real signer; root key", rootKey.slice(0, 24) + "…");
+log("deployed coveredmarket with the real signer; root key", rootKey.slice(0, 24) + "…");
 // The deploy-time check the mainnet script relies on: the contract's own sign path, end to end, against the real MPC.
-const selftest = await call(seller, covered.id, "selftest_sign", {}, 0n, 300n);
+const selftest = await call(seller, coveredmarket.id, "selftest_sign", {}, 0n, 300n);
 if (selftest !== true) throw new Error(`selftest_sign returned ${JSON.stringify(selftest)}`);
 log("selftest_sign: the real MPC signed for the contract and the signature verified on chain");
 report.selftest_sign = true;
 
 async function createFunded(sizeSats: bigint, strike: string, premium: string, leadS = 60) {
-  const p0 = await view(covered.id, "get_params");
+  const p0 = await view(coveredmarket.id, "get_params");
   const now = await chainNow();
   const expiry = Math.ceil((now + Number(p0.min_lead_s) + leadS) / 60) * 60;
-  const serial: number = Number(await call(seller, covered.id, "create_offer", { terms: { size_sats: String(sizeSats), strike_units: strike, premium_units: premium, expiry_s: String(expiry), refund_address: addrFromSecret(9), rescue_pubkey: Buffer.from(secp.getPublicKey(new Uint8Array(32).fill(11), true)).toString("hex") } }, 10n ** 23n, 100n));
-  const o = await until(`CV-${serial} visible`, async () => { try { return await view(covered.id, "get_offer", { serial }); } catch { return null; } }, 60_000);
-  // 1. the address the contract derived = the address the real signer derives for (covered, path)
-  const live: string = await view(SIGNER, "derived_public_key", { path: o.path, predecessor: covered.id, domain_id: 0 });
+  const serial: number = Number(await call(seller, coveredmarket.id, "create_offer", { terms: { size_sats: String(sizeSats), strike_units: strike, premium_units: premium, expiry_s: String(expiry), refund_address: addrFromSecret(9), rescue_pubkey: Buffer.from(secp.getPublicKey(new Uint8Array(32).fill(11), true)).toString("hex") } }, 10n ** 23n, 100n));
+  const o = await until(`CV-${serial} visible`, async () => { try { return await view(coveredmarket.id, "get_offer", { serial }); } catch { return null; } }, 60_000);
+  // 1. the address the contract derived = the address the real signer derives for (coveredmarket, path)
+  const live: string = await view(SIGNER, "derived_public_key", { path: o.path, predecessor: coveredmarket.id, domain_id: 0 });
   const livePk = secp.ProjectivePoint.fromHex(parseRootKey(live)).toRawBytes(true);
   if (hex.to(livePk) !== o.derived_pubkey) throw new Error(`derived key mismatch: contract ${o.derived_pubkey} vs signer ${hex.to(livePk)}`);
   // The deposit address is P2WSH of the script with the live MPC key and the seller's exit.
@@ -111,16 +111,16 @@ async function createFunded(sizeSats: bigint, strike: string, premium: string, l
   log(`CV-${serial}: deposit address ${o.address} matches the real signer's derived key`);
   const dep = fakeDeposit(scriptFromAddress(o.address, "Testnet4"), sizeSats, serial);
   await call(lc, lc.id, "set_included", { tx_id: dep.txid, block_hash: "00".repeat(32), depth: 6 }, 0n, 30n);
-  await call(seller, covered.id, "confirm_deposit", { serial, proof: proofFor(dep.raw) }, 0n, 150n);
+  await call(seller, coveredmarket.id, "confirm_deposit", { serial, proof: proofFor(dep.raw) }, 0n, 150n);
   // Reads go to a load-balanced RPC whose nodes can trail the one that executed the call by a block or two.
-  await until(`CV-${serial} Funded`, async () => (await view(covered.id, "get_offer", { serial })).state === "Funded", 60_000);
+  await until(`CV-${serial} Funded`, async () => (await view(coveredmarket.id, "get_offer", { serial })).state === "Funded", 60_000);
   return { serial, expiry, grace: Number(p0.grace_s) };
 }
 /** Calls whose receipts include an MPC `sign` (yield/resume) can outlive the RPC's wait; the state is the truth. */
-const signing = (u: U, m: string, a: object) => call(u, covered.id, m, a, 0n, 300n).catch((e) => log(`${m}: ${String((e as Error).message ?? e).slice(0, 240)}`));
+const signing = (u: U, m: string, a: object) => call(u, coveredmarket.id, m, a, 0n, 300n).catch((e) => log(`${m}: ${String((e as Error).message ?? e).slice(0, 240)}`));
 async function signedAndValid(serial: number, label: string, by: U) {
   const o = await until(`CV-${serial} Signed by the MPC`, async () => {
-    const x = await view(covered.id, "get_offer", { serial });
+    const x = await view(coveredmarket.id, "get_offer", { serial });
     if (x.state === "Signed") return x;
     if (x.state === "Committed" && x.retry_after_s && (await chainNow()) >= Number(x.retry_after_s)) { log(`CV-${serial} still Committed; re-requesting the same sighash`); await signing(by, "request_signature", { serial }); }
     return null;
@@ -140,23 +140,23 @@ await signedAndValid(a.serial, "withdraw", seller);
 // ── 3. EXERCISE with the real MPC, in real time
 const b = await createFunded(300_000n, "100000000000", "7000000");
 const to = addrFromSecret(10);
-const bo = await view(covered.id, "get_offer", { serial: b.serial });
-await call(buyer, usdc.id, "ft_transfer_call", { receiver_id: covered.id, amount: bo.premium_units, msg: JSON.stringify({ serial: b.serial, btc_address: to }) }, 1n, 150n);
+const bo = await view(coveredmarket.id, "get_offer", { serial: b.serial });
+await call(buyer, usdc.id, "ft_transfer_call", { receiver_id: coveredmarket.id, amount: bo.premium_units, msg: JSON.stringify({ serial: b.serial, btc_address: to }) }, 1n, 150n);
 log(`CV-${b.serial} sold; waiting for expiry in real time (${b.expiry - (await chainNow())} s)`);
 await until("expiry", async () => (await chainNow()) >= b.expiry + 2, 300_000);
-await call(buyer, usdc.id, "ft_transfer_call", { receiver_id: covered.id, amount: bo.strike_total_units, msg: JSON.stringify({ serial: b.serial, exercise: true }) }, 1n, 300n);
-const bc = await until("exercise committed", async () => { const o = await view(covered.id, "get_offer", { serial: b.serial }); return o.state === "Committed" ? o : null; }, 60_000);
+await call(buyer, usdc.id, "ft_transfer_call", { receiver_id: coveredmarket.id, amount: bo.strike_total_units, msg: JSON.stringify({ serial: b.serial, exercise: true }) }, 1n, 300n);
+const bc = await until("exercise committed", async () => { const o = await view(coveredmarket.id, "get_offer", { serial: b.serial }); return o.state === "Committed" ? o : null; }, 60_000);
 if (bc.state !== "Committed" || bc.commitment_to_address !== to) throw new Error(`exercise did not commit to the buyer: ${bc.state} ${bc.commitment_to_address}`);
 await signing(buyer, "request_signature", { serial: b.serial });
 const bs = await signedAndValid(b.serial, "exercise", buyer);
 await call(lc, lc.id, "set_included", { tx_id: bs.commitment_txid, block_hash: "00".repeat(32), depth: 1 }, 0n, 30n);
-await call(buyer, covered.id, "confirm_spend", { serial: b.serial, proof: proofFor(bs.signed_tx) }, 0n, 150n);
-await until("Exercised", async () => (await view(covered.id, "get_offer", { serial: b.serial })).state === "Exercised", 60_000);
-await call(seller, covered.id, "claim", {}, 0n, 100n);
+await call(buyer, coveredmarket.id, "confirm_spend", { serial: b.serial, proof: proofFor(bs.signed_tx) }, 0n, 150n);
+await until("Exercised", async () => (await view(coveredmarket.id, "get_offer", { serial: b.serial })).state === "Exercised", 60_000);
+await call(seller, coveredmarket.id, "claim", {}, 0n, 100n);
 const expect = BigInt(bo.premium_units) + BigInt(bo.strike_total_units);
 const bal = await until("seller paid", async () => { const v = BigInt(await view(usdc.id, "ft_balance_of", { account_id: seller.id })); return v === expect ? v : null; }, 60_000);
-const acc = await view(covered.id, "get_accounting");
-const held = BigInt(await view(usdc.id, "ft_balance_of", { account_id: covered.id }));
+const acc = await view(coveredmarket.id, "get_accounting");
+const held = BigInt(await view(usdc.id, "ft_balance_of", { account_id: coveredmarket.id }));
 if (BigInt(acc.claimable_total) + BigInt(acc.escrow_total) !== held) throw new Error("accounting invariant broken");
 log(`CV-${b.serial} Exercised; seller claimed ${Number(bal) / 1e6} USDC; accounting holds`);
 
@@ -180,6 +180,6 @@ const yes = (r: string) => r === "true" || r === "\u0001";
 if (!yes(good)) throw new Error("real light client rejected our proof");
 if (yes(bad)) throw new Error("real light client accepted a tampered proof");
 report.light_client = { lcTip, height, txid, good, bad };
-report.contract = covered.id;
+report.contract = coveredmarket.id;
 writeFileSync(new URL("./artifacts/testnet-report.json", import.meta.url), JSON.stringify(report, null, 2));
 log("TESTNET L2 PASSED");

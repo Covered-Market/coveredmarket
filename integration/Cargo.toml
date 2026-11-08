@@ -12,5 +12,5 @@ serde_json = { workspace = true }
 anyhow = "1"
 hex = { workspace = true }
 bitcoin = { workspace = true, features = ["rand-std"] }
-covered = { path = "../contracts/covered" }
+coveredmarket = { path = "../contracts/coveredmarket" }
 bitcoinconsensus = "0.106.0"

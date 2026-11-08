@@ -1,11 +1,11 @@
 /**
  * The seller's exit, with nothing but Bitcoin: sweep an offer's deposit with the rescue key from its kit,
- * once Bitcoin's median time past has reached the kit's `unlock_s`. No NEAR, no Covered server.
+ * once Bitcoin's median time past has reached the kit's `unlock_s`. No NEAR, no CoveredMarket server.
  *
- *   bin/covered rescue kit.json <your-bitcoin-address> [--fee-rate 5] [--esplora https://mempool.space/api] [--broadcast]
+ *   bin/coveredmarket rescue kit.json <your-bitcoin-address> [--fee-rate 5] [--esplora https://mempool.space/api] [--broadcast]
  *
  * Without --broadcast it prints the signed transaction for you to inspect or broadcast elsewhere.
- * Mirrors contracts/covered/src/btc.rs `build_rescue` / `finalize_rescue` (a test pins them byte for byte).
+ * Mirrors contracts/coveredmarket/src/btc.rs `build_rescue` / `finalize_rescue` (a test pins them byte for byte).
  */
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { sha256 } from "@noble/hashes/sha256";
@@ -64,7 +64,7 @@ async function main(argv: string[]) {
   if (!kitPath || !to) { console.error("usage: rescue <kit.json> <your-bitcoin-address> [--fee-rate N] [--esplora URL[,URL]] [--broadcast]"); process.exit(2); }
   const opt = (k: string) => { const i = rest.indexOf(k); return i >= 0 ? rest[i + 1] : undefined; };
   const kit = JSON.parse(readFileSync(kitPath === "-" ? 0 : kitPath, "utf8"));
-  if (kit.kind !== "covered-rescue-kit") throw new Error("not a Covered rescue kit");
+  if (kit.kind !== "coveredmarket-rescue-kit") throw new Error("not a CoveredMarket rescue kit");
   const defaults: Record<string, string> = { mainnet: "https://mempool.space/api,https://blockstream.info/api", testnet3: "https://mempool.space/testnet/api,https://blockstream.info/testnet/api", regtest: "http://localhost:8787/btc" };
   const get = failoverFetch(opt("--esplora") ?? defaults[kit.bitcoin_network]);
   const ws = hx.from(kit.witness_script);

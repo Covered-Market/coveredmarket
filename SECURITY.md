@@ -1,12 +1,12 @@
 # Security policy
 
-Covered holds other people's Bitcoin behind a NEAR contract. If you find a way to move coins, take USDC, or make the contract do something its rules forbid, we want to hear it first, and we pay for it.
+CoveredMarket holds other people's Bitcoin behind a NEAR contract. If you find a way to move coins, take USDC, or make the contract do something its rules forbid, we want to hear it first, and we pay for it.
 
 **Status:** unaudited. Testnet is live; mainnet is not. Read the [security model](docs/SECURITY-MODEL.md) before you trust it with anything.
 
 ## Report a vulnerability
 
-**Use GitHub's private reporting:** [Security → Report a vulnerability](https://github.com/bedeho/covered/security/advisories/new). Only the maintainers see it, and we can work on a fix and a CVE together in the same thread.
+**Use GitHub's private reporting:** [Security → Report a vulnerability](https://github.com/bedeho/coveredmarket/security/advisories/new). Only the maintainers see it, and we can work on a fix and a CVE together in the same thread.
 
 If you can't use GitHub, open a public issue titled **"Security contact request"** with no details, and we will reach out privately.
 
@@ -15,8 +15,8 @@ Please **do not** open a public issue, pull request or social post with details 
 A good report has:
 
 - what an attacker gains (coins moved, USDC taken, a settlement blocked, a forged Verify result, …);
-- the commit or deployed contract (`covered-app-…testnet`, code hash) you tested against;
-- steps or a test that reproduces it. A failing test against `bin/covered up` or `cargo test -p covered` is ideal;
+- the commit or deployed contract (`coveredmarket-app-…testnet`, code hash) you tested against;
+- steps or a test that reproduces it. A failing test against `bin/coveredmarket up` or `cargo test -p coveredmarket` is ideal;
 - your NEAR account or Bitcoin address for the bounty, and the name you want in the thanks list (or "anonymous").
 
 ## What happens next
@@ -45,10 +45,10 @@ The first valid report of an issue gets the reward. Several reports with one roo
 
 ### In scope
 
-- The contract: `contracts/covered` (Rust), and any deployed copy we link from this repository.
+- The contract: `contracts/coveredmarket` (Rust), and any deployed copy we link from this repository.
 - The Verify checks in `web/src/lib/verify.ts`: a check that passes when it should fail.
 - Address derivation and Bitcoin transaction building, in Rust and TypeScript.
-- The seller's exit: the rescue kit made in the browser and `bin/covered rescue`, where a flaw lets anyone but the seller sweep, or stops the seller sweeping after the unlock.
+- The seller's exit: the rescue kit made in the browser and `bin/coveredmarket rescue`, where a flaw lets anyone but the seller sweep, or stops the seller sweeping after the unlock.
 - The relayer (`relayer/`), where a bug lets it do more than relay, delay or pay gas.
 - The deployed app at the testnet site, for issues that would mislead a user into losing funds.
 
@@ -64,7 +64,7 @@ The first valid report of an issue gets the reward. Several reports with one roo
 
 We will not take legal action against, or ask anyone to act against, research done in good faith that follows this policy:
 
-- test on the **local stack** (`bin/covered up`) or **testnet**; do not attack contracts that hold other people's real coins;
+- test on the **local stack** (`bin/coveredmarket up`) or **testnet**; do not attack contracts that hold other people's real coins;
 - use your own accounts and wallets; do not touch other users' offers beyond what is needed to show the issue;
 - do not degrade the service for others (no load testing, no draining the demo faucet);
 - stop and report as soon as you have shown the issue.

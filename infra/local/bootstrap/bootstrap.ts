@@ -42,17 +42,17 @@ const lc = await deploy("btc-client", "mock-btc-client", "new", {});
 const usdc = await deploy("usdc", "mock-usdc", "new", {});
 // Reviewed parameters for this network (params/local.json) plus the accounts made above.
 const { _comment, ...tuned } = JSON.parse(readFileSync("/params/local.json", "utf8"));
-const covered = await deploy("covered", "covered", "new", { params: { ...tuned, signer: signer.id, light_client: lc.id, usdc: usdc.id, mpc_root_key: rootKeyHex } });
-await covered.account.callFunction({ contractId: usdc.id, methodName: "storage_deposit", args: {}, gas: 30n * 10n ** 12n, deposit: 10n ** 22n });
+const coveredmarket = await deploy("coveredmarket", "coveredmarket", "new", { params: { ...tuned, signer: signer.id, light_client: lc.id, usdc: usdc.id, mpc_root_key: rootKeyHex } });
+await coveredmarket.account.callFunction({ contractId: usdc.id, methodName: "storage_deposit", args: {}, gas: 30n * 10n ** 12n, deposit: 10n ** 22n });
 // Local only: the contract keeps no admin key either; delete its full-access key like production.
-await covered.account.signAndSendTransaction({ receiverId: covered.id, actions: [actionCreators.deleteKey(covered.kp.getPublicKey())] });
-const codeHash: string = ((await provider.query({ request_type: "view_account", account_id: covered.id, finality: "optimistic" })) as any).code_hash;
+await coveredmarket.account.signAndSendTransaction({ receiverId: coveredmarket.id, actions: [actionCreators.deleteKey(coveredmarket.kp.getPublicKey())] });
+const codeHash: string = ((await provider.query({ request_type: "view_account", account_id: coveredmarket.id, finality: "optimistic" })) as any).code_hash;
 const relayer = await create("relayer", 50n);
 for (const u of ["astrid", "marcus"]) { const a = await create(u, 20n); await root.callFunction({ contractId: usdc.id, methodName: "mint", args: { account_id: a.id, amount: "1000000000000" }, gas: 30n * 10n ** 12n }); appendFileSync("/config/demo-keys.txt", `${a.id} ${a.kp.toString()}\n`); }
 
-// Regtest: a funded mining wallet so `covered btc send` works immediately.
-const btc = async (m: string, p: unknown[] = [], wallet = "") => { const r = await fetch(`${process.env.BITCOIN_RPC ?? "http://bitcoind:18443"}${wallet ? "/wallet/" + wallet : ""}`, { method: "POST", headers: { authorization: "Basic " + Buffer.from("covered:covered").toString("base64") }, body: JSON.stringify({ method: m, params: p }) }); const j = await r.json(); if (j.error) throw new Error(j.error.message); return j.result; };
-try { await btc("createwallet", ["covered", true, true, "", false, true]); } catch {}
+// Regtest: a funded mining wallet so `coveredmarket btc send` works immediately.
+const btc = async (m: string, p: unknown[] = [], wallet = "") => { const r = await fetch(`${process.env.BITCOIN_RPC ?? "http://bitcoind:18443"}${wallet ? "/wallet/" + wallet : ""}`, { method: "POST", headers: { authorization: "Basic " + Buffer.from("coveredmarket:coveredmarket").toString("base64") }, body: JSON.stringify({ method: m, params: p }) }); const j = await r.json(); if (j.error) throw new Error(j.error.message); return j.result; };
+try { await btc("createwallet", ["coveredmarket", true, true, "", false, true]); } catch {}
 try { await btc("createwallet", ["miner"]); } catch { await btc("loadwallet", ["miner"]).catch(() => {}); }
 const mineTo = await btc("getnewaddress", [], "miner");
 await btc("generatetoaddress", [101, mineTo]);
@@ -63,7 +63,7 @@ MODE=local
 NEAR_NETWORK=sandbox
 NEAR_RPC=http://near-sandbox:3030
 WEB_NEAR_RPC=http://localhost:3030
-COVERED_ID=${covered.id}
+COVERED_ID=${coveredmarket.id}
 USDC_ID=${usdc.id}
 SIGNER_ID=${signer.id}
 LIGHT_CLIENT_ID=${lc.id}
@@ -82,6 +82,6 @@ CODE_HASH=${codeHash}
 `;
 // Rewrite .env: our keys replace any earlier values (Compose takes one value per key; duplicates are ambiguous).
 const ours = new Set(lines.split("\n").filter((l) => /^[A-Z_]+=/.test(l)).map((l) => l.split("=")[0]));
-const kept = env.split("\n").filter((l) => !ours.has(l.split("=")[0]) && !l.startsWith("# --- covered local bootstrap"));
+const kept = env.split("\n").filter((l) => !ours.has(l.split("=")[0]) && !l.startsWith("# --- coveredmarket local bootstrap"));
 writeFileSync(ENV, kept.join("\n").trim() + "\n" + lines);
-console.log(`bootstrapped: covered=${covered.id} usdc=${usdc.id} signer=${signer.id} light-client=${lc.id} relayer=${relayer.id}; demo users astrid.${ROOT}, marcus.${ROOT} (keys in the config volume: demo-keys.txt)`);
+console.log(`bootstrapped: coveredmarket=${coveredmarket.id} usdc=${usdc.id} signer=${signer.id} light-client=${lc.id} relayer=${relayer.id}; demo users astrid.${ROOT}, marcus.${ROOT} (keys in the config volume: demo-keys.txt)`);

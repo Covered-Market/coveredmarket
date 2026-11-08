@@ -26,7 +26,7 @@ fn wasm(name: &str) -> Vec<u8> {
 
 struct Env {
     worker: Worker<Sandbox>,
-    covered: Contract,
+    coveredmarket: Contract,
     signer: Contract,
     lc: Contract,
     usdc: Contract,
@@ -45,7 +45,7 @@ async fn setup() -> Result<Env> {
     // stock NEP-141 from near-workspaces test assets or a vendored fungible token wasm
     let usdc = worker.dev_deploy(&wasm("mock-usdc")).await?;
     usdc.call("new").transact().await?.into_result()?;
-    let covered = worker.dev_deploy(&wasm("covered")).await?;
+    let coveredmarket = worker.dev_deploy(&wasm("coveredmarket")).await?;
     // The same reviewed parameter file the local stack deploys with (params/local.json), plus accounts.
     let mut params: serde_json::Value = serde_json::from_str(include_str!("../../params/local.json"))?;
     let p = params.as_object_mut().unwrap();
@@ -55,16 +55,16 @@ async fn setup() -> Result<Env> {
     p.insert("usdc".into(), json!(usdc.id()));
     p.insert("mpc_root_key".into(), json!(root));
     p.insert("escrow_timeout_s".into(), json!(7 * DAY));
-    covered.call("new").args_json(json!({ "params": params })).transact().await?.into_result()?;
+    coveredmarket.call("new").args_json(json!({ "params": params })).transact().await?.into_result()?;
     let seller = worker.dev_create_account().await?;
     let buyer = worker.dev_create_account().await?;
     let anyone = worker.dev_create_account().await?;
     for a in [&seller, &buyer] {
         a.call(usdc.id(), "storage_deposit").args_json(json!({})).deposit(NearToken::from_millinear(10)).transact().await?.into_result()?;
     }
-    covered.as_account().call(usdc.id(), "storage_deposit").args_json(json!({})).deposit(NearToken::from_millinear(10)).transact().await?.into_result()?;
+    coveredmarket.as_account().call(usdc.id(), "storage_deposit").args_json(json!({})).deposit(NearToken::from_millinear(10)).transact().await?.into_result()?;
     usdc.call("mint").args_json(json!({ "account_id": buyer.id(), "amount": "500000000000" })).transact().await?.into_result()?;
-    Ok(Env { worker, covered, signer, lc, usdc, seller, buyer, anyone })
+    Ok(Env { worker, coveredmarket, signer, lc, usdc, seller, buyer, anyone })
 }
 
 /// A valid regtest P2WPKH address from a deterministic secret key (test wallets).
@@ -72,7 +72,7 @@ fn addr_from_secret(b: u8) -> String {
     let secp = bitcoin::secp256k1::Secp256k1::new();
     let sk = bitcoin::secp256k1::SecretKey::from_slice(&[b; 32]).unwrap();
     let pk: [u8; 33] = sk.public_key(&secp).serialize();
-    covered::btc::address_for_script(&covered::btc::p2wpkh_script(&pk), covered::btc::Network::Regtest)
+    coveredmarket::btc::address_for_script(&coveredmarket::btc::p2wpkh_script(&pk), coveredmarket::btc::Network::Regtest)
 }
 
 /// The seller's rescue key (test wallet `b`), compressed hex.
@@ -83,7 +83,7 @@ fn rescue_hex(b: u8) -> String {
 
 /// Bitcoin Core's own script interpreter must accept `raw` as a spend of the offer's deposit output.
 fn assert_valid_spend(view: &serde_json::Value, raw: &[u8]) {
-    let spk = covered::btc::script_from_address(view["address"].as_str().unwrap(), covered::btc::Network::Regtest).unwrap();
+    let spk = coveredmarket::btc::script_from_address(view["address"].as_str().unwrap(), coveredmarket::btc::Network::Regtest).unwrap();
     let value: u64 = view["collateral_value_sats"].as_str().unwrap().parse().unwrap();
     bitcoinconsensus::verify(&spk, value, raw, None, 0).expect("settlement must satisfy Bitcoin's script rules");
 }
@@ -115,19 +115,19 @@ async fn create_and_fund(e: &Env, size: u64, strike: u128, premium: u128) -> Res
 async fn create_and_fund_as(e: &Env, seller: &Account, size: u64, strike: u128, premium: u128) -> Result<u64> {
     let now = now_s(&e.worker).await?;
     let refund = addr_from_secret(9);
-    let serial: u64 = seller.call(e.covered.id(), "create_offer")
+    let serial: u64 = seller.call(e.coveredmarket.id(), "create_offer")
         .args_json(json!({ "terms": { "size_sats": U64(size), "strike_units": U128(strike), "premium_units": U128(premium), "expiry_s": U64(next_expiry(now, 120)), "refund_address": refund, "rescue_pubkey": rescue_hex(11) }}))
         .deposit(NearToken::from_millinear(100)).transact().await?.json()?;
-    let view: serde_json::Value = e.covered.view("get_offer").args_json(json!({ "serial": serial })).await?.json()?;
-    let script = covered::btc::script_from_address(view["address"].as_str().unwrap(), covered::btc::Network::Regtest).unwrap();
+    let view: serde_json::Value = e.coveredmarket.view("get_offer").args_json(json!({ "serial": serial })).await?.json()?;
+    let script = coveredmarket::btc::script_from_address(view["address"].as_str().unwrap(), coveredmarket::btc::Network::Regtest).unwrap();
     let (raw, txid) = deposit_tx(&script, size);
     let block = "00".repeat(32);
     e.lc.call("set_included").args_json(json!({ "tx_id": txid, "block_hash": block, "depth": 6 })).transact().await?.into_result()?;
-    let ok: bool = e.anyone.call(e.covered.id(), "confirm_deposit")
+    let ok: bool = e.anyone.call(e.coveredmarket.id(), "confirm_deposit")
         .args_json(json!({ "serial": serial, "proof": { "tx_raw": raw, "block_hash": block, "tx_index": 0, "merkle_proof": [], "coinbase_tx_id": "00".repeat(32), "coinbase_merkle_proof": [] }}))
         .max_gas().transact().await?.json()?;
     assert!(ok);
-    let view: serde_json::Value = e.covered.view("get_offer").args_json(json!({ "serial": serial })).await?.json()?;
+    let view: serde_json::Value = e.coveredmarket.view("get_offer").args_json(json!({ "serial": serial })).await?.json()?;
     assert_eq!(view["state"], "Funded");
     Ok(serial)
 }
@@ -135,13 +135,13 @@ async fn create_and_fund_as(e: &Env, seller: &Account, size: u64, strike: u128, 
 async fn buy(e: &Env, serial: u64, amount: u128) -> Result<()> {
     let buyer_addr = addr_from_secret(10);
     e.buyer.call(e.usdc.id(), "ft_transfer_call")
-        .args_json(json!({ "receiver_id": e.covered.id(), "amount": amount.to_string(), "msg": json!({ "serial": serial, "btc_address": buyer_addr }).to_string() }))
+        .args_json(json!({ "receiver_id": e.coveredmarket.id(), "amount": amount.to_string(), "msg": json!({ "serial": serial, "btc_address": buyer_addr }).to_string() }))
         .deposit(NearToken::from_yoctonear(1)).max_gas().transact().await?.into_result()?;
     Ok(())
 }
 
 async fn state(e: &Env, serial: u64) -> Result<serde_json::Value> {
-    Ok(e.covered.view("get_offer").args_json(json!({ "serial": serial })).await?.json()?)
+    Ok(e.coveredmarket.view("get_offer").args_json(json!({ "serial": serial })).await?.json()?)
 }
 
 async fn fast_forward_to(e: &Env, t: u64) -> Result<()> {
@@ -161,21 +161,21 @@ async fn flow_kept() -> Result<()> {
     buy(&e, s, 6_000_000_000).await?;
     let v = state(&e, s).await?;
     assert_eq!(v["state"], "Sold");
-    let claimable: U128 = e.covered.view("get_claimable").args_json(json!({ "account": e.seller.id() })).await?.json()?;
+    let claimable: U128 = e.coveredmarket.view("get_claimable").args_json(json!({ "account": e.seller.id() })).await?.json()?;
     assert_eq!(claimable.0, 6_000_000_000);
     let expiry = v["expiry_s"].as_str().unwrap().parse::<u64>()?;
     // settle too early is refused
-    let r = e.anyone.call(e.covered.id(), "settle").args_json(json!({ "serial": s })).max_gas().transact().await?;
+    let r = e.anyone.call(e.coveredmarket.id(), "settle").args_json(json!({ "serial": s })).max_gas().transact().await?;
     assert!(r.is_failure());
     // (sandbox grace is 7200 s; fast-forward in blocks ≈ seconds)
     fast_forward_to(&e, expiry + 600).await?;
     // mock signer answers with the wrong key once: signature rejected, stays Committed with retry
     e.signer.call("set_wrong_key_next").args_json(json!({ "n": 1 })).transact().await?.into_result()?;
-    e.anyone.call(e.covered.id(), "settle").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
+    e.anyone.call(e.coveredmarket.id(), "settle").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
     assert_eq!(state(&e, s).await?["state"], "Committed");
     let sighash1 = state(&e, s).await?["commitment_sighash"].clone();
     fast_forward_to(&e, expiry + 600 + 700).await?;
-    e.anyone.call(e.covered.id(), "request_signature").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
+    e.anyone.call(e.coveredmarket.id(), "request_signature").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
     let v = state(&e, s).await?;
     assert_eq!(v["state"], "Signed");
     assert_eq!(v["commitment_sighash"], sighash1, "retry used the same sighash");
@@ -190,17 +190,17 @@ async fn flow_kept() -> Result<()> {
     // confirm the spend
     let block = "11".repeat(32);
     e.lc.call("set_included").args_json(json!({ "tx_id": tx.compute_txid().to_string(), "block_hash": block, "depth": 1 })).transact().await?.into_result()?;
-    e.anyone.call(e.covered.id(), "confirm_spend")
+    e.anyone.call(e.coveredmarket.id(), "confirm_spend")
         .args_json(json!({ "serial": s, "proof": { "tx_raw": hex::encode(&raw), "block_hash": block, "tx_index": 0, "merkle_proof": [], "coinbase_tx_id": "00".repeat(32), "coinbase_merkle_proof": [] }}))
         .max_gas().transact().await?.into_result()?;
     assert_eq!(state(&e, s).await?["state"], "Kept");
     // seller claims real tokens
-    e.seller.call(e.covered.id(), "claim").max_gas().transact().await?.into_result()?;
+    e.seller.call(e.coveredmarket.id(), "claim").max_gas().transact().await?.into_result()?;
     let bal: U128 = e.usdc.view("ft_balance_of").args_json(json!({ "account_id": e.seller.id() })).await?.json()?;
     assert_eq!(bal.0, 6_000_000_000);
     // accounting invariant
-    let acc: serde_json::Value = e.covered.view("get_accounting").await?.json()?;
-    let cbal: U128 = e.usdc.view("ft_balance_of").args_json(json!({ "account_id": e.covered.id() })).await?.json()?;
+    let acc: serde_json::Value = e.coveredmarket.view("get_accounting").await?.json()?;
+    let cbal: U128 = e.usdc.view("ft_balance_of").args_json(json!({ "account_id": e.coveredmarket.id() })).await?.json()?;
     assert_eq!(acc["claimable_total"].as_str().unwrap().parse::<u128>()? + acc["escrow_total"].as_str().unwrap().parse::<u128>()?, cbal.0);
     Ok(())
 }
@@ -214,31 +214,31 @@ async fn flow_exercised_with_escrow() -> Result<()> {
     fast_forward_to(&e, expiry + 5).await?;
     let before: U128 = e.usdc.view("ft_balance_of").args_json(json!({ "account_id": e.buyer.id() })).await?.json()?;
     e.buyer.call(e.usdc.id(), "ft_transfer_call")
-        .args_json(json!({ "receiver_id": e.covered.id(), "amount": "300000000007", "msg": json!({ "serial": s, "exercise": true }).to_string() }))
+        .args_json(json!({ "receiver_id": e.coveredmarket.id(), "amount": "300000000007", "msg": json!({ "serial": s, "exercise": true }).to_string() }))
         .deposit(NearToken::from_yoctonear(1)).max_gas().transact().await?.into_result()?;
     let v = state(&e, s).await?;
     assert_eq!(v["state"], "Committed", "depth ok → committed; signature is a separate transaction");
     assert_eq!(v["commitment_reason"], "Exercise");
-    e.anyone.call(e.covered.id(), "request_signature").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
+    e.anyone.call(e.coveredmarket.id(), "request_signature").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
     let v = state(&e, s).await?;
     assert_eq!(v["state"], "Signed");
     let after: U128 = e.usdc.view("ft_balance_of").args_json(json!({ "account_id": e.buyer.id() })).await?.json()?;
     assert_eq!(before.0 - after.0, 300_000_000_000, "excess 7 units refunded by the token contract");
-    let acc: serde_json::Value = e.covered.view("get_accounting").await?.json()?;
+    let acc: serde_json::Value = e.coveredmarket.view("get_accounting").await?.json()?;
     assert_eq!(acc["escrow_total"], "300000000000");
     // reclaim before timeout refused
-    assert!(e.buyer.call(e.covered.id(), "reclaim_strike").args_json(json!({ "serial": s })).transact().await?.is_failure());
+    assert!(e.buyer.call(e.coveredmarket.id(), "reclaim_strike").args_json(json!({ "serial": s })).transact().await?.is_failure());
     // confirm delivery → escrow to seller
     let raw = hex::decode(v["signed_tx"].as_str().unwrap())?;
     let tx: bitcoin::Transaction = deserialize(&raw)?;
     assert_valid_spend(&v, &raw);
     let block = "22".repeat(32);
     e.lc.call("set_included").args_json(json!({ "tx_id": tx.compute_txid().to_string(), "block_hash": block, "depth": 1 })).transact().await?.into_result()?;
-    e.anyone.call(e.covered.id(), "confirm_spend")
+    e.anyone.call(e.coveredmarket.id(), "confirm_spend")
         .args_json(json!({ "serial": s, "proof": { "tx_raw": hex::encode(&raw), "block_hash": block, "tx_index": 0, "merkle_proof": [], "coinbase_tx_id": "00".repeat(32), "coinbase_merkle_proof": [] }}))
         .max_gas().transact().await?.into_result()?;
     assert_eq!(state(&e, s).await?["state"], "Exercised");
-    let claimable: U128 = e.covered.view("get_claimable").args_json(json!({ "account": e.seller.id() })).await?.json()?;
+    let claimable: U128 = e.coveredmarket.view("get_claimable").args_json(json!({ "account": e.seller.id() })).await?.json()?;
     assert_eq!(claimable.0, 306_000_000_000);
     Ok(())
 }
@@ -253,7 +253,7 @@ async fn exercise_refused_when_collateral_depth_fails() -> Result<()> {
     e.lc.call("set_stale").args_json(json!({ "stale": true })).transact().await?.into_result()?;
     let before: U128 = e.usdc.view("ft_balance_of").args_json(json!({ "account_id": e.buyer.id() })).await?.json()?;
     e.buyer.call(e.usdc.id(), "ft_transfer_call")
-        .args_json(json!({ "receiver_id": e.covered.id(), "amount": "300000000000", "msg": json!({ "serial": s, "exercise": true }).to_string() }))
+        .args_json(json!({ "receiver_id": e.coveredmarket.id(), "amount": "300000000000", "msg": json!({ "serial": s, "exercise": true }).to_string() }))
         .deposit(NearToken::from_yoctonear(1)).max_gas().transact().await?.into_result()?;
     let after: U128 = e.usdc.view("ft_balance_of").args_json(json!({ "account_id": e.buyer.id() })).await?.json()?;
     assert_eq!(before.0, after.0, "full refund");
@@ -278,7 +278,7 @@ async fn wrong_key_signature_is_rejected_and_retried() -> Result<()> {
     let e = setup().await?;
     let s = create_and_fund(&e, 200_000_000, 150_000_000_000, 6_000_000_000).await?;
     e.signer.call("set_wrong_key_next").args_json(json!({ "n": 1 })).transact().await?.into_result()?;
-    e.seller.call(e.covered.id(), "withdraw").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
+    e.seller.call(e.coveredmarket.id(), "withdraw").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
     let v = state(&e, s).await?;
     assert_eq!(v["state"], "Committed", "a signature from the wrong key is not accepted");
     // and the offer cannot be sold while committed (A8)
@@ -295,10 +295,10 @@ async fn seller_who_never_held_usdc_can_claim() -> Result<()> {
     assert!(reg.is_none(), "fresh seller is not registered with the token");
     let s = create_and_fund_as(&e, &fresh, 200_000_000, 150_000_000_000, 6_000_000_000).await?;
     buy(&e, s, 6_000_000_000).await?;
-    fresh.call(e.covered.id(), "claim").max_gas().transact().await?.into_result()?;
+    fresh.call(e.coveredmarket.id(), "claim").max_gas().transact().await?.into_result()?;
     let bal: U128 = e.usdc.view("ft_balance_of").args_json(json!({ "account_id": fresh.id() })).await?.json()?;
     assert_eq!(bal.0, 6_000_000_000, "premium paid to a seller who was never registered");
-    let claimable: U128 = e.covered.view("get_claimable").args_json(json!({ "account": fresh.id() })).await?.json()?;
+    let claimable: U128 = e.coveredmarket.view("get_claimable").args_json(json!({ "account": fresh.id() })).await?.json()?;
     assert_eq!(claimable.0, 0);
     Ok(())
 }
@@ -307,16 +307,16 @@ async fn seller_who_never_held_usdc_can_claim() -> Result<()> {
 async fn stuck_settlement_is_fee_bumped_and_the_old_version_still_settles() -> Result<()> {
     let e = setup().await?;
     let s = create_and_fund(&e, 200_000_000, 150_000_000_000, 6_000_000_000).await?;
-    e.seller.call(e.covered.id(), "withdraw").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
+    e.seller.call(e.coveredmarket.id(), "withdraw").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
     let v1 = state(&e, s).await?;
     assert_eq!(v1["state"], "Signed");
     let raw1 = hex::decode(v1["signed_tx"].as_str().unwrap())?;
     assert_valid_spend(&v1, &raw1);
     // too early
-    assert!(e.anyone.call(e.covered.id(), "bump_fee").args_json(json!({ "serial": s })).max_gas().transact().await?.is_failure());
+    assert!(e.anyone.call(e.coveredmarket.id(), "bump_fee").args_json(json!({ "serial": s })).max_gas().transact().await?.is_failure());
     let signed_at: u64 = v1["signed_at_s"].as_str().unwrap().parse()?;
     fast_forward_to(&e, signed_at + 61).await?;
-    e.anyone.call(e.covered.id(), "bump_fee").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
+    e.anyone.call(e.coveredmarket.id(), "bump_fee").args_json(json!({ "serial": s })).max_gas().transact().await?.into_result()?;
     let v2 = state(&e, s).await?;
     assert_eq!(v2["state"], "Signed", "re-signed in the same transaction");
     assert_eq!(v2["commitment_fee_sats"], "2000");
@@ -328,7 +328,7 @@ async fn stuck_settlement_is_fee_bumped_and_the_old_version_still_settles() -> R
     let tx1: bitcoin::Transaction = deserialize(&raw1)?;
     let block = "33".repeat(32);
     e.lc.call("set_included").args_json(json!({ "tx_id": tx1.compute_txid().to_string(), "block_hash": block, "depth": 1 })).transact().await?.into_result()?;
-    e.anyone.call(e.covered.id(), "confirm_spend")
+    e.anyone.call(e.coveredmarket.id(), "confirm_spend")
         .args_json(json!({ "serial": s, "proof": { "tx_raw": hex::encode(&raw1), "block_hash": block, "tx_index": 0, "merkle_proof": [], "coinbase_tx_id": "00".repeat(32), "coinbase_merkle_proof": [] }}))
         .max_gas().transact().await?.into_result()?;
     assert_eq!(state(&e, s).await?["state"], "Withdrawn");
