@@ -41,7 +41,8 @@ function useHeroCert() {
   return cert;
 }
 
-/** Scales the 790px Certificate component to the width it is given, keeping it a certificate. */
+/** Scales the 790px Certificate component to the width it is given, keeping it a certificate. Drawn in the
+ *  vault (green) theme so it stands out from the paper page without a backdrop. */
 function ScaledCert({ cert }: { cert: object }) {
   const { Certificate } = C();
   const box = useRef<HTMLDivElement>(null), inner = useRef<HTMLDivElement>(null);
@@ -53,7 +54,7 @@ function ScaledCert({ cert }: { cert: object }) {
   }, [cert]);
   return (
     <div ref={box} className="ld-cert-box" style={{ width: 790 * s.k, height: s.h }}>
-      <div ref={inner} data-theme="paper" style={{ transform: `scale(${s.k})` }}><Certificate contract={cert as never} /></div>
+      <div ref={inner} data-theme="vault" style={{ transform: `scale(${s.k})` }}><Certificate contract={cert as never} /></div>
     </div>
   );
 }
@@ -185,7 +186,7 @@ export function Landing() {
     <div className="ld">
       <header className="ld-head">
         <div className="ld-wrap">
-          <a href="/" aria-label="CoveredMarket home" className="ld-logo-link"><img className="ld-logo" src="/site/lockup.svg" alt="CoveredMarket" /></a>
+          <a href="/" aria-label="CoveredMarket home" className="ld-logo-link"><img className="ld-logo" src="/site/lockup-32.svg" alt="CoveredMarket" /></a>
           <nav className="ld-nav" aria-label="Sections">{nav.map(([id, l]) => <A key={id} to={id}>{l}</A>)}</nav>
           <div className="ld-head-right">
             <a className="ld-btn ld-btn--primary" style={{ minHeight: 44, padding: "10px 16px", fontSize: 15 }} href={app("market")}>Open the app</a>
@@ -211,7 +212,7 @@ export function Landing() {
             </div>
             <figure style={{ margin: 0, minWidth: 0 }}>
               <a href={tryIt(`c/${cert.serial.slice(3)}`)} aria-label={`Open contract ${cert.serial} in the app`} style={{ display: "block", textDecoration: "none" }}>
-                <div className="ld-plate" data-theme="vault"><img className="ld-rosette" src="/site/rosette-gilt-on-vault.svg" alt="" aria-hidden="true" /><ScaledCert cert={cert} /></div>
+                <div className="ld-plate"><ScaledCert cert={cert} /></div>
               </a>
               <figcaption className="body-small ld-muted" style={{ marginTop: 12 }}>{cert.live ? `Contract ${cert.serial}, read from the chain just now. Open it and press Verify.` : `Contract ${cert.serial}. Open it and press Verify.`}</figcaption>
             </figure>
@@ -472,7 +473,7 @@ export function Landing() {
       <footer className="ld-foot">
         <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
           <div className="ld-foot-grid">
-            <div className="ld-stack" style={{ gap: 12 }}><img src="/site/lockup.svg" alt="CoveredMarket" style={{ height: 32, alignSelf: "flex-start" }} /><p className="ld-lede" style={{ fontSize: 18 }}>Earn on Bitcoin you still hold.</p></div>
+            <div className="ld-stack" style={{ gap: 12 }}><img src="/site/lockup-32.svg" alt="CoveredMarket" style={{ height: 32, alignSelf: "flex-start" }} /><p className="ld-lede" style={{ fontSize: 18 }}>Earn on Bitcoin you still hold.</p></div>
             <nav aria-label="Product"><span className="ld-label ld-muted">Product</span><a href={app("market")}>Market</a><a href={app("sell")}>Sell a call</a><a href={tryIt("try")}>Try it</a><A to="faq">FAQ</A></nav>
             <nav aria-label="Trust"><span className="ld-label ld-muted">Trust</span><A to="trust">Security</A><A to="security">Report a vulnerability</A><A to="compare">Compared</A></nav>
             <nav aria-label="Build"><span className="ld-label ld-muted">Build</span><A to="stack">Built with</A><a href={`mailto:${SECURITY}`}>{SECURITY}</a></nav>
