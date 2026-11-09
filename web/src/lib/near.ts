@@ -10,9 +10,12 @@ import type { Clients } from "./verify.js";
 import { btcFetch, btcJson, btcText } from "./btc";
 
 /** Runtime configuration, served as /config.json by the web container (written by `coveredmarket up` / the cloud bootstrap). */
-export interface Config { network: string; rpc: string; contract: string; usdc: string; esplora: string; explorerBtc: string; explorerNear: string; codeHash: string; signer: string; lightClient: string; minConf: number; helper: string; accountSuffix: string; mode: "local" | "testnet" | "mainnet";
+export interface Config { network: string; rpc: string; contract: string; usdc: string; esplora: string; explorerBtc: string; explorerNear: string; codeHash: string; signer: string; lightClient: string; minConf: number; helper: string; accountSuffix: string;
+  /** "site": the network-neutral website, which only links to the apps; the rest are apps on one network. */ mode: "local" | "testnet" | "mainnet" | "site";
   /** Network without a contract yet: the app shows "not live". */ disabled?: boolean;
-  /** The other network's site, for the header switch. */ switchUrl?: string;
+  /** The other network's app, for the header switch. */ switchUrl?: string;
+  /** The website, when it lives apart from the apps: `/` then opens the app and the logo goes to the website. */ siteUrl?: string;
+  /** Website only: the mainnet app, the testnet app, and whether mainnet has a contract yet. */ appUrl?: string; testnetUrl?: string; mainnetLive?: boolean;
   /** Quick in-browser test wallets and test funds (testnet, local). */ faucet?: boolean }
 const defaults: Config = { network: "testnet", rpc: "https://rpc.testnet.fastnear.com", contract: "coveredmarket.testnet", usdc: "usdc.fakes.testnet", esplora: "https://mempool.space/testnet/api,https://blockstream.info/testnet/api", explorerBtc: "https://mempool.space/testnet", explorerNear: "https://testnet.nearblocks.io", codeHash: "", signer: "v1.signer-prod.testnet", lightClient: "btc-client-v4.testnet", minConf: 1, helper: "/api", accountSuffix: "testnet", mode: "testnet", faucet: true };
 export const CFG: Config = { ...defaults, ...((window as any).COVEREDMARKET_CONFIG ?? {}) };

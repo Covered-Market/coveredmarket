@@ -1,8 +1,9 @@
 /**
- * The public landing page at `/` (no hash route). The app's own routes (`#/market`, `#/sell`, …) are untouched.
- * Everything network-specific comes from CFG, so the same page serves the testnet and the mainnet site.
- * Product images are real captures of the deployed testnet app (scripts/shots); the hero certificate is read
- * from the contract and falls back to a snapshot of CV-1 when the network has no contract yet.
+ * The public landing page. On the website (CFG.mode "site", covered.market) it is network-neutral: no network
+ * band or switch, no contract ids, and every app link leaves for an app domain — the mainnet app once it has a
+ * contract, the testnet app for trying it with test coins. On the local stack it is `/` of the local app.
+ * Product images are real captures of the app (scripts/shots); the hero certificate is read from the contract the
+ * "try it" links go to (the website's config names it) and falls back to a snapshot of CV-1.
  */
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { C, dateUtc } from "../ds";
@@ -15,10 +16,13 @@ const FEATURED = Number((CFG as unknown as { featured?: number }).featured ?? 1)
 const SECURITY = "security@covered.market";
 const SNAPSHOT = { serial: "CV-1", issued: "6 Nov 2026", size: 0.001, strike: 150000, expiry: "6 Nov 2026, 11:07 UTC", premium: 5, vault: "tb1qc7llf6xn7zwgagm7ztwmhd3209nkcu3tx5q9pe", seller: "live-seller-mw4s4qtp.testnet", buyer: "live-buyer-mw4s4qtp.testnet", contractId: "covered-app-mw4qlyb3.testnet", status: "open" as const };
 
-/** Read after loadConfig() has run (module scope runs before it), so these are functions of CFG. */
-const net = () => {
-  const isTest = CFG.mode !== "mainnet", live = !CFG.disabled;
-  return { isTest, live, testnetSite: isTest ? "" : CFG.switchUrl ?? "", app: (route: string) => (live ? `#/${route}` : CFG.switchUrl ? `${CFG.switchUrl}/#/${route}` : `#/${route}`) };
+/** Where links go. Read after loadConfig() has run (module scope runs before it), so a function of CFG.
+ *  live: the real app is open (the website: mainnet has a contract; the local stack: always).
+ *  app(route): the real app, or the test-coin app until it is open. tryIt(route): the test-coin app. */
+const links = () => {
+  const site = CFG.mode === "site", live = site ? !!CFG.mainnetLive : !CFG.disabled;
+  const appBase = site ? ((live ? CFG.appUrl : CFG.testnetUrl) ?? "") : "", tryBase = site ? (CFG.testnetUrl ?? "") : "";
+  return { site, live, app: (route: string) => `${appBase}/#/${route}`, tryIt: (route: string) => `${tryBase}/#/${route}` };
 };
 
 /** In-page anchors: the app uses the hash for routes, so section links scroll instead of changing the hash. */
@@ -28,7 +32,7 @@ const A = ({ to, children, className, style }: { to: string; children: ReactNode
 function useHeroCert() {
   const [cert, setCert] = useState<typeof SNAPSHOT & { live?: boolean }>(SNAPSHOT);
   useEffect(() => {
-    if (!net().live) return;
+    if (CFG.disabled) return;
     view<Offer | null>("get_offer", { serial: FEATURED }).then((o) => {
       if (!o) return;
       setCert({ serial: `CV-${FEATURED}`, issued: dateUtc(o.created_s ?? o.expiry_s).slice(0, 11), size: Number(o.size_sats) / 1e8, strike: Number(o.strike_units) / 1e6, expiry: dateUtc(o.expiry_s), premium: Number(o.premium_units) / 1e6, vault: o.address, seller: o.seller, buyer: o.buyer ?? undefined as unknown as string, contractId: CFG.contract, status: stampFor(o.state) as "open", live: true });
@@ -89,12 +93,12 @@ const BENEFITS = [
 ];
 
 const built = (): { status: "Live" | "Partly" | "Next"; name: string; what: string; id: string; d: string }[] => [
-  { status: "Live", name: "Chain Signatures", what: "NEAR’s MPC network gives the contract its own Bitcoin key for every offer, derived from the contract and the serial, and signs only the transaction the contract has committed to.", id: `${CFG.signer} · derived keys`, d: "M12 3a2 2 0 1 0 0.01 0 M5 17a2 2 0 1 0 0.01 0 M19 17a2 2 0 1 0 0.01 0 M11 6.5l-5 8.5 M13 6.5l5 8.5 M7 19h10" },
-  { status: "Live", name: "A contract nobody controls", what: "NEAR accounts are governed by access keys. CoveredMarket’s contract has none after deployment, so it cannot be upgraded or drained, and Verify checks that from your browser.", id: `${CFG.contract} · 0 access keys`, d: "M7 11V8a5 5 0 0 1 10 0v3 M5 11h14v10H5z M12 15v2" },
+  { status: "Live", name: "Chain Signatures", what: "NEAR’s MPC network gives the contract its own Bitcoin key for every offer, derived from the contract and the serial, and signs only the transaction the contract has committed to.", id: "NEAR MPC · derived keys", d: "M12 3a2 2 0 1 0 0.01 0 M5 17a2 2 0 1 0 0.01 0 M19 17a2 2 0 1 0 0.01 0 M11 6.5l-5 8.5 M13 6.5l5 8.5 M7 19h10" },
+  { status: "Live", name: "A contract nobody controls", what: "NEAR accounts are governed by access keys. CoveredMarket’s contract has none after deployment, so it cannot be upgraded or drained, and Verify checks that from your browser.", id: "0 access keys · no upgrades", d: "M7 11V8a5 5 0 0 1 10 0v3 M5 11h14v10H5z M12 15v2" },
   { status: "Live", name: "Pay and act in one receipt", what: "The buyer’s USDC arrives with its instruction through NEP-141 ft_transfer_call. The premium is credited and the buyer recorded in the same receipt, with no pending state between.", id: "NEP-141 · ft_transfer_call", d: "M4 12h6 M14 12h6 M10 8l4 4-4 4 M4 6v12 M20 6v12" },
   { status: "Live", name: "Meta-transactions", what: "NEAR delegate actions let you sign while the relayer submits and pays gas. You never need to hold NEAR, and the relayer can never act alone.", id: "NEP-366 delegate actions", d: "M4 12h13 M13 7l5 5-5 5 M4 6v12" },
   { status: "Partly", name: "NEAR Intents", what: "Fund an account with USDC from Solana or Base today. Paying a premium or strike straight from another chain through 1Click is next.", id: "intents.near · 1Click", d: "M4 8h12 M12 4l4 4-4 4 M20 16H8 M12 12l-4 4 4 4" },
-  { status: "Next", name: "Confidential Intents", what: "Contract terms are public today, so anyone can verify them. Private terms will come with Confidential Intents on mainnet.", id: "privacy · mainnet", d: "M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z M12 9a3 3 0 1 0 0.01 0 M4 4l16 16" },
+  { status: "Next", name: "Confidential Intents", what: "Contract terms are public today, so anyone can verify them. Private terms will come with Confidential Intents.", id: "privacy · next", d: "M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z M12 9a3 3 0 1 0 0.01 0 M4 4l16 16" },
 ];
 const STATUS_COLOR = { Live: "var(--intaglio)", Partly: "var(--gilt-ink)", Next: "var(--ink-muted)" };
 
@@ -111,8 +115,8 @@ const FAQ = [
   ["Can I get my coins back early?", "Before a buyer takes the call, yes: withdraw the offer. Once it has sold, the coins stay until expiry."],
   ["What if Bitcoin goes far above the strike?", "Your coins are sold at the strike. You keep the premium but not the rise above the strike."],
   ["Do I need NEAR for gas?", "No. A relayer pays gas through meta-transactions. You sign; it submits."],
-  ["What does CoveredMarket charge?", "Nothing on testnet. Mainnet pricing will be published before it opens."],
-  ["Has the contract been audited?", "Not yet. It runs on testnet only until it has been."],
+  ["What does CoveredMarket charge?", "Nothing while it runs with test coins. Pricing will be published before it opens with real ones."],
+  ["Has the contract been audited?", "Not yet. CoveredMarket runs with test coins only until it has been."],
 ];
 
 function Payoff() {
@@ -172,31 +176,18 @@ function Calculator() {
 
 export function Landing() {
   const { StatTile, Stamp } = C();
-  const { isTest, live, testnetSite, app } = net();
+  const { live, app, tryIt } = links();
   const cert = useHeroCert();
   const [menu, setMenu] = useState(false);
   useEffect(() => { document.title = "CoveredMarket — earn on Bitcoin you still hold"; const id = location.hash.slice(1); if (id && !id.startsWith("/")) setTimeout(() => document.getElementById(id)?.scrollIntoView(), 50); }, []);
   const nav: [string, string][] = [["how", "How it works"], ["returns", "Returns"], ["compare", "Compare"], ["trust", "Security"], ["stack", "Built with"], ["faq", "FAQ"]];
-  const sellLabel = !live ? "Try it on testnet" : isTest ? "Sell a call on testnet" : "Sell a call";
   return (
     <div className="ld">
-      {isTest && (
-        <div className="ld-band" role="status"><div className="ld-wrap">
-          <span><strong className="ld-word" style={{ fontSize: 12 }}>{CFG.mode === "local" ? "Local sandbox" : "Testnet"}</strong> · Bitcoin testnet3 and NEAR testnet. Test coins and test USDC with no value.</span>
-          {CFG.switchUrl && <a href={CFG.switchUrl}>Go to mainnet →</a>}
-        </div></div>
-      )}
       <header className="ld-head">
         <div className="ld-wrap">
           <a href="/" aria-label="CoveredMarket home" className="ld-logo-link"><img className="ld-logo" src="/site/lockup.svg" alt="CoveredMarket" /></a>
           <nav className="ld-nav" aria-label="Sections">{nav.map(([id, l]) => <A key={id} to={id}>{l}</A>)}</nav>
           <div className="ld-head-right">
-            {(CFG.switchUrl || !isTest) && (
-              <span className="ld-switch ld-hide-phone" role="group" aria-label="Network">
-                {isTest ? <span className="on-test" aria-current="page">Testnet</span> : <a href={CFG.switchUrl}>Testnet</a>}
-                {isTest ? <a href={CFG.switchUrl}>Mainnet</a> : <span className="on-main" aria-current="page">Mainnet</span>}
-              </span>
-            )}
             <a className="ld-btn ld-btn--primary" style={{ minHeight: 44, padding: "10px 16px", fontSize: 15 }} href={app("market")}>Open the app</a>
             <button type="button" className="ld-btn ld-btn--quiet ld-menu" style={{ minHeight: 44, padding: "10px 12px", fontSize: 15 }} aria-expanded={menu} aria-label="Menu" onClick={() => setMenu(!menu)}><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg></button>
           </div>
@@ -213,16 +204,16 @@ export function Landing() {
               <h1 id="hero-h" className="ld-h1"><span>Earn on Bitcoin</span><span style={{ color: "var(--intaglio)" }}>you still hold.</span></h1>
               <p className="ld-lede" style={{ maxWidth: "38ch" }}>Sell covered calls on coins that never leave Bitcoin. Only a NEAR contract can sign for them, and the premium is yours whatever happens.</p>
               <div className="ld-row">
-                <a className="ld-btn ld-btn--primary" href={app("sell")}>{sellLabel}</a>
+                <a className="ld-btn ld-btn--primary" href={live ? app("sell") : tryIt("try")}>{live ? "Sell a call" : "Try it with test coins"}</a>
                 <A to="how" className="ld-btn ld-btn--quiet">See how it works</A>
               </div>
               <div className="ld-facts">{cert.serial} · {cert.size.toFixed(4)} BTC · strike ${cert.strike.toLocaleString("en-US", { minimumFractionDigits: 2 })} · premium ${cert.premium.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
             </div>
             <figure style={{ margin: 0, minWidth: 0 }}>
-              <a href={`${live ? "" : testnetSite}#/c/${cert.serial.slice(3)}`} aria-label={`Open contract ${cert.serial} in the app`} style={{ display: "block", textDecoration: "none" }}>
+              <a href={tryIt(`c/${cert.serial.slice(3)}`)} aria-label={`Open contract ${cert.serial} in the app`} style={{ display: "block", textDecoration: "none" }}>
                 <div className="ld-plate" data-theme="vault"><img className="ld-rosette" src="/site/rosette-gilt-on-vault.svg" alt="" aria-hidden="true" /><ScaledCert cert={cert} /></div>
               </a>
-              <figcaption className="body-small ld-muted" style={{ marginTop: 12 }}>{!live ? `Until the first ${CFG.network} contract exists, this is ${cert.serial} on NEAR testnet. Open it and press Verify.` : cert.live ? `Contract ${cert.serial}, live on NEAR ${CFG.network} and read from the chain just now. Open it and press Verify.` : `Contract ${cert.serial} on NEAR ${CFG.network}. Open it and press Verify.`}</figcaption>
+              <figcaption className="body-small ld-muted" style={{ marginTop: 12 }}>{cert.live ? `Contract ${cert.serial}, read from the chain just now. Open it and press Verify.` : `Contract ${cert.serial}. Open it and press Verify.`}</figcaption>
             </figure>
           </div>
         </section>
@@ -292,7 +283,7 @@ export function Landing() {
               <ul style={{ margin: 0, padding: 0, listStyle: "none", borderTop: "1px solid var(--rule)" }}>
                 {[["Strike.", "Closer to today’s price pays more, and is more likely to be sold."], ["Time.", "A longer call pays more; a short one can be sold again sooner."], ["Volatility.", "When Bitcoin swings, buyers pay more for the upside."]].map(([b, t]) => <li key={b} className="body-small" style={{ padding: "12px 0", borderBottom: "1px solid var(--rule)" }}><strong>{b}</strong> <span className="ld-muted">{t}</span></li>)}
               </ul>
-              <p className="body-small ld-muted" style={{ margin: 0 }}>Nothing here is a forecast or advice. CoveredMarket charges nothing on testnet; mainnet pricing will be published before it opens.</p>
+              <p className="body-small ld-muted" style={{ margin: 0 }}>Nothing here is a forecast or advice. CoveredMarket charges nothing while it runs with test coins; pricing will be published before it opens with real ones.</p>
             </div>
             <Calculator />
           </div>
@@ -337,8 +328,7 @@ export function Landing() {
                 </article>
               ))}
             </div>
-            <p className="body-small ld-muted" style={{ margin: 0, maxWidth: "90ch" }}>Also on chain: Bitcoin deposits and settlements are proven to the contract through the Bitcoin light client at <span className="ld-mono" style={{ color: "var(--intaglio)" }}>{CFG.lightClient}</span>, and every certificate can be checked in the browser.</p>
-            {live && <div className="ld-row" style={{ gap: "8px 24px" }}><a href={`${CFG.explorerNear}/address/${CFG.contract}`} target="_blank" rel="noreferrer">The contract on NearBlocks</a></div>}
+            <p className="body-small ld-muted" style={{ margin: 0, maxWidth: "90ch" }}>Also on chain: Bitcoin deposits and settlements are proven to the contract through a Bitcoin light client on NEAR, and every certificate can be checked in the browser.</p>
           </div>
         </section>
 
@@ -348,13 +338,13 @@ export function Landing() {
             <div><Kicker n="06">The app</Kicker><h2 id="app-h" className="ld-h2" style={{ maxWidth: "16ch" }}>Every contract, readable by anyone.</h2></div>
             <div className="ld-app">
               <Frame path="covered · /c/1" src="/site/shots/app-cert.webp" alt="Contract CV-1 in the app: the certificate, the countdown to the exercise window, the premium credited and the settlement timeline" />
-              <div className="ld-frame" data-theme="vault"><div className="ld-frame-bar"><i /><i /><span>/try · Vault theme</span></div><img src="/site/shots/app-try-vault.webp" alt="Try it on testnet, in the dark Vault theme: five steps and what is live where" loading="lazy" /></div>
+              <div className="ld-frame" data-theme="vault"><div className="ld-frame-bar"><i /><i /><span>/try · Vault theme</span></div><img src="/site/shots/app-try-vault.webp" alt="Try it, in the dark Vault theme: five steps and what is live where" loading="lazy" /></div>
             </div>
             <div className="ld-cards2">
               <figure style={{ margin: 0 }}><img src="/site/shots/crop-timeline2.webp" alt="Settlement timeline of CV-1: coins deposited, call sold, exercise window, coins returned" loading="lazy" style={{ width: "100%", display: "block", border: "1px solid var(--rule)" }} /><figcaption className="body-small ld-muted" style={{ marginTop: 8 }}>Settlement timeline</figcaption></figure>
-              <figure style={{ margin: 0 }}><img src="/site/shots/crop-try.webp" alt="Try it: the guided testnet flow" loading="lazy" style={{ width: "100%", display: "block", border: "1px solid var(--rule)" }} /><figcaption className="body-small ld-muted" style={{ marginTop: 8 }}>Try it on testnet</figcaption></figure>
+              <figure style={{ margin: 0 }}><img src="/site/shots/crop-try.webp" alt="Try it: the guided flow with test coins" loading="lazy" style={{ width: "100%", display: "block", border: "1px solid var(--rule)" }} /><figcaption className="body-small ld-muted" style={{ marginTop: 8 }}>Try it with test coins</figcaption></figure>
             </div>
-            <div className="ld-row"><a className="ld-btn ld-btn--primary" href={app("market")}>Open the app</a><a className="ld-btn ld-btn--quiet" href={`${testnetSite}#/try`}>Try it in six minutes</a></div>
+            <div className="ld-row"><a className="ld-btn ld-btn--primary" href={app("market")}>Open the app</a><a className="ld-btn ld-btn--quiet" href={tryIt("try")}>Try it in six minutes</a></div>
           </div>
         </section>
 
@@ -426,7 +416,7 @@ export function Landing() {
               <ol className="body-small" style={{ margin: 0, paddingLeft: 24, display: "flex", flexDirection: "column", gap: 8 }}>
                 <li>The deployed code is the published code, and no key can change it</li><li>The deposit address is derived from this contract and this serial</li><li>The collateral is on Bitcoin, at that address, for the full size</li><li>Every payment the certificate shows is a receipt on NEAR</li><li>Each change of state followed the contract’s rules</li><li>The signed settlement pays the address the terms name</li><li>That settlement is confirmed on Bitcoin</li>
               </ol>
-              <div><a className="ld-btn ld-btn--primary" href={`${live ? "" : testnetSite}#/c/${cert.serial.slice(3)}`}>Verify {cert.serial}</a></div>
+              <div><a className="ld-btn ld-btn--primary" href={tryIt(`c/${cert.serial.slice(3)}`)}>Verify {cert.serial}</a></div>
             </div>
             <div className="ld-shotplate" data-theme="vault" style={{ minWidth: 0 }}><Frame path="covered · /c/1" src="/site/shots/verify.webp" alt="The Verify panel with all seven checks passed" /></div>
           </div>
@@ -466,7 +456,7 @@ export function Landing() {
               </div>
               <div className="ld-3" style={{ gap: "24px 32px" }}>
                 <div className="ld-stack" style={{ gap: 8 }}><h3 className="ld-label" style={{ margin: 0, color: "var(--intaglio)" }}>In scope</h3><p className="body-small" style={{ margin: 0 }}>The CoveredMarket contract on NEAR, the relayer, the web app, and the seven Verify checks on every certificate.</p></div>
-                <div className="ld-stack" style={{ gap: 8 }}><h3 className="ld-label" style={{ margin: 0, color: "var(--oxblood)" }}>Out of scope</h3><p className="body-small" style={{ margin: 0 }}>NEAR’s MPC network, the Bitcoin light client and wallets: report those to their teams. Volume denial of service, social engineering, and the testnet faucet’s limits.</p></div>
+                <div className="ld-stack" style={{ gap: 8 }}><h3 className="ld-label" style={{ margin: 0, color: "var(--oxblood)" }}>Out of scope</h3><p className="body-small" style={{ margin: 0 }}>NEAR’s MPC network, the Bitcoin light client and wallets: report those to their teams. Volume denial of service, social engineering, and the test-coin faucet’s limits.</p></div>
                 <div className="ld-stack" style={{ gap: 8 }}><h3 className="ld-label" style={{ margin: 0 }}>Our promise</h3><p className="body-small" style={{ margin: 0 }}>Research in good faith within these rules is authorised, and we will not take legal action over it. We acknowledge every report and agree a disclosure date with you.</p></div>
               </div>
               <div className="ld-row" style={{ borderTop: "1px solid var(--rule-strong)", paddingTop: 24, gap: "16px 24px" }}>
@@ -481,11 +471,11 @@ export function Landing() {
         <section className="ld-vault" data-theme="vault" style={{ position: "relative", overflow: "hidden", padding: "96px 0" }} aria-labelledby="close-h">
           <img src="/site/rosette-gilt-on-vault.svg" alt="" aria-hidden="true" style={{ position: "absolute", width: 640, right: -220, top: -200, opacity: 0.35, pointerEvents: "none" }} />
           <div className="ld-wrap ld-stack" style={{ position: "relative" }}>
-            <h2 id="close-h" className="ld-h2" style={{ maxWidth: "14ch" }}>{isTest || !live ? "Sell your first call on testnet." : "Sell your first call."}</h2>
-            <p className="body ld-muted" style={{ margin: 0, maxWidth: "52ch" }}>{isTest || !live ? "A test wallet, test dollars and test coins from the demo faucet. About six minutes from start to a certificate." : "Connect a NEAR wallet, choose your terms, deposit from any Bitcoin wallet. Want to see it first? Testnet uses the same contract with coins of no value."}</p>
+            <h2 id="close-h" className="ld-h2" style={{ maxWidth: "14ch" }}>Sell your first call.</h2>
+            <p className="body ld-muted" style={{ margin: 0, maxWidth: "52ch" }}>{live ? "Connect a NEAR wallet, choose your terms, deposit from any Bitcoin wallet. Want to see it first? Try it with test coins of no value." : "Start with test coins: a test wallet, test dollars and test coins from the demo faucet. About six minutes from start to a certificate."}</p>
             <div className="ld-row">
-              <a className="ld-btn ld-btn--gilt" href={isTest || !live ? `${testnetSite}#/try` : "#/sell"}>{isTest || !live ? "Start on testnet" : "Open the app"}</a>
-              {isTest ? (CFG.switchUrl && <a className="ld-btn ld-btn--quiet" href={CFG.switchUrl}>Go to mainnet</a>) : live && <a className="ld-btn ld-btn--quiet" href={`${testnetSite}#/try`}>Try it on testnet first</a>}
+              <a className="ld-btn ld-btn--gilt" href={live ? app("sell") : tryIt("try")}>{live ? "Open the app" : "Try it with test coins"}</a>
+              {live && <a className="ld-btn ld-btn--quiet" href={tryIt("try")}>Try it with test coins first</a>}
             </div>
           </div>
         </section>
@@ -495,15 +485,11 @@ export function Landing() {
         <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
           <div className="ld-foot-grid">
             <div className="ld-stack" style={{ gap: 12 }}><img src="/site/lockup.svg" alt="CoveredMarket" style={{ height: 32, alignSelf: "flex-start" }} /><p className="ld-lede" style={{ fontSize: 18 }}>Earn on Bitcoin you still hold.</p></div>
-            <nav aria-label="Product"><span className="ld-label ld-muted">Product</span><a href={app("market")}>Market</a><a href={app("sell")}>Sell a call</a><a href={`${testnetSite}#/try`}>Try it</a><A to="faq">FAQ</A></nav>
+            <nav aria-label="Product"><span className="ld-label ld-muted">Product</span><a href={app("market")}>Market</a><a href={app("sell")}>Sell a call</a><a href={tryIt("try")}>Try it</a><A to="faq">FAQ</A></nav>
             <nav aria-label="Trust"><span className="ld-label ld-muted">Trust</span><A to="trust">Security</A><A to="security">Report a vulnerability</A><A to="compare">Compared</A></nav>
-            <nav aria-label="Build"><span className="ld-label ld-muted">Build</span><A to="stack">Built with</A>{live && <a href={`${CFG.explorerNear}/address/${CFG.contract}`} target="_blank" rel="noreferrer">Contract</a>}<a href={`mailto:${SECURITY}`}>{SECURITY}</a></nav>
+            <nav aria-label="Build"><span className="ld-label ld-muted">Build</span><A to="stack">Built with</A><a href={`mailto:${SECURITY}`}>{SECURITY}</a></nav>
           </div>
-          <div className="ld-mono ld-muted" style={{ fontSize: 13, borderTop: "1px solid var(--rule)", paddingTop: 16, display: "flex", flexDirection: "column", gap: 4, overflowWrap: "anywhere" }}>
-            <span>NEAR {CFG.network} · contract {live ? CFG.contract : "not deployed yet"} · USDC {CFG.usdc}</span>
-            <span>Signer {CFG.signer} · Bitcoin light client {CFG.lightClient}</span>
-          </div>
-          <p className="body-small ld-muted" style={{ margin: 0 }}>{isTest ? "This is the testnet site: test coins and test USDC with no value. " : ""}CoveredMarket is unaudited software. Selling a call gives up the rise above your strike, and your coins stay locked until expiry. Built on NEAR.</p>
+          <p className="body-small ld-muted" style={{ margin: 0, borderTop: "1px solid var(--rule)", paddingTop: 16 }}>CoveredMarket is unaudited software. Selling a call gives up the rise above your strike, and your coins stay locked until expiry. Built on NEAR.</p>
         </div>
       </footer>
     </div>

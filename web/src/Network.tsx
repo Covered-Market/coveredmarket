@@ -1,11 +1,12 @@
 /**
  * Which network you are on, impossible to miss: a band on every page outside mainnet, and a two-way switch
- * in the header that jumps to the other network's site (separate contract, relayer and keys — the two never
- * mix in one session). On a network without a contract the app shows `NotLive` instead.
+ * in the header that jumps to the other network's app (testnet.<domain> and mainnet.<domain>: separate origins,
+ * contracts, relayers and keys, so the two never mix in one session). On a network without a contract the app shows `NotLive` instead.
  */
 import { CFG } from "./lib/near";
 
-const LABEL = { testnet: "Testnet", mainnet: "Mainnet", local: "Local sandbox" } as const;
+// "site" never shows: the website renders only the landing page, which has no network band or switch.
+const LABEL = { testnet: "Testnet", mainnet: "Mainnet", local: "Local sandbox", site: "" } as const;
 
 export function NetworkBand() {
   if (CFG.mode === "mainnet") return null;

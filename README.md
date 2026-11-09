@@ -9,14 +9,14 @@
   <a href="https://github.com/Covered-Market/coveredmarket/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Covered-Market/coveredmarket/actions/workflows/ci.yml/badge.svg?branch=development"></a>
   <a href="https://github.com/Covered-Market/coveredmarket/actions/workflows/stack.yml"><img alt="End-to-end stack" src="https://github.com/Covered-Market/coveredmarket/actions/workflows/stack.yml/badge.svg?branch=development"></a>
   <a href="https://github.com/Covered-Market/coveredmarket/actions/workflows/live.yml"><img alt="Live contract on Bitcoin testnet3" src="https://github.com/Covered-Market/coveredmarket/actions/workflows/live.yml/badge.svg?branch=development"></a>
-  <a href="https://178-62-225-161.sslip.io"><img alt="Testnet app" src="https://img.shields.io/website?url=https%3A%2F%2F178-62-225-161.sslip.io&label=testnet%20app&up_message=live&up_color=1F4F40&down_color=7E2432"></a>
+  <a href="https://testnet.covered.market"><img alt="Testnet app" src="https://img.shields.io/website?url=https%3A%2F%2Ftestnet.covered.market&label=testnet%20app&up_message=live&up_color=1F4F40&down_color=7E2432"></a>
   <a href="docs/SECURITY-MODEL.md"><img alt="Unaudited" src="https://img.shields.io/badge/audit-none%20yet-7E2432"></a>
   <a href="SECURITY.md"><img alt="Bug bounty up to $2,000" src="https://img.shields.io/badge/bug%20bounty-up%20to%20%242%2C000-B88A2E"></a>
   <img alt="Built on NEAR" src="https://img.shields.io/badge/built%20on-NEAR-132A23">
 </p>
 
 <p align="center">
-  <b><a href="https://178-62-225-161.sslip.io/#/try">Try it on testnet</a></b> ·
+  <b><a href="https://testnet.covered.market/#/try">Try it on testnet</a></b> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#run-it-yourself">Run it yourself</a> ·
   <a href="#security">Security</a> ·
@@ -86,7 +86,7 @@ Contract: [`covered-app-mw4qlyb3.testnet`](https://testnet.nearblocks.io/address
 
 ## Try it in five minutes
 
-The [testnet site](https://178-62-225-161.sslip.io/#/try) uses test coins and test USDC with no value.
+The [testnet site](https://testnet.covered.market/#/try) uses test coins and test USDC with no value.
 
 1. **Connect a wallet.** Any NEAR wallet set to testnet (Meteor, Intear, Nightly, …), named or implicit account. You get 100,000 test USDC and a little tNEAR automatically; the relayer pays gas.
 2. **Sell a call.** 0.001 tBTC, a strike above the reference price, the shortest expiry.
