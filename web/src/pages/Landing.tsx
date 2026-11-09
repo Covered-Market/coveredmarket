@@ -311,13 +311,6 @@ export function Landing() {
           </div>
         </section>
 
-        {/* buyers */}
-        <section className="ld-sunk" aria-label="For buyers">
-          <div className="ld-wrap ld-row" style={{ padding: "32px 0", justifyContent: "space-between", gap: "16px 32px" }}>
-            <p className="body" style={{ margin: 0, flex: "1 1 420px" }}><strong>Want the upside instead?</strong> Buy a call backed by coins you can look up on Bitcoin. Pay the premium in USDC; the coins are delivered to your Bitcoin address if you exercise.</p>
-            <a className="ld-btn ld-btn--quiet" href={app("market")}>See the market</a>
-          </div>
-        </section>
         <img src="/site/band.svg" alt="" aria-hidden="true" style={{ display: "block", width: "100%", height: 40, objectFit: "cover", opacity: 0.45 }} />
 
         {/* trust */}

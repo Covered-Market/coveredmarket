@@ -59,12 +59,13 @@
 .ld-hero-film { position: relative; margin: 0; min-width: 0; }
 .ld-hero-film > figcaption { position: absolute; top: 100%; left: 0; right: 0; margin-top: 12px; }
 
-/* Built with: five cards as 3 + 2, the last two each half the width, so both rows are full. */
-.ld-built { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.ld-built > * { grid-column: span 2; }
-.ld-built > :nth-child(n + 4) { grid-column: span 3; }
-@media (max-width: 1023px) { .ld-built { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ld-built > *, .ld-built > :nth-child(n + 4) { grid-column: span 1; } .ld-built > :last-child:nth-child(odd) { grid-column: 1 / -1; } }
-@media (max-width: 599px) { .ld-built { grid-template-columns: minmax(0, 1fr); } .ld-built > :last-child:nth-child(odd) { grid-column: auto; } }
+/* Built with: five cards, all the same size, as 3 + 2 with the second row centred (2 + 2 + 1 on tablets, the last
+   centred; one column on phones). Rows share one height. */
+.ld-3.ld-built { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-rows: 1fr; }
+.ld-3.ld-built > * { grid-column: span 2; }
+.ld-3.ld-built > :nth-child(4) { grid-column: 2 / span 2; }
+@media (max-width: 1023px) { .ld-3.ld-built { grid-template-columns: repeat(4, minmax(0, 1fr)); } .ld-3.ld-built > :nth-child(4) { grid-column: span 2; } .ld-3.ld-built > :last-child:nth-child(odd) { grid-column: 2 / span 2; } }
+@media (max-width: 599px) { .ld-3.ld-built { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; } .ld-3.ld-built > *, .ld-3.ld-built > :nth-child(4), .ld-3.ld-built > :last-child:nth-child(odd) { grid-column: auto; } }
 
 /* film: the hero's player (HeroFilm). The poster is brand/assets/Social/video-poster-plain; the play button sits
    where the full poster's rosette has its eye (POSTER_EYE in gen_assets.py), so both versions share one layout. */
