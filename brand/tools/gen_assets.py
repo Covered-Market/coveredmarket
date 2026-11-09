@@ -193,7 +193,7 @@ def hatch(size, ink, pitch=6):
 write('Patterns/hatch.svg', svg(96, 96, hatch(96, INK)))
 
 def microtext(w, h, ink):
-    d, tw = text_path('COVEREDMARKET · INCOME ON BITCOIN YOU STILL HOLD · ', *SANS_B, 7, 0, 9, tracking=0.08)
+    d, tw = text_path('COVEREDMARKET · EARN ON BITCOIN YOU STILL HOLD · ', *SANS_B, 7, 0, 9, tracking=0.08)
     out = [f'<defs><path id="mt" d="{d}" fill="{ink}"/></defs>']
     reps = int(w / tw) + 2
     for row in range(int(h / 12)):
@@ -231,7 +231,7 @@ icon('verify', '<path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="M9 12
 icon('wallet', '<rect x="3" y="7" width="18" height="13"/><path d="M3 10h18M16 14h2"/><path d="M6 7V5h10v2"/>')
 
 # ---------- Social ----------
-TAGLINE = 'Open to anyone. Held by no one. Earning for you.'
+TAGLINE = 'Earn on Bitcoin you still hold.'
 
 def tagline(x, y, size, ink, max_w=None):
     """The brand line at baseline (x, y); shrinks to fit max_w if given."""
