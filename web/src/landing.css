@@ -1,6 +1,6 @@
 /* Landing page. Brand rules: Paper ground, one Fraunces line per section, figures in mono,
    hairlines not shadows (shadow-lift only on product frames), Vault plates behind product shots. */
-.ld { background: var(--paper); color: var(--ink); font-family: var(--font-sans); overflow-x: clip; }
+.ld { background: var(--paper); color: var(--ink); font-family: var(--font-sans); overflow: clip; }
 .ld a { color: var(--intaglio); }
 .ld *, .ld *::before, .ld *::after { box-sizing: border-box; }
 .ld-wrap { max-width: 1120px; margin: 0 auto; padding: 0 64px; }
@@ -194,8 +194,8 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 }
 @media (prefers-reduced-motion: reduce) { .ld * { transition: none !important; } }
 
-/* The rosette as the page's brand mark: large, whole and faint, anchored top right below the header and running
-   down behind the hero into the first section (which has no background of its own, so it is never cut). */
+/* The rosette as the page's brand mark: its centre sits just outside the page's top-right corner, so a quarter of
+   it sweeps in from the corner behind the header and the hero. The page clips the rest (.ld has overflow: clip,
+   which keeps the sticky header working). --seal is its diameter. */
 .ld { position: relative; isolation: isolate; }
-.ld-seal { position: absolute; top: 88px; right: 24px; width: clamp(240px, 54vw, 940px); opacity: .09; z-index: -1; pointer-events: none; }
-@media (max-width: 599px) { .ld-seal { top: 84px; right: 12px; width: 220px; opacity: .08; } }
+.ld-seal { --seal: clamp(560px, 92vw, 1560px); position: absolute; width: var(--seal); right: calc(var(--seal) * -0.56); top: calc(var(--seal) * -0.56); opacity: .1; z-index: -1; pointer-events: none; }
