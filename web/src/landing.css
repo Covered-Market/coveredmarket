@@ -59,6 +59,13 @@
 .ld-hero-film { position: relative; margin: 0; min-width: 0; }
 .ld-hero-film > figcaption { position: absolute; top: 100%; left: 0; right: 0; margin-top: 12px; }
 
+/* Built with: five cards as 3 + 2, the last two each half the width, so both rows are full. */
+.ld-built { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.ld-built > * { grid-column: span 2; }
+.ld-built > :nth-child(n + 4) { grid-column: span 3; }
+@media (max-width: 1023px) { .ld-built { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ld-built > *, .ld-built > :nth-child(n + 4) { grid-column: span 1; } .ld-built > :last-child:nth-child(odd) { grid-column: 1 / -1; } }
+@media (max-width: 599px) { .ld-built { grid-template-columns: minmax(0, 1fr); } .ld-built > :last-child:nth-child(odd) { grid-column: auto; } }
+
 /* film: the hero's player (HeroFilm). The poster is brand/assets/Social/video-poster-plain; the play button sits
    where the full poster's rosette has its eye (POSTER_EYE in gen_assets.py), so both versions share one layout. */
 .ld-film { position: relative; aspect-ratio: 16 / 9; background: #0f211b; overflow: hidden; box-shadow: 0 24px 48px -24px #132a2399; }
