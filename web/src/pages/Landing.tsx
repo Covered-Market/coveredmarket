@@ -204,11 +204,6 @@ export function Landing() {
               <p className="ld-kicker" style={{ margin: 0 }}>Covered calls on native Bitcoin</p>
               <h1 id="hero-h" className="ld-h1"><span>Earn on Bitcoin</span><span style={{ color: "var(--intaglio)" }}>you still hold.</span></h1>
               <p className="ld-lede" style={{ maxWidth: "38ch" }}>Sell covered calls on coins that never leave Bitcoin. Only a NEAR contract can sign for them, and the premium is yours whatever happens.</p>
-              <div className="ld-row">
-                <a className="ld-btn ld-btn--primary" href={live ? app("sell") : tryIt("try")}>{live ? "Sell a call" : "Try it with test coins"}</a>
-                <A to="how" className="ld-btn ld-btn--quiet">See how it works</A>
-              </div>
-              <div className="ld-facts">{cert.serial} · {cert.size.toFixed(4)} BTC · strike ${cert.strike.toLocaleString("en-US", { minimumFractionDigits: 2 })} · premium ${cert.premium.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
             </div>
             <figure style={{ margin: 0, minWidth: 0 }}>
               <a href={tryIt(`c/${cert.serial.slice(3)}`)} aria-label={`Open contract ${cert.serial} in the app`} style={{ display: "block", textDecoration: "none" }}>
