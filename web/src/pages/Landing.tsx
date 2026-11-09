@@ -175,7 +175,7 @@ function Calculator() {
 }
 
 export function Landing() {
-  const { StatTile, Stamp } = C();
+  const { Stamp } = C();
   const { live, app, tryIt } = links();
   const cert = useHeroCert();
   const [menu, setMenu] = useState(false);
@@ -228,18 +228,6 @@ export function Landing() {
               <div className="ld-film-text"><span className="ld-film-title">Earn on Bitcoin you still hold.</span><span className="ld-soon">Film coming soon</span></div>
             </div>
             <p className="body-small ld-muted" style={{ margin: "12px 0 0" }}>Astrid sells a call on her Bitcoin, Marcus buys it, and the contract settles on Bitcoin. Until the film is out, <a href={app("try")}>try it yourself in six minutes</a>.</p>
-          </div>
-        </section>
-
-        {/* example tiles */}
-        <section aria-labelledby="ex-h" style={{ paddingBottom: 96 }}>
-          <div className="ld-wrap">
-            <h2 id="ex-h" className="ld-kicker">Example · one call on 2 BTC</h2>
-            <div className="ld-3 ld-stats">
-              <StatTile label="Premium you keep" value="$6,000" kind="usd" tone="gilt" note="Paid when the call sells, yours in every outcome" />
-              <StatTile label="Coins at rest on Bitcoin" value={2} kind="btc" tone="btc" note="At an address only the contract can sign for" />
-              <StatTile label="Strike" value="$150,000" kind="usd" tone="ink" note="Expires 31 Dec 2026, 08:00 UTC" />
-            </div>
           </div>
         </section>
 
