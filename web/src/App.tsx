@@ -103,12 +103,12 @@ export function App() {
         )}
       </TopBar>
       {naming && !wallet && !canConnect() && (
-        <div style={{ margin: "16px 48px", padding: 20, border: "1px solid var(--rule)", background: "var(--paper-raised)", maxWidth: 620, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ margin: "16px clamp(16px, 4vw, 48px)", padding: 20, border: "1px solid var(--rule)", background: "var(--paper-raised)", maxWidth: 620, display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
             <div className="heading" style={{ marginBottom: 6 }}>A NEAR sandbox account for this device</div>
             <p className="body-small" style={{ color: "var(--ink-muted)", margin: "0 0 10px" }}>Wallets know mainnet and testnet, not this private sandbox, so the account's key stays in this browser. It comes with test USDC; gas is paid by the relayer.</p>
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-              <div style={{ flex: 1 }}><Field label="Name" placeholder="astrid" value={name} onChange={(e) => setName(e.target.value)} help={`becomes ${name || "name"}.${CFG.accountSuffix || CFG.network}`} /></div>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 200px" }}><Field label="Name" placeholder="astrid" value={name} onChange={(e) => setName(e.target.value)} help={`becomes ${name || "name"}.${CFG.accountSuffix || CFG.network}`} /></div>
               <Button disabled={busy || !name} onClick={async () => { setBusy(true); try { setWallet(await createWallet(name)); setNaming(false); } catch (e) { alert((e as Error).message); } finally { setBusy(false); } }}>{busy ? "Creating…" : "Create"}</Button>
             </div>
           </div>
@@ -127,7 +127,7 @@ export function App() {
 function NeedWallet({ onCreate }: { onCreate: () => void }) {
   const { Button } = C();
   return (
-    <div style={{ padding: "48px" }}>
+    <div className="cv-pad" style={{ padding: "48px" }}>
       <h1 className="title" style={{ margin: "0 0 8px" }}>You need a wallet first</h1>
       <p className="body" style={{ color: "var(--ink-muted)", maxWidth: 520 }}>A NEAR account identifies you as seller or buyer. Your Bitcoin stays in your own Bitcoin wallet; this account only signs instructions.</p>
       <Button variant="primary" onClick={onCreate}>{canConnect() ? "Connect wallet" : "Create account"}</Button>

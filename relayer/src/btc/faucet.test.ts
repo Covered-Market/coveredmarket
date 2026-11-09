@@ -1,7 +1,10 @@
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import * as btc from "@scure/btc-signer";
 import { describe, expect, it } from "vitest";
-import { buildPayment } from "./faucet.js";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { buildPayment, esploraFaucet } from "./faucet.js";
 
 const key = new Uint8Array(32).fill(7);
 const me = btc.getAddress("wpkh", key, btc.TEST_NETWORK)!;
@@ -24,5 +27,23 @@ describe("faucet payment", () => {
   });
   it("refuses when the faucet cannot cover the payment", () => {
     expect(() => buildPayment(key, btc.TEST_NETWORK, [utxo("11".repeat(32), 10_000)], to, 200_000n, 3)).toThrow(/enough/);
+  });
+  it("a second payment right after the first spends the first one's change, never the same input again", async () => {
+    const file = join(mkdtempSync(join(tmpdir(), "faucet-")), "k"); writeFileSync(file, Buffer.from(key).toString("hex"));
+    const sent: string[] = [];
+    // A lagging backend: it keeps reporting the original coin as unspent and never shows the change.
+    const get = async (path: string, init?: RequestInit) => {
+      if (path.endsWith("/utxo")) return new Response(JSON.stringify([utxo("11".repeat(32), 500_000)]));
+      if (path === "/fee-estimates") return new Response(JSON.stringify({ "3": 2 }));
+      if (path === "/tx") { const h = String(init!.body); sent.push(h); return new Response(btc.Transaction.fromRaw(Buffer.from(h, "hex")).id); }
+      return new Response("", { status: 404 });
+    };
+    const f = esploraFaucet(file, get as any);
+    const [a, b] = await Promise.all([f.pay(to, 100_000n), f.pay(to, 100_000n)]);
+    expect(a).not.toBe(b);
+    const ins = sent.map((h) => { const t = btc.Transaction.fromRaw(Buffer.from(h, "hex")); return Array.from({ length: t.inputsLength }, (_, i) => `${Buffer.from(t.getInput(i).txid!).toString("hex")}:${t.getInput(i).index}`); });
+    expect(ins[0]).toEqual([`${"11".repeat(32)}:0`]);
+    expect(ins[1].length).toBe(1);
+    expect(ins[1][0].startsWith(a)).toBe(true);
   });
 });

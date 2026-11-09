@@ -4,7 +4,8 @@ import { detectBtcWallets } from "../lib/btcwallets";
 import { PayHelpers } from "./PayHelpers";
 import { BlockWait } from "../ChainClock";
 import { downloadKit, loadKit } from "../lib/rescue";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { encode } from "uqr";
 import { btc8, C } from "../ds";
 import { CFG, type Wallet } from "../lib/near";
 import { useOffer, useParams } from "./hooks";
@@ -42,12 +43,12 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
           <h1 className="display-2" style={{ margin: "0 0 8px", fontSize: 44, lineHeight: 1.02 }}>Deposit {btc8(offer.size_sats)}</h1>
           <p className="body" style={{ margin: 0, color: "var(--ink-muted)" }}>This address was derived for CV-{serial} by the CoveredMarket contract on NEAR. Only the contract can sign from it, through Chain Signatures. Nobody holds a key.</p>
         </div>
-        <div style={{ display: "flex", gap: 20, alignItems: "center", padding: 20, background: "var(--paper-sunk)", border: "1px solid var(--rule-strong)" }}>
-          <img alt="QR" width={136} height={136} style={{ background: "#fff", border: "1px solid var(--rule)" }} src={`https://api.qrserver.com/v1/create-qr-code/?size=136x136&data=bitcoin:${offer.address}?amount=${(Number(offer.size_sats) / 1e8).toFixed(8)}`} />
+        <div data-cv="address" style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap", padding: 20, background: "var(--paper-sunk)", border: "1px solid var(--rule-strong)" }}>
+          <Qr text={`bitcoin:${offer.address}?amount=${(Number(offer.size_sats) / 1e8).toFixed(8)}`} />
           <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
             <span className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>Send exactly {btc8(offer.size_sats)} to</span>
             <span className="figure" style={{ color: "var(--copper-ink)", wordBreak: "break-all", fontSize: 15 }}>{offer.address}</span>
-            <div style={{ display: "flex", gap: 8 }}><Button size="sm" onClick={() => navigator.clipboard.writeText(offer.address)}>Copy address</Button><Button size="sm" href={`bitcoin:${offer.address}?amount=${(Number(offer.size_sats) / 1e8).toFixed(8)}`}>Open in wallet</Button><Button size="sm" href={btcAddr(offer.address)}>View on explorer</Button></div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><Button size="sm" onClick={() => navigator.clipboard.writeText(offer.address)}>Copy address</Button><Button size="sm" href={`bitcoin:${offer.address}?amount=${(Number(offer.size_sats) / 1e8).toFixed(8)}`}>Open in wallet</Button><Button size="sm" href={btcAddr(offer.address)}>View on explorer</Button></div>
             {seen && <span className="body-small">Seen: <Ext href={btcTx(seen.txid)}>{seen.txid}</Ext> · {seen.confirmed ? `${seen.depth} confirmation${seen.depth === 1 ? "" : "s"}` : "in the mempool"}</span>}
           </div>
         </div>
@@ -56,7 +57,7 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
             <b>Save your rescue kit first.</b> It is your way out if NEAR ever stops. <Button size="sm" variant="primary" onClick={() => { downloadKit(k.kit); location.reload(); }}>Download rescue kit</Button>
           </div>) : null; })()}
         {offer.state === "Created" && <PayHelpers serial={serial} address={offer.address} sats={Number(offer.size_sats)} wallets={detectBtcWallets()} />}
-        <Notice>Send from a wallet you control, in one output, the exact amount. Any other amount is not accepted; you can recover it to {offer.refund_address} from your contracts page.</Notice>
+        <Notice>Send from a wallet you control, in one output, the exact amount. Any other amount does not fund the offer; the contract can still return it to {offer.refund_address} through its recover method, with a Bitcoin inclusion proof.</Notice>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 44 }}>
         <div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>Watching Bitcoin</div>
@@ -71,5 +72,16 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
         </div>
       </div>
     </div>
+  );
+}
+
+/** Drawn in the page: the address never goes to a third-party QR service. */
+function Qr({ text }: { text: string }) {
+  const { data, size } = useMemo(() => encode(text, { ecc: "M", border: 2 }), [text]);
+  const d = useMemo(() => data.flatMap((row, y) => row.map((on, x) => (on ? `M${x} ${y}h1v1h-1z` : ""))).join(""), [data]);
+  return (
+    <svg role="img" aria-label="QR code of the deposit address and amount" viewBox={`0 0 ${size} ${size}`} width={136} height={136} shapeRendering="crispEdges" style={{ background: "#fff", border: "1px solid var(--rule)", flex: "none" }}>
+      <path d={d} fill="#000" />
+    </svg>
   );
 }
