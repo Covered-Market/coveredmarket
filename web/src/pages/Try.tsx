@@ -48,7 +48,7 @@ export function Try({ wallet, onCreate }: { wallet: Wallet | null; onCreate: () 
           {wallet ? <Button variant="primary" size="lg" href="#/sell">Start · sell a call</Button> : <Button variant="primary" size="lg" onClick={onCreate}>Start · connect a wallet</Button>}
           {wallet && testWalletAllowed() && <Button size="lg" disabled={funds.busy} onClick={topUp}>{funds.busy ? "Sending…" : "Get test funds"}</Button>}
           <Button size="lg" href="https://coinfaucet.eu/en/btc-testnet/">testnet3 faucet</Button>
-          <Button size="lg" href="https://github.com/bedeho/coveredmarket/blob/development/contracts/coveredmarket/src/lib.rs">Read the contract</Button>
+          <Button size="lg" href="https://github.com/Covered-Market/coveredmarket/blob/development/contracts/coveredmarket/src/lib.rs">Read the contract</Button>
         </div>
         {funds.msg && <div className="body-small" role="status" style={{ color: "var(--ink-muted)" }}>{funds.msg}</div>}
       </div>
