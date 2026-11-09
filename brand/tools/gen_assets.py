@@ -323,15 +323,16 @@ def square():
     return svg(w, h, body, bg=VAULT)
 write('Social/square-card-1080.svg', square())
 
-# The film's poster, 1920x1080: the landing page's player shows it before play, and it is the video's thumbnail
-# (rendered to PNG). The rosette sits whole on the right; the page puts its play button in the rosette's eye
-# (POSTER_EYE, as fractions of the width and height). Title and subtitle are fitted to the space left of it.
+# The film's poster, 1920x1080, and the video's thumbnail (rendered to PNG). The rosette sits whole on the right
+# and a player puts its play button in the rosette's eye (POSTER_EYE, as fractions of the width and height). The
+# plain version leaves the rosette out, for pages that carry the rosette themselves (the landing page). Title and
+# subtitle are fitted to the space left of the rosette either way.
 POSTER_EYE = (0.71875, 0.5)
-def poster():
+def poster(with_rosette=True):
     w, h = 1920, 1080
     room = h / 2 - 64 - 56
     cx, cy = w * POSTER_EYE[0], h * POSTER_EYE[1]
-    body = f'<g opacity="0.38">' + rosette(cx, cy, room / ROSETTE_REACH, GILT_V, rings=9, sw=1.1) + '</g>'
+    body = (f'<g opacity="0.38">' + rosette(cx, cy, room / ROSETTE_REACH, GILT_V, rings=9, sw=1.1) + '</g>') if with_rosette else ''
     body += f'<rect x="64" y="64" width="{w-128}" height="{h-128}" fill="none" stroke="{RULE_V}" stroke-width="1.5"/>'
     body += f'<g transform="translate(128,128) scale(1.4)">' + mark(ink=INK_V, coin=INK_V, finial=GILT_V, two_tone=True) + '</g>'
     wp, _ = wordmark(128 + 64 * 1.4 + 28, 128 + 64 * 1.4 * 0.68, 60, INK_V)
@@ -350,4 +351,5 @@ def poster():
     d, _ = text_path('COVERED.MARKET', *SANS_B, 26, left + 4, h - 128, tracking=0.16); body += f'<path d="{d}" fill="{MUTED_V}"/>'
     return svg(w, h, body, bg=VAULT)
 write('Social/video-poster-1920x1080.svg', poster())
+write('Social/video-poster-plain-1920x1080.svg', poster(with_rosette=False))
 print('done')

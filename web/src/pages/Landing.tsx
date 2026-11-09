@@ -45,9 +45,9 @@ function useHeroCert() {
   return cert;
 }
 
-/** The film as an embedded player (FILM_URL). Before play it shows the film's poster, which is also the video's
- *  thumbnail (brand/assets/Social/video-poster-*). Pressing play swaps in the player, with its own controls and full
- *  screen. Without a film yet the poster stands on its own and the play mark is decoration. */
+/** The film as an embedded player (FILM_URL). Before play it shows the film's poster: the plain version of
+ *  brand/assets/Social/video-poster-*, since the page carries the rosette itself (.ld-seal). Pressing play swaps in
+ *  the player, with its own controls and full screen. Without a film yet the play mark is decoration. */
 function HeroFilm() {
   const url = filmUrl();
   const [playing, setPlaying] = useState(false);
@@ -186,6 +186,7 @@ export function Landing() {
   const nav: [string, string][] = [["how", "How it works"], ["returns", "Returns"], ["compare", "Compare"], ["trust", "Security"], ["stack", "Built with"], ["faq", "FAQ"]];
   return (
     <div className="ld">
+      <img className="ld-seal" src="/site/rosette.svg" alt="" aria-hidden="true" />
       <header className="ld-head">
         <div className="ld-wrap">
           <a href="/" aria-label="CoveredMarket home" className="ld-logo-link"><img className="ld-logo" src="/site/lockup-32.svg" alt="CoveredMarket" /></a>
