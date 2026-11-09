@@ -333,10 +333,6 @@ export function Landing() {
                 <div key={w + "n"} className="body"><span className="ld-label ph" style={{ color: "var(--oxblood)" }}>Cannot</span>{n}</div>,
               ])}
             </div>
-            <div style={{ background: "var(--paper-raised)", border: "1px solid var(--rule-strong)", padding: "20px 24px" }}>
-              <p className="ld-label" style={{ margin: "0 0 8px" }}>What remains</p>
-              <p className="body" style={{ margin: 0 }}>Signatures come from NEAR’s MPC network. Deposits are proven by the Bitcoin light client on NEAR, so settlement waits if either stops. The contract code has not been audited yet and cannot be upgraded. That is less trust than an exchange, and we would rather say it than hide it.</p>
-            </div>
           </div>
         </section>
 
