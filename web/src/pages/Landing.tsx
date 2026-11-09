@@ -175,7 +175,7 @@ export function Landing() {
   const { isTest, live, testnetSite, app } = net();
   const cert = useHeroCert();
   const [menu, setMenu] = useState(false);
-  useEffect(() => { document.title = "CoveredMarket — open to anyone, held by no one, earning for you"; const id = location.hash.slice(1); if (id && !id.startsWith("/")) setTimeout(() => document.getElementById(id)?.scrollIntoView(), 50); }, []);
+  useEffect(() => { document.title = "CoveredMarket — earn on Bitcoin you still hold"; const id = location.hash.slice(1); if (id && !id.startsWith("/")) setTimeout(() => document.getElementById(id)?.scrollIntoView(), 50); }, []);
   const nav: [string, string][] = [["how", "How it works"], ["returns", "Returns"], ["compare", "Compare"], ["trust", "Security"], ["stack", "Built with"], ["faq", "FAQ"]];
   const sellLabel = !live ? "Try it on testnet" : isTest ? "Sell a call on testnet" : "Sell a call";
   return (
@@ -210,7 +210,7 @@ export function Landing() {
           <div className="ld-wrap ld-hero-grid">
             <div className="ld-stack" style={{ minWidth: 0 }}>
               <p className="ld-kicker" style={{ margin: 0 }}>Covered calls on native Bitcoin</p>
-              <h1 id="hero-h" className="ld-h1"><span>Open to anyone.</span><span>Held by no one.</span><span style={{ color: "var(--intaglio)" }}>Earning for you.</span></h1>
+              <h1 id="hero-h" className="ld-h1"><span>Earn on Bitcoin</span><span style={{ color: "var(--intaglio)" }}>you still hold.</span></h1>
               <p className="ld-lede" style={{ maxWidth: "38ch" }}>Sell covered calls on coins that never leave Bitcoin. Only a NEAR contract can sign for them, and the premium is yours whatever happens.</p>
               <div className="ld-row">
                 <a className="ld-btn ld-btn--primary" href={app("sell")}>{sellLabel}</a>
@@ -234,7 +234,7 @@ export function Landing() {
             <div className="ld-film" data-theme="vault">
               <img className="ld-rosette" src="/site/rosette-gilt-on-vault.svg" alt="" aria-hidden="true" />
               <img className="ld-film-logo" src="/site/lockup-on-vault.svg" alt="" aria-hidden="true" />
-              <div className="ld-film-text"><span className="ld-film-title">Open to anyone. Held by no one. Earning for you.</span><span className="ld-soon">Film coming soon</span></div>
+              <div className="ld-film-text"><span className="ld-film-title">Earn on Bitcoin you still hold.</span><span className="ld-soon">Film coming soon</span></div>
             </div>
             <p className="body-small ld-muted" style={{ margin: "12px 0 0" }}>Astrid sells a call on her Bitcoin, Marcus buys it, and the contract settles on Bitcoin. Until the film is out, <a href={app("try")}>try it yourself in six minutes</a>.</p>
           </div>
@@ -494,7 +494,7 @@ export function Landing() {
       <footer className="ld-foot">
         <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
           <div className="ld-foot-grid">
-            <div className="ld-stack" style={{ gap: 12 }}><img src="/site/lockup.svg" alt="CoveredMarket" style={{ height: 32, alignSelf: "flex-start" }} /><p className="ld-lede" style={{ fontSize: 18 }}>Open to anyone. Held by no one. Earning for you.</p></div>
+            <div className="ld-stack" style={{ gap: 12 }}><img src="/site/lockup.svg" alt="CoveredMarket" style={{ height: 32, alignSelf: "flex-start" }} /><p className="ld-lede" style={{ fontSize: 18 }}>Earn on Bitcoin you still hold.</p></div>
             <nav aria-label="Product"><span className="ld-label ld-muted">Product</span><a href={app("market")}>Market</a><a href={app("sell")}>Sell a call</a><a href={`${testnetSite}#/try`}>Try it</a><A to="faq">FAQ</A></nav>
             <nav aria-label="Trust"><span className="ld-label ld-muted">Trust</span><A to="trust">Security</A><A to="security">Report a vulnerability</A><A to="compare">Compared</A></nav>
             <nav aria-label="Build"><span className="ld-label ld-muted">Build</span><A to="stack">Built with</A>{live && <a href={`${CFG.explorerNear}/address/${CFG.contract}`} target="_blank" rel="noreferrer">Contract</a>}<a href={`mailto:${SECURITY}`}>{SECURITY}</a></nav>
