@@ -1,4 +1,4 @@
-**CoveredMarket** sells covered calls on native Bitcoin without a custodian: a holder's coins stay on Bitcoin at an address only a NEAR contract can sign for, a buyer pays a premium from any chain, and at expiry the contract either returns the coins or sells them at the strike. The line: *Open to anyone. Held by no one. Earning for you.*
+**CoveredMarket** sells covered calls on native Bitcoin without a custodian: a holder's coins stay on Bitcoin at an address only a NEAR contract can sign for, a buyer pays a premium from any chain, and at expiry the contract either returns the coins or sells them at the strike. The line: *Earn on Bitcoin you still hold.*
 
 ## The idea: a security, printed
 
