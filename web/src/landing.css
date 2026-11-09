@@ -104,9 +104,6 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 .ld-stamp { font: 700 12px/16px var(--font-sans); letter-spacing: .16em; text-transform: uppercase; padding: 2px 8px; border: 2px solid currentColor; transform: rotate(-1.5deg); }
 
 /* app section */
-.ld-app { position: relative; padding-bottom: 160px; }
-.ld-app > .ld-frame:first-child { width: 84%; }
-.ld-app > .ld-frame + .ld-frame { position: absolute; right: 0; bottom: 0; width: 44%; box-shadow: 0 0 0 8px var(--paper), var(--shadow-lift); }
 
 /* compare */
 .ld-table { display: grid; grid-template-columns: minmax(180px, 2.2fr) repeat(4, minmax(120px, 1fr)); }
@@ -158,7 +155,6 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
   .ld-h1 { font-size: clamp(46px, 10vw, 84px); }
   .ld-h2 { font-size: clamp(32px, 6vw, 48px); }
   .ld-4, .ld-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ld-app { padding-bottom: 120px; }
 }
 @media (max-width: 599px) {
   .ld-wrap { padding: 0 16px; }
@@ -180,9 +176,6 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
   .ld-benefit > .ld-disc { grid-row: span 2; }
   .ld-shotplate { padding: 12px; }
   .ld-step img { max-height: 280px; }
-  .ld-app { padding-bottom: 0; }
-  .ld-app > .ld-frame:first-child { width: 100%; }
-  .ld-app > .ld-frame + .ld-frame { position: relative; width: 86%; margin: -24px 0 0 auto; }
   .ld-calc { padding: 20px; }
   .ld-big { font-size: 30px; }
   .ld-cmp-desk { display: none; }
