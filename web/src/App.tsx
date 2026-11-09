@@ -130,7 +130,7 @@ function AppShell() {
       {content}
       <div style={{ padding: "16px 48px 24px", borderTop: "1px solid var(--rule)", marginTop: 48 }} className="body-small cv-pad">
         <ChainClock />
-        <Notice>CoveredMarket is unaudited software.{CFG.disabled ? null : <> Only the contract <a href={`${CFG.explorerNear}/address/${CFG.contract}`} target="_blank" rel="noreferrer"><code>{CFG.contract}</code></a> can ask NEAR's signing network to spend a deposit address; CoveredMarket the company cannot. If the signing network stopped, settlement would stop with it.</>}</Notice>
+        {CFG.mode !== "testnet" && <Notice>CoveredMarket is unaudited software.{CFG.disabled ? null : <> Only the contract <a href={`${CFG.explorerNear}/address/${CFG.contract}`} target="_blank" rel="noreferrer"><code>{CFG.contract}</code></a> can ask NEAR's signing network to spend a deposit address; CoveredMarket the company cannot. If the signing network stopped, settlement would stop with it.</>}</Notice>}
       </div>
     </div>
   );
