@@ -6,9 +6,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/bedeho/coveredmarket/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/bedeho/coveredmarket/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-  <a href="https://github.com/bedeho/coveredmarket/actions/workflows/stack.yml"><img alt="End-to-end stack" src="https://github.com/bedeho/coveredmarket/actions/workflows/stack.yml/badge.svg?branch=main"></a>
-  <a href="https://github.com/bedeho/coveredmarket/actions/workflows/live.yml"><img alt="Live contract on Bitcoin testnet3" src="https://github.com/bedeho/coveredmarket/actions/workflows/live.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/bedeho/coveredmarket/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/bedeho/coveredmarket/actions/workflows/ci.yml/badge.svg?branch=development"></a>
+  <a href="https://github.com/bedeho/coveredmarket/actions/workflows/stack.yml"><img alt="End-to-end stack" src="https://github.com/bedeho/coveredmarket/actions/workflows/stack.yml/badge.svg?branch=development"></a>
+  <a href="https://github.com/bedeho/coveredmarket/actions/workflows/live.yml"><img alt="Live contract on Bitcoin testnet3" src="https://github.com/bedeho/coveredmarket/actions/workflows/live.yml/badge.svg?branch=development"></a>
   <a href="https://178-62-225-161.sslip.io"><img alt="Testnet app" src="https://img.shields.io/website?url=https%3A%2F%2F178-62-225-161.sslip.io&label=testnet%20app&up_message=live&up_color=1F4F40&down_color=7E2432"></a>
   <a href="docs/SECURITY-MODEL.md"><img alt="Unaudited" src="https://img.shields.io/badge/audit-none%20yet-7E2432"></a>
   <a href="SECURITY.md"><img alt="Bug bounty up to $2,000" src="https://img.shields.io/badge/bug%20bounty-up%20to%20%242%2C000-B88A2E"></a>
@@ -117,7 +117,7 @@ bin/coveredmarket e2e-stack
 
 In about two minutes it drives two contracts through their whole life, one **KEPT** and one **EXERCISED**: create, deposit on regtest, proof, sale, settlement and claim. It then sells and deposits once through the web app, presses **Verify** in a real browser (7 of 7 on each certificate), and sweeps a deposit with the seller's rescue kit after its timelock. The last line is `E2E PASSED`, and screenshots land in `e2e/artifacts/`. On a fresh Linux machine, run `cd e2e && npx playwright install --with-deps chromium` once first, so the browser's system libraries are present.
 
-The same two commands run on a clean machine in CI on every pull request and every push to `main` ([stack workflow](https://github.com/bedeho/coveredmarket/actions/workflows/stack.yml)), on both x86-64 and arm64.
+The same two commands run on a clean machine in CI on every pull request and every push to `development` ([stack workflow](https://github.com/bedeho/coveredmarket/actions/workflows/stack.yml)), on both x86-64 and arm64.
 
 **Useful commands**
 
