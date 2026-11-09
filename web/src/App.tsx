@@ -10,12 +10,15 @@ import { Deposit } from "./pages/Deposit";
 import { Market } from "./pages/Market";
 import { Sell } from "./pages/Sell";
 import { Try } from "./pages/Try";
+import { Landing } from "./pages/Landing";
 import { NetworkBand, NetworkSwitch, NotLive } from "./Network";
 import { ChainClock } from "./ChainClock";
 
 export function useRoute() {
-  const [h, setH] = useState(location.hash || "#/market");
-  useEffect(() => { const f = () => setH(location.hash || "#/market"); addEventListener("hashchange", f); return () => removeEventListener("hashchange", f); }, []);
+  // No hash, or an in-page anchor like "#faq", is the landing page; app routes all start with "#/".
+  const [h, setH] = useState(location.hash);
+  useEffect(() => { const f = () => setH(location.hash); addEventListener("hashchange", f); return () => removeEventListener("hashchange", f); }, []);
+  if (!h.startsWith("#/")) return { path: "", parts: ["home"], q: new URLSearchParams() };
   const [path, query] = h.slice(1).split("?");
   return { path, parts: path.split("/").filter(Boolean), q: new URLSearchParams(query ?? "") };
 }
@@ -70,6 +73,7 @@ export function App() {
     { label: "Try it", href: "#/try", on: on === "try" },
   ];
   const page = parts[0] ?? "market";
+  if (page === "home") return <Landing />;
   const content = CFG.disabled ? <NotLive /> : (() => {
     switch (page) {
       case "market": return <Market />;
@@ -85,7 +89,7 @@ export function App() {
   return (
     <div className="cv-root" style={{ minHeight: "100vh", background: "var(--paper)", color: "var(--ink)", fontFamily: "var(--font-sans)" }}>
       <NetworkBand />
-      <TopBar items={CFG.disabled ? [] : nav(page)} href="#/market">
+      <TopBar items={CFG.disabled ? [] : nav(page)} href="/">
         <NetworkSwitch />
         {CFG.disabled ? null : wallet ? (
           <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
