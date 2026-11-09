@@ -28,7 +28,6 @@
 .ld-btn--primary:hover { background: var(--intaglio-deep); }
 .ld-btn--quiet { border-color: var(--rule-strong); color: var(--ink) !important; background: transparent; font-weight: 500; }
 .ld-btn--quiet:hover { background: var(--paper-sunk); }
-.ld-btn--gilt { background: var(--gilt); color: var(--on-gilt) !important; }
 .ld a:focus-visible, .ld button:focus-visible, .ld input:focus-visible, .ld summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /* header */
