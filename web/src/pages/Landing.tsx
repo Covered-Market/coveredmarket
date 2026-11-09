@@ -2,23 +2,18 @@
  * The public landing page. On the website (CFG.mode "site", covered.market) it is network-neutral: no network
  * band or switch, no contract ids, and every app link leaves for an app domain — the mainnet app once it has a
  * contract, the testnet app for trying it with test coins. On the local stack it is `/` of the local app.
- * Product images are real captures of the app (scripts/shots). The hero shows the film (HeroFilm); the featured
- * contract for Verify is read from the contract the "try it" links go to and falls back to a snapshot of CV-1.
+ * Product images are real captures of the app (scripts/shots). The hero shows the film (HeroFilm).
  */
 import { useEffect, useState, type ReactNode } from "react";
-import { C, dateUtc } from "../ds";
-import { CFG, view } from "../lib/near";
-import { stampFor, useSpot } from "./hooks";
-import type { Offer } from "../lib/verify";
+import { CFG } from "../lib/near";
+import { useSpot } from "./hooks";
 import "../landing.css";
 
-const FEATURED = Number((CFG as unknown as { featured?: number }).featured ?? 1);
 const SECURITY = "security@covered.market";
 /** The film for the hero: a YouTube embed link, e.g. https://www.youtube-nocookie.com/embed/<id>. Empty until it is
  *  out. The site config's `filmUrl` overrides it. */
 const FILM_URL = "";
 const filmUrl = () => (CFG as unknown as { filmUrl?: string }).filmUrl || FILM_URL;
-const SNAPSHOT = { serial: "CV-1", issued: "6 Nov 2026", size: 0.001, strike: 150000, expiry: "6 Nov 2026, 11:07 UTC", premium: 5, vault: "tb1qc7llf6xn7zwgagm7ztwmhd3209nkcu3tx5q9pe", seller: "live-seller-mw4s4qtp.testnet", buyer: "live-buyer-mw4s4qtp.testnet", contractId: "covered-app-mw4qlyb3.testnet", status: "open" as const };
 
 /** Where links go. Read after loadConfig() has run (module scope runs before it), so a function of CFG.
  *  live: the real app is open (the website: mainnet has a contract; the local stack: always).
@@ -32,18 +27,6 @@ const links = () => {
 /** In-page anchors: the app uses the hash for routes, so section links scroll instead of changing the hash. */
 function jump(e: React.MouseEvent, id: string) { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); }
 const A = ({ to, children, className, style }: { to: string; children: ReactNode; className?: string; style?: React.CSSProperties }) => <a href={`#${to}`} onClick={(e) => jump(e, to)} className={className} style={style}>{children}</a>;
-
-function useHeroCert() {
-  const [cert, setCert] = useState<typeof SNAPSHOT & { live?: boolean }>(SNAPSHOT);
-  useEffect(() => {
-    if (CFG.disabled) return;
-    view<Offer | null>("get_offer", { serial: FEATURED }).then((o) => {
-      if (!o) return;
-      setCert({ serial: `CV-${FEATURED}`, issued: dateUtc(o.created_s ?? o.expiry_s).slice(0, 11), size: Number(o.size_sats) / 1e8, strike: Number(o.strike_units) / 1e6, expiry: dateUtc(o.expiry_s), premium: Number(o.premium_units) / 1e6, vault: o.address, seller: o.seller, buyer: o.buyer ?? undefined as unknown as string, contractId: CFG.contract, status: stampFor(o.state) as "open", live: true });
-    }).catch(() => {});
-  }, []);
-  return cert;
-}
 
 /** The film as an embedded player (FILM_URL). Before play it shows the film's poster: the plain version of
  *  brand/assets/Social/video-poster-*, since the page carries the rosette itself (.ld-seal). Pressing play swaps in
@@ -179,7 +162,6 @@ function Calculator() {
 
 export function Landing() {
   const { live, app, tryIt } = links();
-  const cert = useHeroCert();
   const [menu, setMenu] = useState(false);
   useEffect(() => { document.title = "CoveredMarket — earn on Bitcoin you still hold"; const id = location.hash.slice(1); if (id && !id.startsWith("/")) setTimeout(() => document.getElementById(id)?.scrollIntoView(), 50); }, []);
   const nav: [string, string][] = [["how", "How it works"], ["returns", "Returns"], ["compare", "Compare"], ["trust", "Security"], ["stack", "Built with"], ["faq", "FAQ"]];
@@ -358,25 +340,10 @@ export function Landing() {
           </div>
         </section>
 
-        {/* verify */}
-        <section className="ld-sec" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="verify-h">
-          <div className="ld-wrap ld-2">
-            <div className="ld-stack" style={{ minWidth: 0 }}>
-              <div><Kicker n="08">Proof</Kicker><h2 id="verify-h" className="ld-h2">Seven checks. None of them ask us.</h2></div>
-              <p className="body ld-muted" style={{ margin: 0, maxWidth: "52ch" }}>Press Verify on any certificate. Your browser reads NEAR and Bitcoin directly and checks:</p>
-              <ol className="body-small" style={{ margin: 0, paddingLeft: 24, display: "flex", flexDirection: "column", gap: 8 }}>
-                <li>The deployed code is the published code, and no key can change it</li><li>The deposit address is derived from this contract and this serial</li><li>The collateral is on Bitcoin, at that address, for the full size</li><li>Every payment the certificate shows is a receipt on NEAR</li><li>Each change of state followed the contract’s rules</li><li>The signed settlement pays the address the terms name</li><li>That settlement is confirmed on Bitcoin</li>
-              </ol>
-              <div><a className="ld-btn ld-btn--primary" href={tryIt(`c/${cert.serial.slice(3)}`)}>Verify {cert.serial}</a></div>
-            </div>
-            <div className="ld-shotplate" data-theme="vault" style={{ minWidth: 0 }}><Frame path="covered · /c/1" src="/site/shots/verify.webp" alt="The Verify panel with all seven checks passed" /></div>
-          </div>
-        </section>
-
         {/* faq */}
         <section id="faq" className="ld-sec" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="faq-h">
           <div className="ld-wrap ld-2">
-            <div><Kicker n="09">Questions</Kicker><h2 id="faq-h" className="ld-h2">What people ask first.</h2></div>
+            <div><Kicker n="08">Questions</Kicker><h2 id="faq-h" className="ld-h2">What people ask first.</h2></div>
             <div className="ld-faq">{FAQ.map(([q, a]) => <details key={q}><summary>{q}</summary><p className="body">{a}</p></details>)}</div>
           </div>
         </section>
