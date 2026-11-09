@@ -53,8 +53,12 @@
 .ld-drawer a { padding: 12px 0; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); font-size: 17px; }
 
 /* hero */
-.ld-hero { padding: 80px 0 64px; }
-.ld-hero-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; align-items: center; }
+.ld-hero { padding: 96px 0 112px; }
+.ld-hero-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(48px, 7vw, 96px); align-items: center; }
+.ld-hero-lede { font: 400 18px/1.55 var(--font-sans); color: var(--ink-muted); margin: 0; max-width: 36ch; }
+/* The caption hangs below the film, out of the grid's flow, so the film itself centres on the text. */
+.ld-hero-film { position: relative; margin: 0; min-width: 0; }
+.ld-hero-film > figcaption { position: absolute; top: 100%; left: 0; right: 0; margin-top: 12px; }
 
 /* film: the hero's player (HeroFilm) */
 .ld-film { position: relative; aspect-ratio: 16 / 9; background: var(--paper); border: 1px solid var(--rule); overflow: hidden; box-shadow: 0 24px 48px -24px #132a2399; }
@@ -62,18 +66,18 @@
 .ld-film .ld-rosette { position: absolute; right: -14%; top: -40%; width: 72%; opacity: .22; pointer-events: none; }
 .ld-film-logo { position: absolute; left: 28px; top: 28px; height: 22px; }
 .ld-film-text { position: absolute; left: 28px; right: 28px; bottom: 28px; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; pointer-events: none; }
-.ld-film-title { font: 500 clamp(16px, 1.8vw, 24px)/1.15 var(--font-display); letter-spacing: -0.01em; }
+.ld-film-title { font: 500 clamp(14px, 1.25vw, 18px)/1.2 var(--font-display); letter-spacing: -0.005em; }
 .ld-film--playing { background: #000; }
 .ld-film--playing::after { display: none; }
 .ld-film iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
-.ld-play { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; }
+.ld-play { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; }
 .ld-play:disabled { cursor: default; }
 .ld-play:focus-visible { outline: 2px solid var(--gilt); outline-offset: -6px; }
-.ld-play-disc { width: 80px; height: 80px; border-radius: 50%; display: grid; place-items: center; background: var(--gilt); color: #0f211b; box-shadow: 0 10px 28px -10px #000c; transition: transform .15s ease; }
+.ld-play-note { font: 600 11px/14px var(--font-sans); letter-spacing: .14em; text-transform: uppercase; color: var(--gilt-ink); }
+.ld-play-disc { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; background: var(--gilt); color: #0f211b; box-shadow: 0 10px 28px -10px #000c; transition: transform .15s ease; }
 .ld-play-disc svg { width: 32px; height: 32px; margin-left: 4px; }
 .ld-play:not(:disabled):hover .ld-play-disc { transform: scale(1.06); }
 .ld-play:disabled .ld-play-disc { background: transparent; border: 1.5px solid color-mix(in srgb, var(--gilt) 70%, transparent); color: var(--gilt); box-shadow: none; }
-.ld-soon { font: 700 12px/16px var(--font-sans); letter-spacing: .16em; text-transform: uppercase; color: var(--gilt-ink); border: 2px solid var(--gilt); padding: 6px 10px; transform: rotate(-1.5deg); white-space: nowrap; }
 
 /* benefits */
 .ld-benefit { padding: 28px 0; border-bottom: 1px solid var(--rule); display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
@@ -156,6 +160,9 @@
   .ld-nav, .ld-hide-tab { display: none; }
   .ld-menu { display: inline-flex; }
   .ld-hero-grid, .ld-2, .ld-step { grid-template-columns: minmax(0, 1fr); }
+  .ld-hero-grid { gap: 40px; }
+  .ld-hero { padding: 64px 0 72px; }
+  .ld-hero-film > figcaption { position: static; }
   .ld-h1 { font-size: clamp(44px, 8vw, 72px); }
   .ld-h2 { font-size: clamp(32px, 6vw, 48px); }
   .ld-4, .ld-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -167,6 +174,7 @@
   .ld-hero { padding: 40px 0 48px; }
   .ld-hide-phone { display: none !important; }
   .ld-lede { font-size: 18px; }
+  .ld-hero-lede { font-size: 16px; }
   .ld-row > .ld-btn { flex: 1 1 100%; }
   .ld-head .ld-btn { white-space: nowrap; padding: 10px 12px !important; font-size: 14px !important; }
   .ld-head .ld-wrap { gap: 12px; }

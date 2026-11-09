@@ -61,8 +61,9 @@ function HeroFilm() {
       <img className="ld-film-logo" src="/site/lockup-on-vault.svg" alt="" aria-hidden="true" />
       <button type="button" className="ld-play" disabled={!url} onClick={() => setPlaying(true)} aria-label={url ? "Play the film" : "Film coming soon"}>
         <span className="ld-play-disc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" /></svg></span>
+        {!url && <span className="ld-play-note">Film coming soon</span>}
       </button>
-      <div className="ld-film-text"><span className="ld-film-title">One contract, from offer to settlement</span>{!url && <span className="ld-soon">Film coming soon</span>}</div>
+      <div className="ld-film-text"><span className="ld-film-title">One contract, from offer to settlement</span></div>
     </div>
   );
 }
@@ -211,11 +212,11 @@ export function Landing() {
             <div className="ld-stack" style={{ minWidth: 0 }}>
               <p className="ld-kicker" style={{ margin: 0 }}>Covered calls on native Bitcoin</p>
               <h1 id="hero-h" className="ld-h1"><span>Earn on Bitcoin</span><span style={{ color: "var(--intaglio)" }}>you still hold.</span></h1>
-              <p className="ld-lede" style={{ maxWidth: "38ch" }}>Sell covered calls on coins that never leave Bitcoin. Only a NEAR contract can sign for them, and the premium is yours whatever happens.</p>
+              <p className="ld-hero-lede">Sell covered calls on coins that never leave Bitcoin. Only a NEAR contract can sign for them, and the premium is yours whatever happens.</p>
             </div>
-            <figure id="film" style={{ margin: 0, minWidth: 0 }}>
+            <figure id="film" className="ld-hero-film">
               <HeroFilm />
-              <figcaption className="body-small ld-muted" style={{ marginTop: 12 }}>Astrid sells a call on her Bitcoin, Marcus buys it, and the contract settles on Bitcoin.{filmUrl() ? null : <> Until the film is out, <a href={app("try")}>try it yourself in six minutes</a>.</>}</figcaption>
+              <figcaption className="body-small ld-muted">Astrid sells a call on her Bitcoin, Marcus buys it, and the contract settles on Bitcoin.{filmUrl() ? null : <> Until the film is out, <a href={app("try")}>try it yourself in six minutes</a>.</>}</figcaption>
             </figure>
           </div>
         </section>
