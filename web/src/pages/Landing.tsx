@@ -384,19 +384,6 @@ export function Landing() {
             </div>
           </div>
         </section>
-
-        {/* close */}
-        <section className="ld-vault" data-theme="vault" style={{ position: "relative", overflow: "hidden", padding: "96px 0" }} aria-labelledby="close-h">
-          <img src="/site/rosette-gilt-on-vault.svg" alt="" aria-hidden="true" style={{ position: "absolute", width: 640, right: -220, top: -200, opacity: 0.35, pointerEvents: "none" }} />
-          <div className="ld-wrap ld-stack" style={{ position: "relative" }}>
-            <h2 id="close-h" className="ld-h2" style={{ maxWidth: "14ch" }}>Sell your first call.</h2>
-            <p className="body ld-muted" style={{ margin: 0, maxWidth: "52ch" }}>{live ? "Connect a NEAR wallet, choose your terms, deposit from any Bitcoin wallet. Want to see it first? Try it with test coins of no value." : "Start with test coins: a test wallet, test dollars and test coins from the demo faucet. About six minutes from start to a certificate."}</p>
-            <div className="ld-row">
-              <a className="ld-btn ld-btn--gilt" href={live ? app("sell") : tryIt("try")}>{live ? "Open the app" : "Try it with test coins"}</a>
-              {live && <a className="ld-btn ld-btn--quiet" href={tryIt("try")}>Try it with test coins first</a>}
-            </div>
-          </div>
-        </section>
       </main>
 
       <footer className="ld-foot">
