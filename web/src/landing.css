@@ -77,8 +77,6 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 .ld-disc img, .ld-disc svg { width: 24px; height: 24px; }
 
 /* story + chart */
-.ld-cards2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.ld-card { background: var(--paper-raised); border: 1px solid var(--rule); padding: 24px; display: flex; flex-direction: column; gap: 12px; }
 .ld-range { width: 100%; height: 44px; accent-color: var(--intaglio); }
 
 /* returns */
@@ -169,7 +167,7 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
   .ld-head-right { gap: 8px; }
   .ld-logo-link { flex-shrink: 1; min-width: 0; }
   .ld-logo { height: auto; width: 100%; max-width: 160px; }
-  .ld-4, .ld-3, .ld-cards2, .ld-foot-grid > :first-child { grid-template-columns: minmax(0, 1fr); }
+  .ld-4, .ld-3, .ld-foot-grid > :first-child { grid-template-columns: minmax(0, 1fr); }
   .ld-foot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ld-foot-grid > :first-child { grid-column: 1 / -1; }
   .ld-benefit { grid-template-columns: 52px minmax(0, 1fr); padding: 20px 0; column-gap: 16px; }

@@ -178,7 +178,6 @@ function Calculator() {
 }
 
 export function Landing() {
-  const { Stamp } = C();
   const { live, app, tryIt } = links();
   const cert = useHeroCert();
   const [menu, setMenu] = useState(false);
@@ -238,10 +237,6 @@ export function Landing() {
                 <p className="body-small ld-muted" style={{ margin: 0, paddingTop: 8, borderTop: "1px solid var(--rule)" }}>The trade-off: if Bitcoin rises far past the strike, she gives up the rise above it. That is what the premium pays for. Her coins cannot be withdrawn during the term.</p>
               </div>
               <Payoff />
-            </div>
-            <div className="ld-cards2">
-              <div className="ld-card"><div><Stamp status="kept" /></div><div className="heading">Bitcoin ends at <span className="ld-mono">$131,200</span></div><p className="body ld-muted" style={{ margin: 0 }}>The contract signs <span className="ld-mono" style={{ color: "var(--copper-ink)" }}>2.0000 BTC</span> back to Astrid’s address. She keeps <span className="ld-mono" style={{ color: "var(--gilt-ink)" }}>$6,000</span>.</p></div>
-              <div className="ld-card"><div><Stamp status="exercised">Sold at strike</Stamp></div><div className="heading">Bitcoin ends at <span className="ld-mono">$168,000</span></div><p className="body ld-muted" style={{ margin: 0 }}>Marcus pays <span className="ld-mono">$300,000</span> and the contract delivers the coins to him. Astrid has <span className="ld-mono">$306,000</span> in all.</p></div>
             </div>
           </div>
         </section>
