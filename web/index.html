@@ -18,6 +18,35 @@
   /* Two-column pages stack on narrow screens; side padding shrinks on phones. */
   @media (max-width: 1100px) { .cv-split { grid-template-columns: minmax(0, 1fr) !important; gap: 32px !important; } }
   @media (max-width: 640px) { .cv-pad { padding-left: 16px !important; padding-right: 16px !important; } }
+  .cv-root a:not([class]):not([style]) { color: var(--intaglio); }
+  .cv-side .cv-figure--xl { font-size: 36px; line-height: 40px; }
+  .cv-side .cv-stat { min-width: 0; }
+  /* Phones: header on two rows (nav scrolls), certificate in one column, smaller figures. */
+  @media (max-width: 760px) {
+    .cv-topbar { flex-wrap: wrap; gap: 8px 12px; padding: 10px 16px; }
+    .cv-topbar__word { font-size: 20px; }
+    .cv-topbar__nav { order: 3; flex: 1 1 100%; gap: 22px; overflow-x: auto; scrollbar-width: none; }
+    .cv-topbar__link { white-space: nowrap; }
+    .cv-topbar__right { gap: 8px; min-width: 0; }
+    .cv-topbar__right .cv-btn { max-width: 168px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
+    .cv-cert { padding: 20px 16px; }
+    .cv-cert__head { flex-direction: column; align-items: flex-start; gap: 6px; padding-right: 56px; }
+    .cv-cert__title { font-size: 24px; line-height: 30px; }
+    .cv-cert__body { grid-template-columns: minmax(0, 1fr); }
+    .cv-cert__foot { flex-direction: column; align-items: stretch; gap: 16px; }
+    .cv-cert__addr { word-break: break-all; }
+    .cv-cert__serial { text-align: left; }
+    .cv-only-wide { display: none !important; }
+    .cv-offer { width: 100%; }
+    .cv-figure--xl { font-size: 32px; line-height: 36px; }
+    .cv-root h1.display-2 { font-size: 36px !important; }
+  }
+  @media (min-width: 761px) { .cv-only-narrow { display: none !important; } }
+  @media (max-width: 520px) {
+    .cv-tiles { display: grid !important; grid-template-columns: minmax(0, 1fr); width: 100%; }
+    .cv-tiles > * { min-width: 0; }
+    .cv-side .cv-tiles2 { grid-template-columns: minmax(0, 1fr) !important; }
+  }
 </style>
 </head>
 <body data-theme="paper">

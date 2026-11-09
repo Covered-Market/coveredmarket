@@ -16,7 +16,8 @@ export interface Offer {
   commitment_reason: string | null; commitment_txid: string | null; commitment_sighash: string | null; commitment_to_address: string | null;
   commitment_amount_sats: string | null; committed_at_s: string | null; signed_tx: string | null; escrow_units: string; state: string;
 }
-export interface Params { signer: string; light_client: string; usdc: string; network: Net; fee_sats: number; grace_s: number; rescue_delay_s: number; mpc_root_key: string; derivation_prefix: string }
+export interface Params { signer: string; light_client: string; usdc: string; network: Net; fee_sats: number; grace_s: number; rescue_delay_s: number; mpc_root_key: string; derivation_prefix: string;
+  min_conf?: number; min_size_sats?: string | number; min_lead_s?: number; expiry_step_s?: number; expiry_offset_s?: number; escrow_timeout_s?: number; max_fee_sats?: number }
 export interface Accounting { claimable_total: string; escrow_total: string; near_balance: string }
 
 export interface Clients {
@@ -81,11 +82,11 @@ export async function runChecks(c: Clients, offer: Offer, params: Params, nowS: 
     const expiry = Number(offer.expiry_s);
     if (offer.commitment_reason === "Expiry") {
       const t = Number(offer.committed_at_s);
-      return [t >= expiry + params.grace_s ? "verified" : "failed", `settled at ${t}, window closed at ${expiry + params.grace_s}`];
+      return [t >= expiry + params.grace_s ? "verified" : "failed", `settled ${utc(t)}, after the window closed ${utc(expiry + params.grace_s)}`];
     }
     if (offer.commitment_reason === "Exercise") {
       const t = Number(offer.committed_at_s);
-      return [t >= expiry && t < expiry + params.grace_s ? "verified" : "failed", `exercised at ${t}, window [${expiry}, ${expiry + params.grace_s})`];
+      return [t >= expiry && t < expiry + params.grace_s ? "verified" : "failed", `exercised ${utc(t)}, inside the window ${utc(expiry)} – ${utc(expiry + params.grace_s).slice(11)}`];
     }
     if (offer.state === "Sold") return ["verified", nowS < expiry ? "open; window not yet open" : nowS < expiry + params.grace_s ? "exercise window open" : "window closed; awaiting settle"];
     return ["verified", `state ${offer.state}`];
@@ -115,3 +116,5 @@ export async function runChecks(c: Clients, offer: Offer, params: Params, nowS: 
   }));
   return out;
 }
+
+const utc = (t: number) => new Date(t * 1000).toISOString().slice(0, 19).replace("T", " ") + " UTC";
