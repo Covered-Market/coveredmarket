@@ -1,7 +1,7 @@
 blank_issues_enabled: true
 contact_links:
   - name: Report a security vulnerability
-    url: https://github.com/bedeho/coveredmarket/security/advisories/new
+    url: https://github.com/Covered-Market/coveredmarket/security/advisories/new
     about: Privately, so it can be fixed before anyone else knows. Bounties up to $2,000; see SECURITY.md.
   - name: Try it on testnet
     url: https://178-62-225-161.sslip.io/#/try

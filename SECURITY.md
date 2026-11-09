@@ -6,7 +6,7 @@ CoveredMarket holds other people's Bitcoin behind a NEAR contract. If you find a
 
 ## Report a vulnerability
 
-**Use GitHub's private reporting:** [Security → Report a vulnerability](https://github.com/bedeho/coveredmarket/security/advisories/new). Only the maintainers see it, and we can work on a fix and a CVE together in the same thread.
+**Use GitHub's private reporting:** [Security → Report a vulnerability](https://github.com/Covered-Market/coveredmarket/security/advisories/new). Only the maintainers see it, and we can work on a fix and a CVE together in the same thread.
 
 If you can't use GitHub, open a public issue titled **"Security contact request"** with no details, and we will reach out privately.
 
