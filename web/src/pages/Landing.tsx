@@ -89,14 +89,10 @@ const COMPARE: [string, [M, string], [M, string], [M, string], [M, string]][] = 
 const Mark = ({ m, small }: { m: M; small?: boolean }) => { const k = MARK[m]; return <><span className="ld-mark" aria-hidden="true" style={{ borderColor: k.color, background: k.fill, width: small ? 24 : 28, height: small ? 24 : 28 }}><svg viewBox="0 0 14 14"><path d={k.d} fill="none" stroke={k.stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></span><span className="ld-word" style={{ color: k.color, fontSize: small ? 10 : 11 }}>{k.word}</span></>; };
 
 const BENEFITS = [
-  ["coin", "Your coins stay on Bitcoin", "No bridge, no wrapped token. They sit at an address you can look up on any explorer."],
-  ["key", "No custodian", "No exchange holds your coins. The contract has no owner key and signs only what its terms allow."],
-  ["premium", "Paid when it sells", "The premium is credited the moment a buyer takes your call, and it is yours whatever happens next."],
-  ["strike", "Your terms", "You choose the size, the strike, the expiry and the price. Nobody picks them for you."],
-  ["kept", "No margin, no liquidation", "Your coins cover the call in full, so a price spike cannot close you out."],
-  ["verify", "Check, don’t trust", "Seven checks run in your browser against NEAR and Bitcoin directly. None of them ask us."],
-  ["wallet", "No sign-up form", "A NEAR wallet is your account. It is pseudonymous, and every contract is public on both chains."],
-  ["chain", "No NEAR needed", "A relayer pays gas. Premiums and strikes settle in USDC."],
+  ["key", "Custody-free", "Your coins never leave Bitcoin. They sit at an address only the contract can sign for: no exchange, no bridge, no wrapped token, no owner key."],
+  ["kept", "No margin, no liquidation", "Your coins cover the call in full, so a price spike cannot close you out. The premium is yours whatever happens."],
+  ["wallet", "No sign-up form", "A NEAR wallet is your account: no form, no ID check. A relayer pays the gas, so you need no NEAR either."],
+  ["verify", "Fully verifiable", "Seven checks run in your browser against NEAR and Bitcoin directly. None of them ask us."],
 ];
 
 const built = (): { status: "Live" | "Partly" | "Next"; name: string; what: string; id: string; d: string }[] => [
@@ -222,7 +218,7 @@ export function Landing() {
         <section id="why" className="ld-sec" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="why-h">
           <div className="ld-wrap ld-stack" style={{ gap: 40 }}>
             <div><Kicker n="01">Why CoveredMarket</Kicker><h2 id="why-h" className="ld-h2">Everything an exchange offers, except the exchange.</h2></div>
-            <div className="ld-4" style={{ borderTop: "1px solid var(--rule-strong)" }}>
+            <div className="ld-4">
               {BENEFITS.map(([icon, t, x]) => (
                 <div className="ld-benefit" key={t}><span className="ld-disc"><img src={`/site/icons/${icon}.svg`} alt="" aria-hidden="true" /></span><h3 className="heading" style={{ margin: 0 }}>{t}</h3><p className="body-small ld-muted" style={{ margin: 0 }}>{x}</p></div>
               ))}
