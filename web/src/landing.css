@@ -158,7 +158,6 @@
   .ld-4, .ld-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ld-app { padding-bottom: 120px; }
 }
-@media (max-width: 899px) { .ld-stats { grid-template-columns: minmax(0, 1fr) !important; } }
 @media (max-width: 599px) {
   .ld-wrap { padding: 0 16px; }
   .ld-sec { padding: 56px 0; }
