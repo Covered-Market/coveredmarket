@@ -2,10 +2,10 @@
  * The public landing page. On the website (CFG.mode "site", covered.market) it is network-neutral: no network
  * band or switch, no contract ids, and every app link leaves for an app domain — the mainnet app once it has a
  * contract, the testnet app for trying it with test coins. On the local stack it is `/` of the local app.
- * Product images are real captures of the app (scripts/shots); the hero certificate is read from the contract the
- * "try it" links go to (the website's config names it) and falls back to a snapshot of CV-1.
+ * Product images are real captures of the app (scripts/shots). The hero shows the film (HeroFilm); the featured
+ * contract for Verify is read from the contract the "try it" links go to and falls back to a snapshot of CV-1.
  */
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { C, dateUtc } from "../ds";
 import { CFG, view } from "../lib/near";
 import { stampFor, useSpot } from "./hooks";
@@ -14,6 +14,10 @@ import "../landing.css";
 
 const FEATURED = Number((CFG as unknown as { featured?: number }).featured ?? 1);
 const SECURITY = "security@covered.market";
+/** The film for the hero: a YouTube embed link, e.g. https://www.youtube-nocookie.com/embed/<id>. Empty until it is
+ *  out. The site config's `filmUrl` overrides it. */
+const FILM_URL = "";
+const filmUrl = () => (CFG as unknown as { filmUrl?: string }).filmUrl || FILM_URL;
 const SNAPSHOT = { serial: "CV-1", issued: "6 Nov 2026", size: 0.001, strike: 150000, expiry: "6 Nov 2026, 11:07 UTC", premium: 5, vault: "tb1qc7llf6xn7zwgagm7ztwmhd3209nkcu3tx5q9pe", seller: "live-seller-mw4s4qtp.testnet", buyer: "live-buyer-mw4s4qtp.testnet", contractId: "covered-app-mw4qlyb3.testnet", status: "open" as const };
 
 /** Where links go. Read after loadConfig() has run (module scope runs before it), so a function of CFG.
@@ -41,20 +45,24 @@ function useHeroCert() {
   return cert;
 }
 
-/** Scales the 790px Certificate component to the width it is given, keeping it a certificate. Drawn in the
- *  vault (green) theme so it stands out from the paper page without a backdrop. */
-function ScaledCert({ cert }: { cert: object }) {
-  const { Certificate } = C();
-  const box = useRef<HTMLDivElement>(null), inner = useRef<HTMLDivElement>(null);
-  const [s, setS] = useState({ k: 0.6, h: 300 });
-  useLayoutEffect(() => {
-    const f = () => { const w = box.current?.parentElement?.clientWidth ?? 600; const pad = parseFloat(getComputedStyle(box.current!.parentElement!).paddingLeft) * 2; const k = Math.min(1, (w - pad) / 790); setS({ k, h: (inner.current?.offsetHeight ?? 440) * k }); };
-    f(); const ro = new ResizeObserver(f); if (box.current?.parentElement) ro.observe(box.current.parentElement); const t = setTimeout(f, 400);
-    return () => { ro.disconnect(); clearTimeout(t); };
-  }, [cert]);
+/** The film as an embedded player (FILM_URL). Pressing play swaps the poster for the player, which brings its own
+ *  controls and full screen. Without a film the poster says so. */
+function HeroFilm() {
+  const url = filmUrl();
+  const [playing, setPlaying] = useState(false);
+  if (playing && url) return (
+    <div className="ld-film ld-film--playing">
+      <iframe src={`${url}${url.includes("?") ? "&" : "?"}autoplay=1&rel=0`} title="CoveredMarket: one contract, from offer to settlement" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
+    </div>
+  );
   return (
-    <div ref={box} className="ld-cert-box" style={{ width: 790 * s.k, height: s.h }}>
-      <div ref={inner} data-theme="vault" style={{ transform: `scale(${s.k})` }}><Certificate contract={cert as never} /></div>
+    <div className="ld-film" data-theme="vault">
+      <img className="ld-rosette" src="/site/rosette-gilt-on-vault.svg" alt="" aria-hidden="true" />
+      <img className="ld-film-logo" src="/site/lockup-on-vault.svg" alt="" aria-hidden="true" />
+      <button type="button" className="ld-play" disabled={!url} onClick={() => setPlaying(true)} aria-label={url ? "Play the film" : "Film coming soon"}>
+        <span className="ld-play-disc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" /></svg></span>
+      </button>
+      <div className="ld-film-text"><span className="ld-film-title">One contract, from offer to settlement</span>{!url && <span className="ld-soon">Film coming soon</span>}</div>
     </div>
   );
 }
@@ -205,25 +213,10 @@ export function Landing() {
               <h1 id="hero-h" className="ld-h1"><span>Earn on Bitcoin</span><span style={{ color: "var(--intaglio)" }}>you still hold.</span></h1>
               <p className="ld-lede" style={{ maxWidth: "38ch" }}>Sell covered calls on coins that never leave Bitcoin. Only a NEAR contract can sign for them, and the premium is yours whatever happens.</p>
             </div>
-            <figure style={{ margin: 0, minWidth: 0 }}>
-              <a href={tryIt(`c/${cert.serial.slice(3)}`)} aria-label={`Open contract ${cert.serial} in the app`} style={{ display: "block", textDecoration: "none" }}>
-                <div className="ld-plate"><ScaledCert cert={cert} /></div>
-              </a>
-              <figcaption className="body-small ld-muted" style={{ marginTop: 12 }}>{cert.live ? `Contract ${cert.serial}, read from the chain just now. Open it and press Verify.` : `Contract ${cert.serial}. Open it and press Verify.`}</figcaption>
+            <figure id="film" style={{ margin: 0, minWidth: 0 }}>
+              <HeroFilm />
+              <figcaption className="body-small ld-muted" style={{ marginTop: 12 }}>Astrid sells a call on her Bitcoin, Marcus buys it, and the contract settles on Bitcoin.{filmUrl() ? null : <> Until the film is out, <a href={app("try")}>try it yourself in six minutes</a>.</>}</figcaption>
             </figure>
-          </div>
-        </section>
-
-        {/* film */}
-        <section id="film" aria-labelledby="film-h" style={{ paddingBottom: 64 }}>
-          <div className="ld-wrap">
-            <h2 id="film-h" className="ld-kicker">The film · one contract from offer to settlement</h2>
-            <div className="ld-film" data-theme="vault">
-              <img className="ld-rosette" src="/site/rosette-gilt-on-vault.svg" alt="" aria-hidden="true" />
-              <img className="ld-film-logo" src="/site/lockup-on-vault.svg" alt="" aria-hidden="true" />
-              <div className="ld-film-text"><span className="ld-film-title">Earn on Bitcoin you still hold.</span><span className="ld-soon">Film coming soon</span></div>
-            </div>
-            <p className="body-small ld-muted" style={{ margin: "12px 0 0" }}>Astrid sells a call on her Bitcoin, Marcus buys it, and the contract settles on Bitcoin. Until the film is out, <a href={app("try")}>try it yourself in six minutes</a>.</p>
           </div>
         </section>
 

@@ -54,19 +54,25 @@
 
 /* hero */
 .ld-hero { padding: 80px 0 64px; }
-.ld-hero-grid { display: grid; grid-template-columns: minmax(0, 9fr) minmax(0, 11fr); gap: 48px; align-items: center; }
-.ld-plate { position: relative; }
-.ld-cert-box { position: relative; margin: 0 auto; z-index: 1; }
-.ld-cert-box > div { position: absolute; left: 0; top: 0; width: 790px; transform-origin: top left; }
-.ld-cert-box .cv-cert { width: 100%; box-shadow: 0 1px 0 #c4b894, 0 24px 48px -24px #132a2399; }
+.ld-hero-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; align-items: center; }
 
-/* film */
-.ld-film { position: relative; aspect-ratio: 16 / 9; background: var(--paper); border: 1px solid var(--rule); overflow: hidden; }
-.ld-film::after { content: ""; position: absolute; inset: 16px; border: 1px solid var(--rule); pointer-events: none; }
-.ld-film .ld-rosette { position: absolute; right: -12%; top: -38%; width: 70%; opacity: .4; }
-.ld-film-logo { position: absolute; left: 40px; top: 40px; height: 28px; }
-.ld-film-text { position: absolute; left: 40px; right: 40px; bottom: 40px; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
-.ld-film-title { font: 500 clamp(16px, 3.4vw, 48px)/1 var(--font-display); letter-spacing: -0.015em; }
+/* film: the hero's player (HeroFilm) */
+.ld-film { position: relative; aspect-ratio: 16 / 9; background: var(--paper); border: 1px solid var(--rule); overflow: hidden; box-shadow: 0 24px 48px -24px #132a2399; }
+.ld-film::after { content: ""; position: absolute; inset: 12px; border: 1px solid var(--rule); pointer-events: none; }
+.ld-film .ld-rosette { position: absolute; right: -14%; top: -40%; width: 72%; opacity: .22; pointer-events: none; }
+.ld-film-logo { position: absolute; left: 28px; top: 28px; height: 22px; }
+.ld-film-text { position: absolute; left: 28px; right: 28px; bottom: 28px; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; pointer-events: none; }
+.ld-film-title { font: 500 clamp(16px, 1.8vw, 24px)/1.15 var(--font-display); letter-spacing: -0.01em; }
+.ld-film--playing { background: #000; }
+.ld-film--playing::after { display: none; }
+.ld-film iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+.ld-play { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; }
+.ld-play:disabled { cursor: default; }
+.ld-play:focus-visible { outline: 2px solid var(--gilt); outline-offset: -6px; }
+.ld-play-disc { width: 80px; height: 80px; border-radius: 50%; display: grid; place-items: center; background: var(--gilt); color: #0f211b; box-shadow: 0 10px 28px -10px #000c; transition: transform .15s ease; }
+.ld-play-disc svg { width: 32px; height: 32px; margin-left: 4px; }
+.ld-play:not(:disabled):hover .ld-play-disc { transform: scale(1.06); }
+.ld-play:disabled .ld-play-disc { background: transparent; border: 1.5px solid color-mix(in srgb, var(--gilt) 70%, transparent); color: var(--gilt); box-shadow: none; }
 .ld-soon { font: 700 12px/16px var(--font-sans); letter-spacing: .16em; text-transform: uppercase; color: var(--gilt-ink); border: 2px solid var(--gilt); padding: 6px 10px; transform: rotate(-1.5deg); white-space: nowrap; }
 
 /* benefits */
@@ -175,6 +181,9 @@
   .ld-film::after { inset: 8px; }
   .ld-film-logo { left: 16px; top: 16px; height: 18px; }
   .ld-film-text { left: 16px; right: 16px; bottom: 16px; }
+  .ld-play-disc { width: 52px; height: 52px; }
+  .ld-play-disc svg { width: 22px; height: 22px; margin-left: 3px; }
+  .ld-film .ld-rosette { width: 60%; right: -10%; }
   .ld-shotplate { padding: 12px; }
   .ld-step img { max-height: 280px; }
   .ld-app { padding-bottom: 0; }
