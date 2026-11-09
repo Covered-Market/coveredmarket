@@ -6,7 +6,7 @@ import { KeyPairSigner } from "@near-js/signers";
 import { writeFileSync, mkdirSync } from "node:fs";
 import * as secp from "@noble/secp256k1";
 
-const SITE = (process.env.SITE ?? "https://178-62-225-161.sslip.io").replace(/\/$/, "");
+const SITE = (process.env.SITE ?? "https://testnet.covered.market").replace(/\/$/, "");
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const log = (...a: unknown[]) => console.log(new Date().toISOString().slice(11, 19), ...a);
 const get = async (p: string, init?: RequestInit) => { const r = await fetch(SITE + p, init); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(`${p}: ${r.status} ${JSON.stringify(j)}`); return j; };

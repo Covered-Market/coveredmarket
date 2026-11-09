@@ -8,7 +8,7 @@ on:
     inputs:
       site:
         description: site URL
-        default: https://178-62-225-161.sslip.io
+        default: https://testnet.covered.market
       script:
         description: live.ts (one full contract), seed.ts (a realistic book) or take.ts (buy + exercise SERIAL)
         type: choice

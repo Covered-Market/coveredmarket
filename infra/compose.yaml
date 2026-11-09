@@ -34,13 +34,15 @@ services:
       interval: 15s
       timeout: 3s
       retries: 10
-  # One Caddy, two sites: the primary network on $DOMAIN, mainnet on $MAINNET_DOMAIN, and $WWW_DOMAIN
-  # redirecting to $DOMAIN. TLS is automatic.
+  # One Caddy, four sites: the website on $DOMAIN, the testnet app on $TESTNET_DOMAIN, the mainnet app on
+  # $MAINNET_DOMAIN, and $WWW_DOMAIN redirecting to $DOMAIN. TLS is automatic. Locally there is no
+  # TESTNET_DOMAIN and $DOMAIN (:80) serves the local app with the landing page at `/`.
   web:
     build: ../web
     restart: unless-stopped
     environment:
       SITE_ADDRESS: ${DOMAIN:-:80}
+      TESTNET_ADDRESS: ${TESTNET_DOMAIN:-http://testnet.localhost}
       MAINNET_ADDRESS: ${MAINNET_DOMAIN:-http://mainnet.localhost}
       WWW_ADDRESS: ${WWW_DOMAIN:-http://www.localhost}
       PRIMARY_HOST: ${DOMAIN:-localhost}
@@ -55,16 +57,27 @@ services:
         condition: service_healthy
       config:
         condition: service_completed_successfully
-  # The app's runtime config per network, written from the .env files on every start.
+  # The runtime config per site, written from the .env files on every start: primary.json (testnet app),
+  # mainnet.json (not live until config-mainnet runs) and site.json (the website).
   config:
     image: alpine:3.20
     env_file: ../.env
     environment:
       SWITCH_HOST: ${MAINNET_DOMAIN:-}
+      MAINNET_SWITCH_HOST: ${TESTNET_DOMAIN:-${DOMAIN:-}}
+      SITE_HOST: ${TESTNET_DOMAIN:+${DOMAIN:-}}
+      TESTNET_HOST: ${TESTNET_DOMAIN:-}
+      MAINNET_HOST: ${MAINNET_DOMAIN:-}
     volumes:
       - config:/config
       - ./write-config.sh:/write-config.sh:ro
-    command: ["sh", "-c", "/write-config.sh /config/primary.json && /write-config.sh /config/config.json >/dev/null && MODE=mainnet COVERED_ID= /write-config.sh /config/mainnet.json"]
+    command:
+      - sh
+      - -c
+      - >-
+        /write-config.sh /config/primary.json && /write-config.sh /config/config.json >/dev/null &&
+        MODE=mainnet COVERED_ID= SWITCH_HOST="$$MAINNET_SWITCH_HOST" /write-config.sh /config/mainnet.json &&
+        if [ -n "$$TESTNET_HOST" ]; then SITE=1 /write-config.sh /config/site.json; else cp /config/primary.json /config/site.json; fi
   config-mainnet:
     profiles: ["mainnet"]
     image: alpine:3.20
@@ -72,13 +85,15 @@ services:
       - path: ../.env.mainnet
         required: false
     environment:
-      SWITCH_HOST: ${DOMAIN:-}
+      SWITCH_HOST: ${TESTNET_DOMAIN:-${DOMAIN:-}}
+      SITE_HOST: ${TESTNET_DOMAIN:+${DOMAIN:-}}
     volumes:
       - config:/config
       - ./write-config.sh:/write-config.sh:ro
     depends_on:
       config: { condition: service_completed_successfully }
-    command: ["/write-config.sh", "/config/mainnet.json"]
+    # Mainnet is live: write its config and tell the website, so its "Open the app" goes to mainnet.
+    command: ["sh", "-c", "/write-config.sh /config/mainnet.json && sed -i 's/\"mainnetLive\":false/\"mainnetLive\":true/' /config/site.json"]
 volumes:
   config:
   relayer_data:
