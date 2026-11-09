@@ -90,7 +90,7 @@ const BENEFITS = [
 
 const built = (): { status: "Live" | "Partly" | "Next"; name: string; what: string; id: string; d: string }[] => [
   { status: "Live", name: "Chain Signatures", what: "NEAR’s MPC network gives the contract its own Bitcoin key for every offer, derived from the contract and the serial, and signs only the transaction the contract has committed to.", id: `${CFG.signer} · derived keys`, d: "M12 3a2 2 0 1 0 0.01 0 M5 17a2 2 0 1 0 0.01 0 M19 17a2 2 0 1 0 0.01 0 M11 6.5l-5 8.5 M13 6.5l5 8.5 M7 19h10" },
-  { status: "Live", name: "A contract nobody controls", what: "NEAR accounts are governed by access keys. Covered’s contract has none after deployment, so it cannot be upgraded or drained, and Verify checks that from your browser.", id: `${CFG.contract} · 0 access keys`, d: "M7 11V8a5 5 0 0 1 10 0v3 M5 11h14v10H5z M12 15v2" },
+  { status: "Live", name: "A contract nobody controls", what: "NEAR accounts are governed by access keys. CoveredMarket’s contract has none after deployment, so it cannot be upgraded or drained, and Verify checks that from your browser.", id: `${CFG.contract} · 0 access keys`, d: "M7 11V8a5 5 0 0 1 10 0v3 M5 11h14v10H5z M12 15v2" },
   { status: "Live", name: "Pay and act in one receipt", what: "The buyer’s USDC arrives with its instruction through NEP-141 ft_transfer_call. The premium is credited and the buyer recorded in the same receipt, with no pending state between.", id: "NEP-141 · ft_transfer_call", d: "M4 12h6 M14 12h6 M10 8l4 4-4 4 M4 6v12 M20 6v12" },
   { status: "Live", name: "Meta-transactions", what: "NEAR delegate actions let you sign while the relayer submits and pays gas. You never need to hold NEAR, and the relayer can never act alone.", id: "NEP-366 delegate actions", d: "M4 12h13 M13 7l5 5-5 5 M4 6v12" },
   { status: "Partly", name: "NEAR Intents", what: "Fund an account with USDC from Solana or Base today. Paying a premium or strike straight from another chain through 1Click is next.", id: "intents.near · 1Click", d: "M4 8h12 M12 4l4 4-4 4 M20 16H8 M12 12l-4 4 4 4" },
@@ -111,7 +111,7 @@ const FAQ = [
   ["Can I get my coins back early?", "Before a buyer takes the call, yes: withdraw the offer. Once it has sold, the coins stay until expiry."],
   ["What if Bitcoin goes far above the strike?", "Your coins are sold at the strike. You keep the premium but not the rise above the strike."],
   ["Do I need NEAR for gas?", "No. A relayer pays gas through meta-transactions. You sign; it submits."],
-  ["What does Covered charge?", "Nothing on testnet. Mainnet pricing will be published before it opens."],
+  ["What does CoveredMarket charge?", "Nothing on testnet. Mainnet pricing will be published before it opens."],
   ["Has the contract been audited?", "Not yet. It runs on testnet only until it has been."],
 ];
 
@@ -175,7 +175,7 @@ export function Landing() {
   const { isTest, live, testnetSite, app } = net();
   const cert = useHeroCert();
   const [menu, setMenu] = useState(false);
-  useEffect(() => { document.title = "Covered — open to anyone, held by no one, earning for you"; const id = location.hash.slice(1); if (id && !id.startsWith("/")) setTimeout(() => document.getElementById(id)?.scrollIntoView(), 50); }, []);
+  useEffect(() => { document.title = "CoveredMarket — open to anyone, held by no one, earning for you"; const id = location.hash.slice(1); if (id && !id.startsWith("/")) setTimeout(() => document.getElementById(id)?.scrollIntoView(), 50); }, []);
   const nav: [string, string][] = [["how", "How it works"], ["returns", "Returns"], ["compare", "Compare"], ["trust", "Security"], ["stack", "Built with"], ["faq", "FAQ"]];
   const sellLabel = !live ? "Try it on testnet" : isTest ? "Sell a call on testnet" : "Sell a call";
   return (
@@ -188,7 +188,7 @@ export function Landing() {
       )}
       <header className="ld-head">
         <div className="ld-wrap">
-          <a href="/" aria-label="Covered home" style={{ display: "flex", flexShrink: 0 }}><img className="ld-logo" src="/site/lockup.svg" alt="Covered" /></a>
+          <a href="/" aria-label="CoveredMarket home" className="ld-logo-link"><img className="ld-logo" src="/site/lockup.svg" alt="CoveredMarket" /></a>
           <nav className="ld-nav" aria-label="Sections">{nav.map(([id, l]) => <A key={id} to={id}>{l}</A>)}</nav>
           <div className="ld-head-right">
             {(CFG.switchUrl || !isTest) && (
@@ -255,7 +255,7 @@ export function Landing() {
         {/* benefits */}
         <section id="why" className="ld-sec" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="why-h">
           <div className="ld-wrap ld-stack" style={{ gap: 40 }}>
-            <div><Kicker n="01">Why Covered</Kicker><h2 id="why-h" className="ld-h2">Everything an exchange offers, except the exchange.</h2></div>
+            <div><Kicker n="01">Why CoveredMarket</Kicker><h2 id="why-h" className="ld-h2">Everything an exchange offers, except the exchange.</h2></div>
             <div className="ld-4" style={{ borderTop: "1px solid var(--rule-strong)" }}>
               {BENEFITS.map(([icon, t, x]) => (
                 <div className="ld-benefit" key={t}><span className="ld-disc"><img src={`/site/icons/${icon}.svg`} alt="" aria-hidden="true" /></span><h3 className="heading" style={{ margin: 0 }}>{t}</h3><p className="body-small ld-muted" style={{ margin: 0 }}>{x}</p></div>
@@ -292,7 +292,7 @@ export function Landing() {
               <ul style={{ margin: 0, padding: 0, listStyle: "none", borderTop: "1px solid var(--rule)" }}>
                 {[["Strike.", "Closer to today’s price pays more, and is more likely to be sold."], ["Time.", "A longer call pays more; a short one can be sold again sooner."], ["Volatility.", "When Bitcoin swings, buyers pay more for the upside."]].map(([b, t]) => <li key={b} className="body-small" style={{ padding: "12px 0", borderBottom: "1px solid var(--rule)" }}><strong>{b}</strong> <span className="ld-muted">{t}</span></li>)}
               </ul>
-              <p className="body-small ld-muted" style={{ margin: 0 }}>Nothing here is a forecast or advice. Covered charges nothing on testnet; mainnet pricing will be published before it opens.</p>
+              <p className="body-small ld-muted" style={{ margin: 0 }}>Nothing here is a forecast or advice. CoveredMarket charges nothing on testnet; mainnet pricing will be published before it opens.</p>
             </div>
             <Calculator />
           </div>
@@ -322,7 +322,7 @@ export function Landing() {
           <div className="ld-wrap ld-stack" style={{ gap: 32, position: "relative" }}>
             <div className="ld-2" style={{ alignItems: "end", gap: "24px 48px" }}>
               <div><Kicker n="05">Built with</Kicker><h2 id="stack-h" className="ld-h2" style={{ maxWidth: "16ch" }}>Built on NEAR. Settled on Bitcoin.</h2></div>
-              <p className="ld-lede" style={{ maxWidth: "40ch" }}>Covered is one contract and a thin relayer. What makes it possible is NEAR: a contract that can hold a Bitcoin key without anyone holding it.</p>
+              <p className="ld-lede" style={{ maxWidth: "40ch" }}>CoveredMarket is one contract and a thin relayer. What makes it possible is NEAR: a contract that can hold a Bitcoin key without anyone holding it.</p>
             </div>
             <div className="ld-3">
               {built().map((t) => (
@@ -362,10 +362,10 @@ export function Landing() {
         <section id="compare" className="ld-sec" aria-labelledby="compare-h">
           <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
             <div><Kicker n="07">Compared</Kicker><h2 id="compare-h" className="ld-h2">Other ways to earn on Bitcoin, side by side.</h2></div>
-            <div className="ld-cmp-desk" role="table" aria-label="Covered compared with other ways to earn on Bitcoin">
+            <div className="ld-cmp-desk" role="table" aria-label="CoveredMarket compared with other ways to earn on Bitcoin">
               <div className="ld-table">
                 <div className="rh ch" role="columnheader" />
-                <div className="ch ours" role="columnheader" data-theme="vault"><img src="/site/lockup-on-vault.svg" alt="Covered" style={{ height: 22 }} /><span className="body-small ld-muted">Native Bitcoin, NEAR contract</span></div>
+                <div className="ch ours" role="columnheader" data-theme="vault"><img src="/site/lockup-on-vault.svg" alt="CoveredMarket" style={{ height: 22 }} /><span className="body-small ld-muted">Native Bitcoin, NEAR contract</span></div>
                 {[["Deribit", "Options exchange"], ["Binance Dual Investment", "Exchange earn product"], ["DeFi call vaults", "Thetanuts, StakeDAO and others"]].map(([n, k]) => <div key={n} className="ch" role="columnheader"><span className="heading" style={{ fontSize: 15 }}>{n}</span><span className="body-small ld-muted">{k}</span></div>)}
                 {COMPARE.map(([row, ...cells]) => [
                   <div key={row} className="rh body" role="rowheader">{row}</div>,
@@ -375,7 +375,7 @@ export function Landing() {
             </div>
             <div className="ld-cmp-phone" style={{ flexDirection: "column", borderTop: "1px solid var(--rule-strong)" }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 4, padding: "12px 0", borderBottom: "1px solid var(--rule)" }}>
-                {["Covered", "Deribit", "Binance Dual", "DeFi vaults"].map((h, i) => <span key={h} className="ld-word" data-theme={i === 0 ? "vault" : undefined} style={{ fontSize: 10, textAlign: "center", padding: "6px 2px", background: i === 0 ? "var(--paper)" : undefined, color: i === 0 ? "var(--ink)" : "var(--ink-muted)" }}>{h}</span>)}
+                {["CoveredMarket", "Deribit", "Binance Dual", "DeFi vaults"].map((h, i) => <span key={h} className="ld-word" data-theme={i === 0 ? "vault" : undefined} style={{ fontSize: 10, textAlign: "center", padding: "6px 2px", background: i === 0 ? "var(--paper)" : undefined, color: i === 0 ? "var(--ink)" : "var(--ink-muted)" }}>{h === "CoveredMarket" ? <>Covered<wbr />Market</> : h}</span>)}
               </div>
               {COMPARE.map(([row, ...cells]) => (
                 <div key={row} style={{ padding: "14px 0", borderBottom: "1px solid var(--rule)", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -404,7 +404,7 @@ export function Landing() {
             <div><Kicker n="08">What you are trusting</Kicker><h2 id="trust-h" className="ld-h2" style={{ maxWidth: "16ch" }}>No custodian. Here is who can sign.</h2></div>
             <div className="ld-trust" role="table" aria-label="Who can and cannot act on your coins">
               <div className="ld-label ld-muted hd">Party</div><div className="ld-label hd" style={{ color: "var(--intaglio)" }}>Can</div><div className="ld-label hd" style={{ color: "var(--oxblood)" }}>Cannot</div>
-              {[["The contract", "Sign your coins after expiry, only to the address its terms name.", "Be upgraded. It has no owner key after deployment."], ["NEAR’s MPC network", "Produce the signatures the contract asks for.", "Sign on its own. No single node holds the key."], ["The Covered team", "Run the relayer that pays gas and this site.", "Move your coins or change a contract’s terms."], ["You, the seller", "Withdraw before the call sells; claim your premium any time.", "Withdraw coins during the term. They return or are sold at expiry."]].map(([w, c, n]) => [
+              {[["The contract", "Sign your coins after expiry, only to the address its terms name.", "Be upgraded. It has no owner key after deployment."], ["NEAR’s MPC network", "Produce the signatures the contract asks for.", "Sign on its own. No single node holds the key."], ["The CoveredMarket team", "Run the relayer that pays gas and this site.", "Move your coins or change a contract’s terms."], ["You, the seller", "Withdraw before the call sells; claim your premium any time.", "Withdraw coins during the term. They return or are sold at expiry."]].map(([w, c, n]) => [
                 <div key={w} className="heading">{w}</div>,
                 <div key={w + "c"} className="body"><span className="ld-label ph" style={{ color: "var(--intaglio)" }}>Can</span>{c}</div>,
                 <div key={w + "n"} className="body"><span className="ld-label ph" style={{ color: "var(--oxblood)" }}>Cannot</span>{n}</div>,
@@ -450,9 +450,9 @@ export function Landing() {
                 <div className="ld-stack" style={{ gap: 16 }}>
                   <p className="ld-kicker" style={{ color: "var(--intaglio)", margin: 0 }}>Art. 11 · Security notice</p>
                   <h2 id="security-h" className="ld-h2" style={{ maxWidth: "16ch" }}>Found a flaw? Tell us before anyone else.</h2>
-                  <p className="ld-lede" style={{ maxWidth: "46ch" }}>Covered keeps people’s Bitcoin behind a contract. If you find a way to move, freeze or misprice those coins, we want to hear it first, and we pay for it.</p>
+                  <p className="ld-lede" style={{ maxWidth: "46ch" }}>CoveredMarket keeps people’s Bitcoin behind a contract. If you find a way to move, freeze or misprice those coins, we want to hear it first, and we pay for it.</p>
                 </div>
-                <img className="ld-hide-phone" src="/site/seal.svg" alt="Covered seal" style={{ width: 132, height: 132, flexShrink: 0, opacity: 0.9 }} />
+                <img className="ld-hide-phone" src="/site/seal.svg" alt="CoveredMarket seal" style={{ width: 132, height: 132, flexShrink: 0, opacity: 0.9 }} />
               </div>
               <div>
                 <p className="ld-label ld-muted" style={{ margin: "0 0 8px" }}>Rewards, by what the flaw could do</p>
@@ -465,7 +465,7 @@ export function Landing() {
                 <p className="body-small ld-muted" style={{ margin: "12px 0 0" }}>Rewards are set per report, scaled to severity, and paid in USDC on NEAR once a fix ships. The first report of a flaw is the one rewarded.</p>
               </div>
               <div className="ld-3" style={{ gap: "24px 32px" }}>
-                <div className="ld-stack" style={{ gap: 8 }}><h3 className="ld-label" style={{ margin: 0, color: "var(--intaglio)" }}>In scope</h3><p className="body-small" style={{ margin: 0 }}>The Covered contract on NEAR, the relayer, the web app, and the seven Verify checks on every certificate.</p></div>
+                <div className="ld-stack" style={{ gap: 8 }}><h3 className="ld-label" style={{ margin: 0, color: "var(--intaglio)" }}>In scope</h3><p className="body-small" style={{ margin: 0 }}>The CoveredMarket contract on NEAR, the relayer, the web app, and the seven Verify checks on every certificate.</p></div>
                 <div className="ld-stack" style={{ gap: 8 }}><h3 className="ld-label" style={{ margin: 0, color: "var(--oxblood)" }}>Out of scope</h3><p className="body-small" style={{ margin: 0 }}>NEAR’s MPC network, the Bitcoin light client and wallets: report those to their teams. Volume denial of service, social engineering, and the testnet faucet’s limits.</p></div>
                 <div className="ld-stack" style={{ gap: 8 }}><h3 className="ld-label" style={{ margin: 0 }}>Our promise</h3><p className="body-small" style={{ margin: 0 }}>Research in good faith within these rules is authorised, and we will not take legal action over it. We acknowledge every report and agree a disclosure date with you.</p></div>
               </div>
@@ -494,7 +494,7 @@ export function Landing() {
       <footer className="ld-foot">
         <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
           <div className="ld-foot-grid">
-            <div className="ld-stack" style={{ gap: 12 }}><img src="/site/lockup.svg" alt="Covered" style={{ height: 32, alignSelf: "flex-start" }} /><p className="ld-lede" style={{ fontSize: 18 }}>Open to anyone. Held by no one. Earning for you.</p></div>
+            <div className="ld-stack" style={{ gap: 12 }}><img src="/site/lockup.svg" alt="CoveredMarket" style={{ height: 32, alignSelf: "flex-start" }} /><p className="ld-lede" style={{ fontSize: 18 }}>Open to anyone. Held by no one. Earning for you.</p></div>
             <nav aria-label="Product"><span className="ld-label ld-muted">Product</span><a href={app("market")}>Market</a><a href={app("sell")}>Sell a call</a><a href={`${testnetSite}#/try`}>Try it</a><A to="faq">FAQ</A></nav>
             <nav aria-label="Trust"><span className="ld-label ld-muted">Trust</span><A to="trust">Security</A><A to="security">Report a vulnerability</A><A to="compare">Compared</A></nav>
             <nav aria-label="Build"><span className="ld-label ld-muted">Build</span><A to="stack">Built with</A>{live && <a href={`${CFG.explorerNear}/address/${CFG.contract}`} target="_blank" rel="noreferrer">Contract</a>}<a href={`mailto:${SECURITY}`}>{SECURITY}</a></nav>
@@ -503,7 +503,7 @@ export function Landing() {
             <span>NEAR {CFG.network} · contract {live ? CFG.contract : "not deployed yet"} · USDC {CFG.usdc}</span>
             <span>Signer {CFG.signer} · Bitcoin light client {CFG.lightClient}</span>
           </div>
-          <p className="body-small ld-muted" style={{ margin: 0 }}>{isTest ? "This is the testnet site: test coins and test USDC with no value. " : ""}Covered is unaudited software. Selling a call gives up the rise above your strike, and your coins stay locked until expiry. Built on NEAR.</p>
+          <p className="body-small ld-muted" style={{ margin: 0 }}>{isTest ? "This is the testnet site: test coins and test USDC with no value. " : ""}CoveredMarket is unaudited software. Selling a call gives up the rise above your strike, and your coins stay locked until expiry. Built on NEAR.</p>
         </div>
       </footer>
     </div>

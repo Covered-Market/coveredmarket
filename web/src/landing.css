@@ -37,6 +37,7 @@
 .ld-band a { color: var(--on-gilt); font-weight: 600; }
 .ld-head { border-bottom: 1px solid var(--rule); background: var(--paper); position: sticky; top: 0; z-index: 10; }
 .ld-head .ld-wrap { display: flex; align-items: center; gap: 24px; min-height: 72px; }
+.ld-logo-link { display: flex; flex-shrink: 0; }
 .ld-logo { height: 32px; display: block; }
 .ld-nav { display: flex; gap: 22px; margin-left: 12px; }
 .ld-nav a { color: var(--ink); text-decoration: none; font-size: 15px; }
@@ -169,7 +170,8 @@
   .ld-head .ld-btn { white-space: nowrap; padding: 10px 12px !important; font-size: 14px !important; }
   .ld-head .ld-wrap { gap: 12px; }
   .ld-head-right { gap: 8px; }
-  .ld-logo { height: 26px; }
+  .ld-logo-link { flex-shrink: 1; min-width: 0; }
+  .ld-logo { height: auto; width: 100%; max-width: 160px; }
   .ld-4, .ld-3, .ld-cards2, .ld-foot-grid > :first-child { grid-template-columns: minmax(0, 1fr); }
   .ld-foot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ld-foot-grid > :first-child { grid-column: 1 / -1; }
