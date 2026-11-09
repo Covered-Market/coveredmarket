@@ -304,26 +304,10 @@ export function Landing() {
           </div>
         </section>
 
-        {/* the app */}
-        <section className="ld-sec ld-vault" data-theme="vault" aria-labelledby="app-h">
-          <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
-            <div><Kicker n="06">The app</Kicker><h2 id="app-h" className="ld-h2" style={{ maxWidth: "16ch" }}>Every contract, readable by anyone.</h2></div>
-            <div className="ld-app">
-              <Frame path="covered · /c/1" src="/site/shots/app-cert.webp" alt="Contract CV-1 in the app: the certificate, the countdown to the exercise window, the premium credited and the settlement timeline" />
-              <div className="ld-frame" data-theme="vault"><div className="ld-frame-bar"><i /><i /><span>/try · Vault theme</span></div><img src="/site/shots/app-try-vault.webp" alt="Try it, in the dark Vault theme: five steps and what is live where" loading="lazy" /></div>
-            </div>
-            <div className="ld-cards2">
-              <figure style={{ margin: 0 }}><img src="/site/shots/crop-timeline2.webp" alt="Settlement timeline of CV-1: coins deposited, call sold, exercise window, coins returned" loading="lazy" style={{ width: "100%", display: "block", border: "1px solid var(--rule)" }} /><figcaption className="body-small ld-muted" style={{ marginTop: 8 }}>Settlement timeline</figcaption></figure>
-              <figure style={{ margin: 0 }}><img src="/site/shots/crop-try.webp" alt="Try it: the guided flow with test coins" loading="lazy" style={{ width: "100%", display: "block", border: "1px solid var(--rule)" }} /><figcaption className="body-small ld-muted" style={{ marginTop: 8 }}>Try it with test coins</figcaption></figure>
-            </div>
-            <div className="ld-row"><a className="ld-btn ld-btn--primary" href={app("market")}>Open the app</a><a className="ld-btn ld-btn--quiet" href={tryIt("try")}>Try it in six minutes</a></div>
-          </div>
-        </section>
-
         {/* compare */}
         <section id="compare" className="ld-sec" aria-labelledby="compare-h">
           <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
-            <div><Kicker n="07">Compared</Kicker><h2 id="compare-h" className="ld-h2">Other ways to earn on Bitcoin, side by side.</h2></div>
+            <div><Kicker n="06">Compared</Kicker><h2 id="compare-h" className="ld-h2">Other ways to earn on Bitcoin, side by side.</h2></div>
             <div className="ld-cmp-desk" role="table" aria-label="CoveredMarket compared with other ways to earn on Bitcoin">
               <div className="ld-table">
                 <div className="rh ch" role="columnheader" />
@@ -363,7 +347,7 @@ export function Landing() {
         {/* trust */}
         <section id="trust" className="ld-sec" style={{ borderTop: "none" }} aria-labelledby="trust-h">
           <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
-            <div><Kicker n="08">What you are trusting</Kicker><h2 id="trust-h" className="ld-h2" style={{ maxWidth: "16ch" }}>No custodian. Here is who can sign.</h2></div>
+            <div><Kicker n="07">What you are trusting</Kicker><h2 id="trust-h" className="ld-h2" style={{ maxWidth: "16ch" }}>No custodian. Here is who can sign.</h2></div>
             <div className="ld-trust" role="table" aria-label="Who can and cannot act on your coins">
               <div className="ld-label ld-muted hd">Party</div><div className="ld-label hd" style={{ color: "var(--intaglio)" }}>Can</div><div className="ld-label hd" style={{ color: "var(--oxblood)" }}>Cannot</div>
               {[["The contract", "Sign your coins after expiry, only to the address its terms name.", "Be upgraded. It has no owner key after deployment."], ["NEAR’s MPC network", "Produce the signatures the contract asks for.", "Sign on its own. No single node holds the key."], ["The CoveredMarket team", "Run the relayer that pays gas and this site.", "Move your coins or change a contract’s terms."], ["You, the seller", "Withdraw before the call sells; claim your premium any time.", "Withdraw coins during the term. They return or are sold at expiry."]].map(([w, c, n]) => [
@@ -383,7 +367,7 @@ export function Landing() {
         <section className="ld-sec" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="verify-h">
           <div className="ld-wrap ld-2">
             <div className="ld-stack" style={{ minWidth: 0 }}>
-              <div><Kicker n="09">Proof</Kicker><h2 id="verify-h" className="ld-h2">Seven checks. None of them ask us.</h2></div>
+              <div><Kicker n="08">Proof</Kicker><h2 id="verify-h" className="ld-h2">Seven checks. None of them ask us.</h2></div>
               <p className="body ld-muted" style={{ margin: 0, maxWidth: "52ch" }}>Press Verify on any certificate. Your browser reads NEAR and Bitcoin directly and checks:</p>
               <ol className="body-small" style={{ margin: 0, paddingLeft: 24, display: "flex", flexDirection: "column", gap: 8 }}>
                 <li>The deployed code is the published code, and no key can change it</li><li>The deposit address is derived from this contract and this serial</li><li>The collateral is on Bitcoin, at that address, for the full size</li><li>Every payment the certificate shows is a receipt on NEAR</li><li>Each change of state followed the contract’s rules</li><li>The signed settlement pays the address the terms name</li><li>That settlement is confirmed on Bitcoin</li>
@@ -397,7 +381,7 @@ export function Landing() {
         {/* faq */}
         <section id="faq" className="ld-sec" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="faq-h">
           <div className="ld-wrap ld-2">
-            <div><Kicker n="10">Questions</Kicker><h2 id="faq-h" className="ld-h2">What people ask first.</h2></div>
+            <div><Kicker n="09">Questions</Kicker><h2 id="faq-h" className="ld-h2">What people ask first.</h2></div>
             <div className="ld-faq">{FAQ.map(([q, a]) => <details key={q}><summary>{q}</summary><p className="body">{a}</p></details>)}</div>
           </div>
         </section>
