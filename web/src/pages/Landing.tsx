@@ -84,7 +84,6 @@ const built = (): { status: "Live" | "Partly" | "Next"; name: string; what: stri
   { status: "Live", name: "Pay and act in one receipt", what: "The buyer’s USDC arrives with its instruction through NEP-141 ft_transfer_call. The premium is credited and the buyer recorded in the same receipt, with no pending state between.", id: "NEP-141 · ft_transfer_call", d: "M4 12h6 M14 12h6 M10 8l4 4-4 4 M4 6v12 M20 6v12" },
   { status: "Live", name: "Meta-transactions", what: "NEAR delegate actions let you sign while the relayer submits and pays gas. You never need to hold NEAR, and the relayer can never act alone.", id: "NEP-366 delegate actions", d: "M4 12h13 M13 7l5 5-5 5 M4 6v12" },
   { status: "Partly", name: "NEAR Intents", what: "Fund an account with USDC from Solana or Base today. Paying a premium or strike straight from another chain through 1Click is next.", id: "intents.near · 1Click", d: "M4 8h12 M12 4l4 4-4 4 M20 16H8 M12 12l-4 4 4 4" },
-  { status: "Next", name: "Confidential Intents", what: "Contract terms are public today, so anyone can verify them. Private terms will come with Confidential Intents.", id: "privacy · next", d: "M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z M12 9a3 3 0 1 0 0.01 0 M4 4l16 16" },
 ];
 const STATUS_COLOR = { Live: "var(--intaglio)", Partly: "var(--gilt-ink)", Next: "var(--ink-muted)" };
 
@@ -264,7 +263,7 @@ export function Landing() {
               <div><Kicker n="05">Built with</Kicker><h2 id="stack-h" className="ld-h2" style={{ maxWidth: "16ch" }}>Built on NEAR. Settled on Bitcoin.</h2></div>
               <p className="ld-lede" style={{ maxWidth: "40ch" }}>CoveredMarket is one contract and a thin relayer. What makes it possible is NEAR: a contract that can hold a Bitcoin key without anyone holding it.</p>
             </div>
-            <div className="ld-3">
+            <div className="ld-3 ld-built">
               {built().map((t) => (
                 <article className="ld-tech" key={t.name}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
