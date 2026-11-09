@@ -62,9 +62,10 @@ case "$cmd" in
     for i in $(seq 1 60); do "${SSH[@]}" 'test -f /var/lib/covered-ready && docker info >/dev/null 2>&1' 2>/dev/null && break; sleep 10
       [ "$i" = 60 ] && { echo "VM not ready"; exit 1; }; done
     git archive --format=tar HEAD | "${SSH[@]}" 'cd /opt/covered && find . -mindepth 1 -maxdepth 1 ! -name .env -exec rm -rf {} + && tar -x'
-    mainnet=${MAINNET_SITE:-${site:+mainnet.$site}}; www=${site:+www.$site}
-    "${SSH[@]}" "cd /opt/covered && { [ -z '$site' ] || { sed -i '/^DOMAIN=/d; /^MAINNET_DOMAIN=/d; /^WWW_DOMAIN=/d' .env; printf 'DOMAIN=%s\nMAINNET_DOMAIN=%s\nWWW_DOMAIN=%s\n' '$site' '$mainnet' '$www' >> .env; }; } && { [ -z '${RESET_CONTRACT:-}' ] || sed -i '/^COVERED_ID=/d' .env; } && bin/coveredmarket serve"
-    [ -n "$site" ] && { for i in $(seq 1 60); do curl -fsS "https://$site/api/health" >/dev/null 2>&1 && break; sleep 5; done; echo "live: https://$site"; } ;;
+    # The website on $site, the two apps on testnet.$site and mainnet.$site, www.$site redirecting to $site.
+    mainnet=${MAINNET_SITE:-${site:+mainnet.$site}}; testnet=${TESTNET_SITE:-${site:+testnet.$site}}; www=${site:+www.$site}
+    "${SSH[@]}" "cd /opt/covered && { [ -z '$site' ] || { sed -i '/^DOMAIN=/d; /^MAINNET_DOMAIN=/d; /^TESTNET_DOMAIN=/d; /^WWW_DOMAIN=/d' .env; printf 'DOMAIN=%s\nTESTNET_DOMAIN=%s\nMAINNET_DOMAIN=%s\nWWW_DOMAIN=%s\n' '$site' '$testnet' '$mainnet' '$www' >> .env; }; } && { [ -z '${RESET_CONTRACT:-}' ] || sed -i '/^COVERED_ID=/d' .env; } && bin/coveredmarket serve"
+    [ -n "$site" ] && { for i in $(seq 1 60); do curl -fsS "https://$testnet/api/health" >/dev/null 2>&1 && break; sleep 5; done; echo "live: https://$site (app: https://$testnet, https://$mainnet)"; } ;;
   destroy)   (cd infra/cloud && terraform destroy "$@") ;;
   help|*)    cat <<'H'
 coveredmarket — one entry point

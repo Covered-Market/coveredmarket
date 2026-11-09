@@ -9,7 +9,7 @@
 import { chromium } from "playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
 
-const SITE = (process.env.SITE ?? "https://178-62-225-161.sslip.io").replace(/\/$/, "");
+const SITE = (process.env.SITE ?? "https://testnet.covered.market").replace(/\/$/, "");
 const MODE = process.env.MODE ?? "shots";
 const OUT = process.env.OUT ?? `artifacts/${MODE}`;
 mkdirSync(OUT, { recursive: true });

@@ -1,4 +1,4 @@
-# One Caddy serves the static app for each network, proxies that network's relayer, and gets TLS per site.
+# One Caddy serves the website and each network's app, proxies that network's relayer, and gets TLS per site.
 (app) {
 	encode gzip
 	handle /api/* {
@@ -20,15 +20,23 @@
 	}
 }
 
+# The website. With separate app domains site.json is network-neutral; on the local stack, where there is
+# only one address, it is a copy of primary.json: the local app with the landing page at `/`.
 {$SITE_ADDRESS} {
+	import app relayer:8787 site.json
+}
+
+# The testnet app.
+{$TESTNET_ADDRESS} {
 	import app relayer:8787 primary.json
 }
 
+# The mainnet app.
 {$MAINNET_ADDRESS} {
 	import app relayer-mainnet:8787 mainnet.json
 }
 
-# www.<domain> only redirects, so the app (and wallet sessions) live on one origin.
+# www.<domain> only redirects to the website.
 {$WWW_ADDRESS} {
 	redir https://{$PRIMARY_HOST}{uri} permanent
 }

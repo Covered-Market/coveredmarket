@@ -6,7 +6,7 @@ on:
     inputs:
       site:
         description: site URL
-        default: https://178-62-225-161.sslip.io
+        default: https://testnet.covered.market
       mode:
         description: shots (S1–S12 for the website) or audit (every page, full length)
         type: choice

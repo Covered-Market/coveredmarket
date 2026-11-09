@@ -24,6 +24,17 @@ export function useRoute() {
 }
 
 export function App() {
+  return CFG.mode === "site" ? <Website /> : <AppShell />;
+}
+
+/** The network-neutral website: only the landing page. Old app links (`/#/c/3`) go on to the testnet app. */
+function Website() {
+  const { path } = useRoute();
+  if (path && CFG.testnetUrl) { location.replace(`${CFG.testnetUrl}/${location.hash}`); return null; }
+  return <Landing />;
+}
+
+function AppShell() {
   const { parts } = useRoute();
   const [role] = useState(() => (CFG.disabled ? null : initTestWallet()));
   const [wallet, setWallet] = useState<Wallet | null>(role ? null : loadWallet());
@@ -73,7 +84,8 @@ export function App() {
     { label: "Try it", href: "#/try", on: on === "try" },
   ];
   const page = parts[0] ?? "market";
-  if (page === "home") return <Landing />;
+  // With a separate website the app's own `/` is the market; on the local stack `/` is still the landing page.
+  if (page === "home" && !CFG.siteUrl) return <Landing />;
   const content = CFG.disabled ? <NotLive /> : (() => {
     switch (page) {
       case "market": return <Market />;
@@ -89,7 +101,7 @@ export function App() {
   return (
     <div className="cv-root" style={{ minHeight: "100vh", background: "var(--paper)", color: "var(--ink)", fontFamily: "var(--font-sans)" }}>
       <NetworkBand />
-      <TopBar items={CFG.disabled ? [] : nav(page)} href="/">
+      <TopBar items={CFG.disabled ? [] : nav(page)} href={CFG.siteUrl || "/"}>
         <NetworkSwitch />
         {CFG.disabled ? null : wallet ? (
           <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
