@@ -194,7 +194,8 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 }
 @media (prefers-reduced-motion: reduce) { .ld * { transition: none !important; } }
 
-/* The rosette as the page's brand mark: whole, faint, in the hero's top-right corner, behind the content. */
+/* The rosette as the page's brand mark: large, whole and faint, anchored top right below the header and running
+   down behind the hero into the first section (which has no background of its own, so it is never cut). */
 .ld { position: relative; isolation: isolate; }
-.ld-seal { position: absolute; top: 96px; right: 24px; width: clamp(240px, 33vw, 480px); opacity: .1; z-index: -1; pointer-events: none; }
+.ld-seal { position: absolute; top: 88px; right: 24px; width: clamp(240px, 54vw, 940px); opacity: .09; z-index: -1; pointer-events: none; }
 @media (max-width: 599px) { .ld-seal { top: 84px; right: 12px; width: 220px; opacity: .08; } }
