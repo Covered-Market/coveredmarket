@@ -228,10 +228,10 @@ export function Landing() {
 
         {/* story */}
         <section className="ld-sec" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="story-h">
-          <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
-            <div><Kicker n="02">The idea</Kicker><h2 id="story-h" className="ld-h2">You sell the rise above a price you choose.</h2></div>
-            <div className="ld-2">
+          <div className="ld-wrap">
+            <div className="ld-2" style={{ alignItems: "center" }}>
               <div className="ld-stack" style={{ gap: 16, maxWidth: "60ch" }}>
+                <div style={{ marginBottom: 16 }}><Kicker n="02">The idea</Kicker><h2 id="story-h" className="ld-h2">You sell the rise above a price you choose.</h2></div>
                 <p className="body" style={{ margin: 0 }}>Astrid holds <span className="ld-mono" style={{ color: "var(--copper-ink)" }}>2.0000 BTC</span> she has no plan to sell this year. She offers a buyer the right to buy them at <span className="ld-mono">$150,000</span> on <span className="ld-mono">31 Dec 2026</span>. Marcus takes it and pays her <span className="ld-mono" style={{ color: "var(--gilt-ink)" }}>$6,000</span> now.</p>
                 <p className="body" style={{ margin: 0 }}>If Bitcoin ends below <span className="ld-mono">$150,000</span>, the contract signs her coins back to her. If it ends above, her coins are sold to Marcus at <span className="ld-mono">$150,000</span>. Either way the <span className="ld-mono" style={{ color: "var(--gilt-ink)" }}>$6,000</span> is hers.</p>
                 <p className="body-small ld-muted" style={{ margin: 0, paddingTop: 8, borderTop: "1px solid var(--rule)" }}>The trade-off: if Bitcoin rises far past the strike, she gives up the rise above it. That is what the premium pays for. Her coins cannot be withdrawn during the term.</p>
