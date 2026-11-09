@@ -140,6 +140,10 @@ wm, ww = wordmark(84, 47, 56, INK)
 L('coveredmarket-lockup-with-partner-rule', math.ceil(ww) + 88 + 40, 64, LID.lid(0, 0, 64, body=INTAGLIO, cap=GILT) + wm + f'<line x1="{math.ceil(ww)+104}" y1="12" x2="{math.ceil(ww)+104}" y2="52" stroke="{RULE}" stroke-width="1"/>')
 
 # ---------- Patterns ----------
+# The rosette's outermost curves reach ROSETTE_REACH * R from its centre. Every composition below sizes R
+# from the space it has (R = room / ROSETTE_REACH), so the rosette is always whole, never cut by an edge.
+ROSETTE_REACH = 1.14
+
 def rosette(cx, cy, R, ink, rings=7, sw=0.9):
     """Classic spirograph rosette: a set of thin rotated ellipses, in two families."""
     out = []
@@ -157,8 +161,9 @@ def rosette(cx, cy, R, ink, rings=7, sw=0.9):
             out.append(f'<polygon points="{" ".join(pts)}" fill="none" stroke="{ink}" stroke-width="{sw}"/>')
     return ''.join(out)
 
-write('Patterns/guilloche-rosette.svg', svg(480, 480, rosette(240, 240, 220, INK)))
-write('Patterns/guilloche-rosette-gilt-on-vault.svg', svg(480, 480, rosette(240, 240, 220, GILT_V, sw=0.8), bg=VAULT))
+_RP = (240 - 4) / ROSETTE_REACH   # whole inside the 480 canvas, with 4px to spare
+write('Patterns/guilloche-rosette.svg', svg(480, 480, rosette(240, 240, _RP, INK)))
+write('Patterns/guilloche-rosette-gilt-on-vault.svg', svg(480, 480, rosette(240, 240, _RP, GILT_V, sw=0.8), bg=VAULT))
 
 def band(w, h, ink, waves=10, sw=0.7):
     """A braid: one sine at two phases per strand, mirrored, tileable over w."""
@@ -248,14 +253,15 @@ def social(w, h, dark=True):
     muted = MUTED_V if dark else MUTED
     rule = RULE_V if dark else RULE
     body = ''
-    # engraved rosette bleeding off the right
-    R = h * 0.78
-    body += f'<g opacity="{0.42 if dark else 0.28}">' + rosette(w - R * 0.22, h * 0.5, R, gilt if dark else INK, rings=8, sw=0.9) + '</g>'
     # plate frame
     m = h * 0.08
+    # engraved rosette, whole, in the top-right corner of the frame, clear of the tagline below it
+    tag_top = h - m * 2.2 - h * 0.11 * 0.75
+    room = (tag_top - 16 - m * 1.5) / 2
+    body += f'<g opacity="{0.42 if dark else 0.28}">' + rosette(w - m * 1.5 - room, m * 1.5 + room, room / ROSETTE_REACH, gilt if dark else INK, rings=8, sw=0.9) + '</g>'
     body += f'<rect x="{m}" y="{m}" width="{w-2*m}" height="{h-2*m}" fill="none" stroke="{rule}" stroke-width="1"/>'
     # mark + wordmark
-    ms = h * 0.22
+    ms = h * 0.16
     body += f'<g transform="translate({m*1.6},{m*1.6}) scale({ms/64})">' + mark(ink=(INK_V if dark else INTAGLIO), coin=(INK_V if dark else INTAGLIO), finial=gilt, two_tone=True) + '</g>'
     wmp, ww = wordmark(m * 1.6 + ms * 1.2, m * 1.6 + ms * 0.72, ms * 0.9, ink)
     body += wmp
@@ -279,7 +285,9 @@ write('Social/avatar-400.svg', svg(400, 400, body))
 # video title card and end card 1920x1080
 def title_card():
     w, h = 1920, 1080
-    body = f'<g opacity="0.4">' + rosette(1700, 540, 700, GILT_V, rings=9, sw=1) + '</g>'
+    # whole, in the top-right corner, above the name (whose cap height starts near y = 640 - 0.72 * 160)
+    room = (640 - 0.72 * 160 - 32 - 64 - 48) / 2
+    body = f'<g opacity="0.4">' + rosette(w - 64 - 48 - room, 64 + 48 + room, room / ROSETTE_REACH, GILT_V, rings=9, sw=1) + '</g>'
     body += f'<rect x="64" y="64" width="{w-128}" height="{h-128}" fill="none" stroke="{RULE_V}" stroke-width="1.5"/>'
     body += f'<g transform="translate(120,112) scale(1.5)">' + mark(ink=INK_V, coin=INK_V, finial=GILT_V, two_tone=True) + '</g>'
     d, _ = name_path(*FRAUNCES, 160, 120, 640)
@@ -305,7 +313,8 @@ write('Social/video-end-card-1920x1080.svg', end_card())
 # square social card 1080
 def square():
     w = h = 1080
-    body = f'<g opacity="0.45">' + rosette(900, 200, 520, GILT_V, rings=8, sw=1) + '</g>'
+    room = 262   # whole, top right, and clear of the headline's cap height (y = 700 - 0.72 * 120)
+    body = f'<g opacity="0.45">' + rosette(w - 48 - 24 - room, 48 + 24 + room, room / ROSETTE_REACH, GILT_V, rings=8, sw=1) + '</g>'
     body += f'<rect x="48" y="48" width="{w-96}" height="{h-96}" fill="none" stroke="{RULE_V}" stroke-width="1.5"/>'
     body += f'<g transform="translate(96,96) scale(1.25)">' + mark(ink=INK_V, coin=INK_V, finial=GILT_V, two_tone=True) + '</g>'
     d, _ = text_path('Sell a call.', *FRAUNCES, 120, 96, 700); body += f'<path d="{d}" fill="{INK_V}"/>'
@@ -313,4 +322,32 @@ def square():
     d, _ = text_path('Non-custodial covered calls on native Bitcoin', *SANS, 30, 100, 930, tracking=0.01); body += f'<path d="{d}" fill="{GILT_V}"/>'
     return svg(w, h, body, bg=VAULT)
 write('Social/square-card-1080.svg', square())
+
+# The film's poster, 1920x1080: the landing page's player shows it before play, and it is the video's thumbnail
+# (rendered to PNG). The rosette sits whole on the right; the page puts its play button in the rosette's eye
+# (POSTER_EYE, as fractions of the width and height). Title and subtitle are fitted to the space left of it.
+POSTER_EYE = (0.71875, 0.5)
+def poster():
+    w, h = 1920, 1080
+    room = h / 2 - 64 - 56
+    cx, cy = w * POSTER_EYE[0], h * POSTER_EYE[1]
+    body = f'<g opacity="0.38">' + rosette(cx, cy, room / ROSETTE_REACH, GILT_V, rings=9, sw=1.1) + '</g>'
+    body += f'<rect x="64" y="64" width="{w-128}" height="{h-128}" fill="none" stroke="{RULE_V}" stroke-width="1.5"/>'
+    body += f'<g transform="translate(128,128) scale(1.4)">' + mark(ink=INK_V, coin=INK_V, finial=GILT_V, two_tone=True) + '</g>'
+    wp, _ = wordmark(128 + 64 * 1.4 + 28, 128 + 64 * 1.4 * 0.68, 60, INK_V)
+    body += wp
+    left, max_w = 128, cx - room - 128 - 48
+    def fit(txt, f, size):
+        _, tw = text_path(txt, *f, size, 0, 0)
+        return size * min(1, max_w / tw)
+    t1, t2 = 'From offer', 'to settlement.'
+    ts = min(fit(t1, FRAUNCES, 150), fit(t2, FRAUNCES, 150))
+    d, _ = text_path(t1, *FRAUNCES, ts, left, 560); body += f'<path d="{d}" fill="{INK_V}"/>'
+    d, _ = text_path(t2, *FRAUNCES, ts, left, 560 + ts * 1.02); body += f'<path d="{d}" fill="{INK_V}"/>'
+    sub = 'One covered call on native Bitcoin.'
+    ss = fit(sub, FRAUNCES_IT, 52)
+    d, _ = text_path(sub, *FRAUNCES_IT, ss, left + 4, 560 + ts * 1.02 + 96); body += f'<path d="{d}" fill="{GILT_V}"/>'
+    d, _ = text_path('COVERED.MARKET', *SANS_B, 26, left + 4, h - 128, tracking=0.16); body += f'<path d="{d}" fill="{MUTED_V}"/>'
+    return svg(w, h, body, bg=VAULT)
+write('Social/video-poster-1920x1080.svg', poster())
 print('done')

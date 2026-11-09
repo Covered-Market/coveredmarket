@@ -45,25 +45,22 @@ function useHeroCert() {
   return cert;
 }
 
-/** The film as an embedded player (FILM_URL). Pressing play swaps the poster for the player, which brings its own
- *  controls and full screen. Without a film the poster says so. */
+/** The film as an embedded player (FILM_URL). Before play it shows the film's poster, which is also the video's
+ *  thumbnail (brand/assets/Social/video-poster-*). Pressing play swaps in the player, with its own controls and full
+ *  screen. Without a film yet the poster stands on its own and the play mark is decoration. */
 function HeroFilm() {
   const url = filmUrl();
   const [playing, setPlaying] = useState(false);
+  const play = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor" /></svg>;
   if (playing && url) return (
-    <div className="ld-film ld-film--playing">
-      <iframe src={`${url}${url.includes("?") ? "&" : "?"}autoplay=1&rel=0`} title="CoveredMarket: one contract, from offer to settlement" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
+    <div className="ld-film">
+      <iframe src={`${url}${url.includes("?") ? "&" : "?"}autoplay=1&rel=0`} title="CoveredMarket: from offer to settlement" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
     </div>
   );
   return (
-    <div className="ld-film" data-theme="vault">
-      <img className="ld-rosette" src="/site/rosette-gilt-on-vault.svg" alt="" aria-hidden="true" />
-      <img className="ld-film-logo" src="/site/lockup-on-vault.svg" alt="" aria-hidden="true" />
-      <button type="button" className="ld-play" disabled={!url} onClick={() => setPlaying(true)} aria-label={url ? "Play the film" : "Film coming soon"}>
-        <span className="ld-play-disc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" /></svg></span>
-        {!url && <span className="ld-play-note">Film coming soon</span>}
-      </button>
-      <div className="ld-film-text"><span className="ld-film-title">One contract, from offer to settlement</span></div>
+    <div className="ld-film">
+      <img src="/site/film/poster.png" alt="From offer to settlement: one covered call on native Bitcoin" />
+      {url ? <button type="button" className="ld-play" onClick={() => setPlaying(true)} aria-label="Play the film">{play}</button> : <span className="ld-play" aria-hidden="true">{play}</span>}
     </div>
   );
 }
@@ -216,7 +213,7 @@ export function Landing() {
             </div>
             <figure id="film" className="ld-hero-film">
               <HeroFilm />
-              <figcaption className="body-small ld-muted">Astrid sells a call on her Bitcoin, Marcus buys it, and the contract settles on Bitcoin.{filmUrl() ? null : <> Until the film is out, <a href={app("try")}>try it yourself in six minutes</a>.</>}</figcaption>
+              <figcaption className="body-small ld-muted">Astrid sells a call on her Bitcoin, Marcus buys it, and the contract settles on Bitcoin. <a href={app("try")}>Try it yourself in six minutes</a>.</figcaption>
             </figure>
           </div>
         </section>
