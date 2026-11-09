@@ -11,9 +11,9 @@
 .ld-vault { background: var(--paper); color: var(--ink); }
 .ld [data-theme] { color: var(--ink); }
 .ld-kicker { font: 600 12px/16px var(--font-sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-muted); margin: 0 0 16px; }
-.ld-h1 { font: 500 clamp(44px, 4.6vw, 64px)/0.98 var(--font-display); letter-spacing: -0.02em; font-variation-settings: "opsz" 144; margin: 0; }
+.ld-h1 { font: 500 clamp(48px, 7.5vw, 84px)/0.96 var(--font-display); letter-spacing: -0.02em; font-variation-settings: "opsz" 144; margin: 0; }
 .ld-h1 span { display: block; }
-.ld-h2 { font: 500 56px/1 var(--font-display); letter-spacing: -0.015em; font-variation-settings: "opsz" 144; margin: 0; max-width: 18ch; }
+.ld-h2 { font: 500 48px/1.02 var(--font-display); letter-spacing: -0.015em; font-variation-settings: "opsz" 144; margin: 0; max-width: 18ch; }
 .ld-lede { font: italic 400 22px/1.35 var(--font-display); font-variation-settings: "opsz" 48; margin: 0; }
 .ld-muted { color: var(--ink-muted); }
 .ld-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
@@ -54,30 +54,22 @@
 
 /* hero */
 .ld-hero { padding: 96px 0 112px; }
-.ld-hero-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(48px, 7vw, 96px); align-items: center; }
+.ld-hero-grid { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: clamp(40px, 5vw, 64px); align-items: center; }
 .ld-hero-lede { font: 400 18px/1.55 var(--font-sans); color: var(--ink-muted); margin: 0; max-width: 36ch; }
 /* The caption hangs below the film, out of the grid's flow, so the film itself centres on the text. */
 .ld-hero-film { position: relative; margin: 0; min-width: 0; }
 .ld-hero-film > figcaption { position: absolute; top: 100%; left: 0; right: 0; margin-top: 12px; }
 
-/* film: the hero's player (HeroFilm) */
-.ld-film { position: relative; aspect-ratio: 16 / 9; background: var(--paper); border: 1px solid var(--rule); overflow: hidden; box-shadow: 0 24px 48px -24px #132a2399; }
-.ld-film::after { content: ""; position: absolute; inset: 12px; border: 1px solid var(--rule); pointer-events: none; }
-.ld-film .ld-rosette { position: absolute; right: -14%; top: -40%; width: 72%; opacity: .22; pointer-events: none; }
-.ld-film-logo { position: absolute; left: 28px; top: 28px; height: 22px; }
-.ld-film-text { position: absolute; left: 28px; right: 28px; bottom: 28px; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; pointer-events: none; }
-.ld-film-title { font: 500 clamp(14px, 1.25vw, 18px)/1.2 var(--font-display); letter-spacing: -0.005em; }
-.ld-film--playing { background: #000; }
-.ld-film--playing::after { display: none; }
+/* film: the hero's player (HeroFilm). The poster is brand/assets/Social/video-poster (also the video's thumbnail);
+   the play button sits in its rosette's eye, at POSTER_EYE in gen_assets.py. */
+.ld-film { position: relative; aspect-ratio: 16 / 9; background: #0f211b; overflow: hidden; box-shadow: 0 24px 48px -24px #132a2399; }
+.ld-film > img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .ld-film iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
-.ld-play { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; }
-.ld-play:disabled { cursor: default; }
-.ld-play:focus-visible { outline: 2px solid var(--gilt); outline-offset: -6px; }
-.ld-play-note { font: 600 11px/14px var(--font-sans); letter-spacing: .14em; text-transform: uppercase; color: var(--gilt-ink); }
-.ld-play-disc { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; background: var(--gilt); color: #0f211b; box-shadow: 0 10px 28px -10px #000c; transition: transform .15s ease; }
-.ld-play-disc svg { width: 32px; height: 32px; margin-left: 4px; }
-.ld-play:not(:disabled):hover .ld-play-disc { transform: scale(1.06); }
-.ld-play:disabled .ld-play-disc { background: transparent; border: 1.5px solid color-mix(in srgb, var(--gilt) 70%, transparent); color: var(--gilt); box-shadow: none; }
+.ld-play { position: absolute; left: 71.875%; top: 50%; transform: translate(-50%, -50%); z-index: 2; width: 16%; aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; background: #d9b257; color: #0f211b; border: 0; padding: 0; margin: 0; box-shadow: 0 10px 28px -10px #000c; transition: transform .15s ease; }
+.ld-play svg { width: 42%; height: 42%; margin-left: 8%; }
+button.ld-play { cursor: pointer; }
+button.ld-play:hover { transform: translate(-50%, -50%) scale(1.06); }
+button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; }
 
 /* benefits */
 .ld-benefit { padding: 28px 0; border-bottom: 1px solid var(--rule); display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
@@ -163,7 +155,7 @@
   .ld-hero-grid { gap: 40px; }
   .ld-hero { padding: 64px 0 72px; }
   .ld-hero-film > figcaption { position: static; }
-  .ld-h1 { font-size: clamp(44px, 8vw, 72px); }
+  .ld-h1 { font-size: clamp(46px, 10vw, 84px); }
   .ld-h2 { font-size: clamp(32px, 6vw, 48px); }
   .ld-4, .ld-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ld-app { padding-bottom: 120px; }
@@ -186,12 +178,6 @@
   .ld-foot-grid > :first-child { grid-column: 1 / -1; }
   .ld-benefit { grid-template-columns: 52px minmax(0, 1fr); padding: 20px 0; column-gap: 16px; }
   .ld-benefit > .ld-disc { grid-row: span 2; }
-  .ld-film::after { inset: 8px; }
-  .ld-film-logo { left: 16px; top: 16px; height: 18px; }
-  .ld-film-text { left: 16px; right: 16px; bottom: 16px; }
-  .ld-play-disc { width: 52px; height: 52px; }
-  .ld-play-disc svg { width: 22px; height: 22px; margin-left: 3px; }
-  .ld-film .ld-rosette { width: 60%; right: -10%; }
   .ld-shotplate { padding: 12px; }
   .ld-step img { max-height: 280px; }
   .ld-app { padding-bottom: 0; }
