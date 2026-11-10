@@ -177,6 +177,7 @@ if (process.env.ACCOUNT_FAUCET === "1" && cfg.networkId === "testnet") {
 if (core) {
   const h = (f: (req: express.Request) => Promise<unknown>) => async (req: express.Request, res: express.Response) => { try { const r = await f(req); typeof r === "string" ? res.type("text").send(r) : res.json(r); } catch (e) { res.status(404).json({ error: (e as Error).message }); } };
   app.get("/btc/address/:a/txs", h((r) => core.addressTxs(r.params.a)));
+  app.get("/btc/tx/:id", h((r) => core.tx(r.params.id)));
   app.get("/btc/tx/:id/status", h(async (r) => { const s = await core.txStatus(r.params.id); if (!s) throw new Error("not found"); return s; }));
   app.get("/btc/tx/:id/hex", h((r) => core.txHex(r.params.id)));
   app.get("/btc/tx/:id/merkle-proof", h((r) => core.merkleProof(r.params.id)));
