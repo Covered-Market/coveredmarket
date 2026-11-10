@@ -44,6 +44,13 @@ describe("watcher plan", () => {
     expect(plan([{ ...s, commitment_fee_sats: "16000" }], p, { depositsAt: {}, depthOf: { v1: 0 } }, 9999)).toEqual([], "at the cap");
     expect(plan([s], p, { depositsAt: {}, depthOf: { v1: 1 } }, 9999)).toEqual([], "already in a block");
   });
+  it("bumps a settlement that nodes refused or evicted, not only one stuck in the mempool", () => {
+    const p = { ...params, fee_bump_after_s: 3600, max_fee_sats: 16000 };
+    const s = { ...base, state: "Signed", commitment_txid: "v1", signed_tx: "beef", signed_at_s: "1000", commitment_fee_sats: "1000" };
+    expect(plan([s], p, { depositsAt: {}, depthOf: {} }, 4599)).toEqual([{ kind: "broadcast", serial: 1, raw: "beef" }], "before the bump is due: only re-broadcast");
+    expect(plan([s], p, { depositsAt: {}, depthOf: {} }, 4600)).toEqual([{ kind: "broadcast", serial: 1, raw: "beef" }, { kind: "bump_fee", serial: 1 }]);
+    expect(plan([{ ...s, commitment_fee_sats: "16000" }], p, { depositsAt: {}, depthOf: {} }, 9999)).toEqual([{ kind: "broadcast", serial: 1, raw: "beef" }], "at the cap");
+  });
 });
 
 describe("paged views", () => {

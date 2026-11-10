@@ -32,6 +32,8 @@ export interface Clients {
   btc: {
     outspend(txid: string, vout: number): Promise<{ spent: boolean; txid?: string }>;
     txStatus(txid: string): Promise<{ confirmed: boolean; depth: number } | null>;
+    /** One output of a transaction as Bitcoin has it (null if the tx or the output does not exist). */
+    output(txid: string, vout: number): Promise<{ address?: string; value: number } | null>;
   };
   expected: { codeHash: string; contract: string; signer: string; lightClient: string; usdc: string; minConf: number };
 }
@@ -68,34 +70,61 @@ export async function runChecks(c: Clients, offer: Offer, params: Params, nowS: 
     if (!offer.collateral_txid) return ["failed", "no collateral recorded"];
     const st = await c.btc.txStatus(offer.collateral_txid);
     if (!st || !st.confirmed) return ["failed", "deposit transaction not confirmed on Bitcoin"];
+    // The recorded output must be the deposit itself: the offer's address, exactly the offer's size.
+    const outp = await c.btc.output(offer.collateral_txid, offer.collateral_vout!);
+    if (!outp) return ["failed", `${offer.collateral_txid}:${offer.collateral_vout} does not exist on Bitcoin`];
+    if (outp.address !== offer.address) return ["failed", `the recorded output pays ${outp.address ?? "a non-address script"}, not the deposit address`];
+    if (String(outp.value) !== offer.collateral_value_sats || offer.collateral_value_sats !== offer.size_sats) return ["failed", `the recorded output holds ${outp.value} sats; the offer is for ${offer.size_sats}`];
     const sp = await c.btc.outspend(offer.collateral_txid, offer.collateral_vout!);
-    const versions0 = [offer.commitment_txid, ...(offer.prior_txids ?? [])];
+    const versions = [offer.commitment_txid, ...(offer.prior_txids ?? [])].filter(Boolean);
+    const byVersion = sp.spent && versions.includes(sp.txid ?? "");
     if (offer.state === "Rescued") {
-      const own = sp.spent && !versions0.includes(sp.txid ?? null);
+      const own = sp.spent && !byVersion;
       return [own ? "verified" : "failed", own ? `spent by ${sp.txid}, the seller's rescue exit; no committed settlement can confirm` : "recorded as rescued, but Bitcoin does not show a rescue spend"];
     }
-    const final = ["Kept", "Exercised", "Withdrawn"].includes(offer.state) || offer.state === "Signed";
-    if (!final && sp.spent) return ["failed", `collateral already spent by ${sp.txid}`];
-    const versions = [offer.commitment_txid, ...(offer.prior_txids ?? [])];
-    if (final && sp.spent && !versions.includes(sp.txid ?? null)) return ["failed", `collateral spent by ${sp.txid}, not a committed version`];
-    return [st.depth >= c.expected.minConf ? "verified" : "failed", `${offer.collateral_value_sats} sats at depth ${st.depth}; ${sp.spent ? "spent by the committed tx" : "unspent"}`];
+    if (SETTLED.includes(offer.state)) {
+      // The contract says the coins moved: Bitcoin must show them moved, by a committed version.
+      if (!sp.spent) return ["failed", `recorded as ${offer.state}, but the collateral is still unspent on Bitcoin`];
+      if (!byVersion) return ["failed", `collateral spent by ${sp.txid}, not a committed version`];
+    } else if (offer.state === "Committed" || offer.state === "Signed") {
+      // A version may already be on its way (a fee bump keeps earlier versions valid); nothing else may spend it.
+      if (sp.spent && !byVersion) return ["failed", `collateral spent by ${sp.txid}, not a committed version`];
+    } else if (sp.spent) return ["failed", `collateral already spent by ${sp.txid} while the offer is ${offer.state}`];
+    return [st.depth >= c.expected.minConf ? "verified" : "failed", `${offer.collateral_value_sats} sats at ${offer.address}, depth ${st.depth}; ${sp.spent ? "spent by the committed tx" : "unspent"}`];
   }));
 
   out.push(await guard(4, "Payment receipts and accounting", async () => {
     const [acc, bal] = await Promise.all([c.near.view<Accounting>("get_accounting"), c.near.ftBalance(params.usdc, c.expected.contract)]);
     const sum = BigInt(acc.claimable_total) + BigInt(acc.escrow_total);
-    const ok = sum === BigInt(bal);
+    const held = BigInt(bal);
+    // The guarantee is that every unit owed is held. Anyone can `ft_transfer` USDC to the contract without
+    // `ft_on_transfer`, so the balance may exceed what is owed; that surplus is nobody's and harms no one.
+    const ok = held >= sum;
     const sold = offer.buyer ? `buyer ${offer.buyer}; premium ${offer.premium_units} credited to seller` : "not sold";
-    return [ok ? "verified" : "failed", `${sold}; contract holds ${bal} = claimable ${acc.claimable_total} + escrow ${acc.escrow_total}${ok ? "" : " (MISMATCH)"}`];
+    const surplus = held > sum ? `; ${held - sum} more was sent to it directly and is owed to no one` : "";
+    return [ok ? "verified" : "failed", `${sold}; contract holds ${bal}, owes claimable ${acc.claimable_total} + escrow ${acc.escrow_total}${ok ? surplus : " (SHORT)"}`];
   }));
 
   out.push(await guard(5, "State transitions and timestamps", async () => {
     const expiry = Number(offer.expiry_s);
-    if (offer.commitment_reason === "Expiry") {
+    const reason = offer.commitment_reason;
+    // What the state says must agree with the commitment, the buyer and the escrow.
+    if (NEEDS_COMMITMENT.includes(offer.state) && !reason) return ["failed", `state ${offer.state} without a commitment`];
+    if (NO_COMMITMENT.includes(offer.state) && reason) return ["failed", `state ${offer.state} with a ${reason} commitment`];
+    const finalFor: Record<string, string> = { Kept: "Expiry", Exercised: "Exercise", Withdrawn: "Withdraw" };
+    if (finalFor[offer.state] && finalFor[offer.state] !== reason) return ["failed", `state ${offer.state} but the commitment is for ${reason}`];
+    if ((reason === "Exercise" || reason === "Expiry" || ["Sold", "ExercisePending"].includes(offer.state)) && !offer.buyer) return ["failed", "sold, but no buyer recorded"];
+    if ((reason === "Withdraw" || ["Created", "Funded"].includes(offer.state)) && offer.buyer) return ["failed", `a buyer is recorded, but the offer is ${reason === "Withdraw" ? "withdrawn as unsold" : offer.state}`];
+    const escrow = BigInt(offer.escrow_units);
+    const escrowOk = reason === "Exercise" && (offer.state === "Committed" || offer.state === "Signed")
+      ? escrow === 0n || escrow === BigInt(offer.strike_total_units) // 0 once reclaimed after the timeout
+      : offer.state === "ExercisePending" ? escrow === BigInt(offer.strike_total_units) : escrow === 0n;
+    if (!escrowOk) return ["failed", `escrow of ${offer.escrow_units} does not fit state ${offer.state}`];
+    if (reason === "Expiry") {
       const t = Number(offer.committed_at_s);
       return [t >= expiry + params.grace_s ? "verified" : "failed", `settled ${utc(t)}, after the window closed ${utc(expiry + params.grace_s)}`];
     }
-    if (offer.commitment_reason === "Exercise") {
+    if (reason === "Exercise") {
       const t = Number(offer.committed_at_s);
       return [t >= expiry && t < expiry + params.grace_s ? "verified" : "failed", `exercised ${utc(t)}, inside the window ${utc(expiry)} – ${utc(expiry + params.grace_s).slice(11)}`];
     }
@@ -104,29 +133,44 @@ export async function runChecks(c: Clients, offer: Offer, params: Params, nowS: 
   }));
 
   out.push(await guard(6, "Committed transaction and signature", async () => {
-    if (!offer.commitment_txid) return ["verified", "nothing committed yet"];
-    const toScript = scriptFromAddress(offer.commitment_to_address!, net);
+    if (!offer.commitment_txid) return NEEDS_COMMITMENT.includes(offer.state) ? ["failed", `state ${offer.state}, but no committed transaction`] : ["verified", "nothing committed yet"];
     const expectedTo = offer.commitment_reason === "Exercise" ? offer.buyer_address : offer.refund_address;
-    if (offer.commitment_to_address !== expectedTo) return ["failed", `commitment pays ${offer.commitment_to_address}, expected ${expectedTo}`];
+    if (!expectedTo || offer.commitment_to_address !== expectedTo) return ["failed", `commitment pays ${offer.commitment_to_address}, expected ${expectedTo}`];
+    const toScript = scriptFromAddress(offer.commitment_to_address, net);
     const ws = hex.from(offer.witness_script);
     const fee = BigInt(offer.commitment_fee_sats ?? params.fee_sats);
+    if (params.max_fee_sats !== undefined && fee > BigInt(params.max_fee_sats)) return ["failed", `fee ${fee} sats is above the contract's cap of ${params.max_fee_sats}`];
     const r = buildSpend({ collateralTxid: offer.collateral_txid!, vout: offer.collateral_vout!, valueSats: BigInt(offer.collateral_value_sats!), witnessScript: ws, toScript, feeSats: fee });
     if (r.txid !== offer.commitment_txid || r.sighash !== offer.commitment_sighash) return ["failed", "rebuilt transaction differs from the commitment"];
-    if (!offer.signed_tx) return ["verified", `rebuilt ${r.txid.slice(0, 12)}…; not signed yet`];
-    const v = verifySignedTx(offer.signed_tx, r.sighash, hex.from(offer.derived_pubkey), ws);
+    if (!offer.signed_tx) return SIGNED.includes(offer.state) ? ["failed", `state ${offer.state}, but no signed transaction`] : ["verified", `rebuilt ${r.txid.slice(0, 12)}…; not signed yet`];
+    const v = verifySignedTx(offer.signed_tx, r.sighash, hex.from(offer.derived_pubkey), ws, r.unsignedHex);
     const bumped = offer.prior_txids?.length ? `; fee raised ${offer.prior_txids.length}× to ${fee} sats` : "";
     return [v.ok ? "verified" : "failed", v.ok ? `signature verifies against the derived key; pays ${r.amountSats} sats${bumped}` : v.reason!];
   }));
 
   out.push(await guard(7, "Bitcoin confirmation", async () => {
-    if (!offer.commitment_txid) return ["verified", "no settlement yet"];
     if (offer.state === "Rescued") return ["verified", "no settlement: the seller's rescue spent the coins on Bitcoin (check 3)"];
+    if (!offer.commitment_txid) return NEEDS_COMMITMENT.includes(offer.state) ? ["failed", `state ${offer.state}, but no committed transaction`] : ["verified", "no settlement yet"];
     let st = await c.btc.txStatus(offer.commitment_txid);
     for (const prior of offer.prior_txids ?? []) { if (st?.confirmed) break; const p = await c.btc.txStatus(prior); if (p?.confirmed) st = p; }
+    if (SETTLED.includes(offer.state)) {
+      // The contract finalised the offer on a proof: that proof's transaction must be buried as deep as it requires.
+      if (!st?.confirmed) return ["failed", `recorded as ${offer.state}, but no committed version is confirmed on Bitcoin`];
+      return [st.depth >= c.expected.minConf ? "verified" : "failed", `confirmed at depth ${st.depth}`];
+    }
     if (!st) return [offer.signed_tx ? "failed" : "verified", offer.signed_tx ? "signed but not seen on Bitcoin; broadcast it" : "not signed yet"];
     return [st.confirmed ? "verified" : "failed", st.confirmed ? `confirmed at depth ${st.depth}` : "in mempool"];
   }));
   return out;
 }
+
+/** Final states reached only by proving a committed settlement on Bitcoin. */
+const SETTLED = ["Kept", "Exercised", "Withdrawn"];
+/** States that exist only after the contract has signed a committed settlement. */
+const SIGNED = ["Signed", ...SETTLED];
+/** States that exist only once a settlement has been committed. */
+const NEEDS_COMMITMENT = ["Committed", ...SIGNED];
+/** States in which no settlement can have been committed. */
+const NO_COMMITMENT = ["Created", "Funded", "Sold", "ExercisePending", "Cancelled"];
 
 const utc = (t: number) => new Date(t * 1000).toISOString().slice(0, 19).replace("T", " ") + " UTC";

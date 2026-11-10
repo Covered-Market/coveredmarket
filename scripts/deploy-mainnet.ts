@@ -53,7 +53,7 @@ await cov.signAndSendTransaction({ receiverId: covId, actions: [actionCreators.d
 await cov.callFunction({ contractId: USDC, methodName: "storage_deposit", args: { account_id: covId, registration_only: true }, deposit: 1_250_000_000_000_000_000_000n, gas: 30n * TGAS });
 
 step("selftest_sign against the real MPC");
-const ok = await deployer.callFunction({ contractId: covId, methodName: "selftest_sign", args: {}, gas: 300n * TGAS });
+const ok = await deployer.callFunction({ contractId: covId, methodName: "selftest_sign", args: {}, deposit: BigInt(params.sign_deposit), gas: 300n * TGAS });
 if (ok !== true) { console.error(`selftest_sign returned ${JSON.stringify(ok)}. STOPPING: ${covId} keeps its key so it can be fixed or deleted.`); process.exit(1); }
 console.log("signature from v1.signer verified by the contract");
 

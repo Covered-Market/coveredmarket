@@ -3,7 +3,7 @@ import { btcAddr, btcTx, Ext } from "../Explorer";
 import { detectBtcWallets } from "../lib/btcwallets";
 import { PayHelpers } from "./PayHelpers";
 import { BlockWait } from "../ChainClock";
-import { downloadKit, loadKit } from "../lib/rescue";
+import { downloadKit, kitFor } from "../lib/rescue";
 import { useEffect, useMemo, useState } from "react";
 import { encode } from "uqr";
 import { btc8, C } from "../ds";
@@ -52,10 +52,20 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
             {seen && <span className="body-small">Seen: <Ext href={btcTx(seen.txid)}>{seen.txid}</Ext> · {seen.confirmed ? `${seen.depth} confirmation${seen.depth === 1 ? "" : "s"}` : "in the mempool"}</span>}
           </div>
         </div>
-        {(() => { const k = loadKit(serial); return k && !k.downloaded ? (
-          <div style={{ padding: "12px 16px", border: "1px solid var(--gilt)", background: "var(--paper-raised)", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }} className="body-small">
-            <b>Save your rescue kit first.</b> It is your way out if NEAR ever stops. <Button size="sm" variant="primary" onClick={() => { downloadKit(k.kit); location.reload(); }}>Download rescue kit</Button>
-          </div>) : null; })()}
+        {(() => {
+          let k: ReturnType<typeof kitFor> = null;
+          try { k = kitFor(offer); } catch {}
+          if (k && !k.downloaded) return (
+            <div style={{ padding: "12px 16px", border: "1px solid var(--gilt)", background: "var(--paper-raised)", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }} className="body-small">
+              <b>Save your rescue kit first.</b> It is your way out if NEAR ever stops. <Button size="sm" variant="primary" onClick={() => { downloadKit(k!.kit); location.reload(); }}>Download rescue kit</Button>
+            </div>);
+          // The seller, in a browser that holds no kit and no key for this offer: say so before any coins move.
+          if (!k && offer.state === "Created" && wallet?.accountId === offer.seller) return (
+            <div style={{ padding: "12px 16px", border: "1px solid var(--oxblood)", background: "var(--paper-raised)" }} className="body-small">
+              <b>No rescue kit for CV-{serial} in this browser.</b> If you saved its kit file, keep it safe and deposit. If you did not, this offer has no exit that works without NEAR: cancel it and create a new one instead of depositing.
+            </div>);
+          return null;
+        })()}
         {offer.state === "Created" && <PayHelpers serial={serial} address={offer.address} sats={Number(offer.size_sats)} wallets={detectBtcWallets()} />}
         <Notice>Send from a wallet you control, in one output, the exact amount. Any other amount does not fund the offer; the contract can still return it to {offer.refund_address} through its recover method, with a Bitcoin inclusion proof.</Notice>
       </div>

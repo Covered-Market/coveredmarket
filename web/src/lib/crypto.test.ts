@@ -26,6 +26,12 @@ describe("derivation matches the contract", () => {
     expect(addressFromScript(s, "Regtest")).toBe(vectors.address_regtest);
     expect(() => scriptFromAddress(vectors.address_regtest, "Mainnet")).toThrow();
   });
+  it("refuses v0 programs that are not 20 or 32 bytes", async () => {
+    const { bech32 } = await import("@scure/base");
+    const enc = (n: number) => bech32.encode("bcrt", [0, ...bech32.toWords(new Uint8Array(n).fill(7))], 90);
+    expect(scriptFromAddress(enc(32), "Regtest").length).toBe(34);
+    for (const n of [2, 19, 21, 33, 40]) expect(() => scriptFromAddress(enc(n), "Regtest"), `${n} bytes`).toThrow(/20 or 32 bytes/);
+  });
 });
 
 describe("derivation matches the live testnet signer", () => {
@@ -49,13 +55,21 @@ describe("BIP-143 matches the contract", () => {
     expect(r.sighash).toBe(vectors.sighash);
   });
   it("accepts the contract's signed settlement (MPC branch of the deposit script)", () => {
-    expect(verifySignedTx(vectors.signed_tx, vectors.sighash, hex.from(vectors.derived_pubkey), hex.from(vectors.witness_script))).toEqual({ ok: true });
+    expect(verifySignedTx(vectors.signed_tx, vectors.sighash, hex.from(vectors.derived_pubkey), hex.from(vectors.witness_script), vectors.unsigned_tx)).toEqual({ ok: true });
   });
   it("rejects it against another key, another script or another sighash", () => {
     const ws = hex.from(vectors.witness_script);
-    expect(verifySignedTx(vectors.signed_tx, vectors.sighash, hex.from("02" + "44".repeat(32)), ws).ok).toBe(false);
+    expect(verifySignedTx(vectors.signed_tx, vectors.sighash, hex.from("02" + "44".repeat(32)), ws, vectors.unsigned_tx).ok).toBe(false);
     const other = ws.slice(); other[other.length - 3] ^= 1;
-    expect(verifySignedTx(vectors.signed_tx, vectors.sighash, hex.from(vectors.derived_pubkey), other).ok).toBe(false);
-    expect(verifySignedTx(vectors.signed_tx, "00".repeat(32), hex.from(vectors.derived_pubkey), ws).ok).toBe(false);
+    expect(verifySignedTx(vectors.signed_tx, vectors.sighash, hex.from(vectors.derived_pubkey), other, vectors.unsigned_tx).ok).toBe(false);
+    expect(verifySignedTx(vectors.signed_tx, "00".repeat(32), hex.from(vectors.derived_pubkey), ws, vectors.unsigned_tx).ok).toBe(false);
+  });
+  it("rejects a signed tx whose body is not the committed one, or that carries extra bytes", () => {
+    const ws = hex.from(vectors.witness_script), pk = hex.from(vectors.derived_pubkey);
+    // same valid witness, but the output amount (first byte after version/marker/flag/1 input/1 output count) changed
+    const b = hex.from(vectors.signed_tx); const amt = 4 + 2 + 1 + 36 + 1 + 4 + 1; b[amt] ^= 1;
+    expect(verifySignedTx(hex.to(b), vectors.sighash, pk, ws, vectors.unsigned_tx)).toMatchObject({ ok: false, reason: "signed transaction body differs from the committed transaction" });
+    expect(verifySignedTx(vectors.signed_tx + "00", vectors.sighash, pk, ws, vectors.unsigned_tx).ok).toBe(false);
+    expect(verifySignedTx(vectors.signed_tx.slice(0, -10), vectors.sighash, pk, ws, vectors.unsigned_tx).ok).toBe(false);
   });
 });

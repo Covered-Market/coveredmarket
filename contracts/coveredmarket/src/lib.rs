@@ -30,6 +30,10 @@ const GAS_CB_SIGN: Gas = Gas::from_tgas(30);
 /// The exercise callback only records the commitment (no `sign` inside the token's call chain).
 const GAS_CB_COMMIT: Gas = Gas::from_tgas(30);
 const RETRY_DELAY_S: u64 = 600;
+/// State an offer adds after `create_offer` (deposit proof, buyer, commitment, signed tx, fee-bump history),
+/// prepaid by the seller at creation so later permissionless calls never draw on the contract's own NEAR.
+/// `offer_growth_after_creation_fits_the_prepaid_reserve` pins it above the worst case.
+pub const POST_CREATE_STORAGE_BYTES: u64 = 3_072;
 /// Reserved derivation path for `selftest_sign`; offers use `<seller>/CV-<serial>`.
 const SELFTEST_PATH: &str = "coveredmarket/selftest";
 const DUST_SATS: u64 = 546;
@@ -259,6 +263,8 @@ pub struct Contract {
     claimable_total: u128,
     escrow_total: u128,
     recoveries: LookupMap<(u64, Outpoint), Commitment>,
+    /// Accounts `claim` has already paid the token's storage registration for: paid at most once each.
+    registered: LookupSet<AccountId>,
 }
 
 fn now_s() -> u64 {
@@ -295,6 +301,7 @@ impl Contract {
             claimable_total: 0,
             escrow_total: 0,
             recoveries: LookupMap::new(b"r"),
+            registered: LookupSet::new(b"g"),
         }
     }
 
@@ -362,7 +369,8 @@ impl Contract {
         self.offers.insert(serial, offer);
         self.created.insert(serial);
         self.index_account(&seller, serial);
-        self.charge_storage(storage_before, self.params.usdc_storage_deposit);
+        let growth = env::storage_byte_cost().saturating_mul(POST_CREATE_STORAGE_BYTES as u128);
+        self.charge_storage(storage_before, self.params.usdc_storage_deposit.saturating_add(growth));
         events::emit("offer_created", serial, serde_json::json!({ "seller": seller }));
         serial
     }
@@ -823,21 +831,33 @@ impl Contract {
         require!(amount > 0, "nothing to claim");
         self.claimable.insert(who.clone(), 0);
         self.claimable_total -= amount;
-        // NEP-145: a token like Circle's USDC only pays registered accounts. Register the payee
-        // (refunded by the token if already registered), paid from the reserve each offer keeps.
-        ext::ext_storage::ext(self.params.usdc.clone())
-            .with_attached_deposit(self.params.usdc_storage_deposit)
-            .with_static_gas(GAS_STORAGE_DEPOSIT)
-            .storage_deposit(Some(who.clone()), Some(true))
-            .then(ext_ft::ext(self.params.usdc.clone())
+        let transfer = ext_ft::ext(self.params.usdc.clone())
             .with_attached_deposit(NearToken::from_yoctonear(1))
             .with_static_gas(GAS_FT_TRANSFER)
-            .ft_transfer(who.clone(), U128(amount), Some("coveredmarket claim".into())))
-            .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SMALL).on_claim(who, U128(amount)))
+            .ft_transfer(who.clone(), U128(amount), Some("coveredmarket claim".into()));
+        // NEP-145: a token like Circle's USDC only pays registered accounts. Register the payee once,
+        // paid from the reserve each offer keeps (refunded by the token if already registered). An
+        // account that later unregisters itself registers again on its own: a failed transfer is
+        // credited back, so nothing is lost, and the reserve cannot be drained by repeated claims.
+        let first = !self.registered.contains(&who);
+        let paid = if first {
+            ext::ext_storage::ext(self.params.usdc.clone())
+                .with_attached_deposit(self.params.usdc_storage_deposit)
+                .with_static_gas(GAS_STORAGE_DEPOSIT)
+                .storage_deposit(Some(who.clone()), Some(true))
+                .then(transfer)
+        } else {
+            transfer
+        };
+        paid.then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SMALL).on_claim(who, U128(amount), first))
     }
 
     #[private]
-    pub fn on_claim(&mut self, who: AccountId, amount: U128, #[callback_result] r: Result<(), PromiseError>) -> bool {
+    pub fn on_claim(&mut self, who: AccountId, amount: U128, registered_now: bool, #[callback_result] r: Result<(), PromiseError>) -> bool {
+        if registered_now {
+            // The registration deposit was spent whether or not the transfer then succeeded.
+            self.registered.insert(who.clone());
+        }
         if r.is_err() {
             self.credit(&who, amount.0);
             events::emit("claim_failed", 0, serde_json::json!({ "account": who }));
@@ -851,7 +871,16 @@ impl Contract {
     /// fixed constant under a reserved path (never an offer's `<account>/CV-<n>`, so its key holds no
     /// coins) and verify the answer against the key this contract derives for that path. Permissionless;
     /// the deploy script runs it before deleting the contract's key, and it can be re-run any time.
+    /// The caller pays the signer's deposit (attach at least `sign_deposit`; any excess is returned),
+    /// so running it never spends the NEAR the contract keeps for settlements.
+    #[payable]
     pub fn selftest_sign(&mut self) -> Promise {
+        let need = self.params.sign_deposit;
+        let got = env::attached_deposit();
+        require!(got >= need, "attach sign_deposit: the caller pays for the selftest signature");
+        if got > need {
+            let _ = Promise::new(env::predecessor_account_id()).transfer(got.saturating_sub(need));
+        }
         let digest: [u8; 32] = near_sdk::env::sha256_array(b"coveredmarket selftest");
         self.sign_promise(SELFTEST_PATH, digest)
             .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SMALL).on_selftest_signed())

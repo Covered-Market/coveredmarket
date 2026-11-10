@@ -26,22 +26,42 @@ export function buildSpend(s: Spend) {
   return { unsignedHex: hex.to(unsigned), txid, sighash, amountSats: amount };
 }
 
+/** A segwit transaction split into its non-witness serialization (what the txid commits to) and its witness stacks. */
+export function parseSegwitTx(b: Uint8Array): { stripped: Uint8Array; witnesses: Uint8Array[][] } {
+  let o = 0;
+  const need = (n: number) => { if (n < 0 || o + n > b.length) throw new Error("truncated transaction"); };
+  const take = (n: number) => { need(n); const s = b.slice(o, o + n); o += n; return s; };
+  const vi = () => { need(1); const f = b[o++]; if (f < 0xfd) return f; if (f === 0xfd) { need(2); const v = b[o] | (b[o + 1] << 8); o += 2; return v; } throw new Error("oversized varint"); };
+  const version = take(4);
+  if (take(2).join() !== "0,1") throw new Error("not segwit");
+  const bodyStart = o;
+  const nIn = vi();
+  for (let i = 0; i < nIn; i++) { take(36); take(vi()); take(4); }
+  const nOut = vi();
+  for (let i = 0; i < nOut; i++) { take(8); take(vi()); }
+  const body = b.slice(bodyStart, o);
+  const witnesses: Uint8Array[][] = [];
+  for (let i = 0; i < nIn; i++) { const n = vi(); const items: Uint8Array[] = []; for (let j = 0; j < n; j++) items.push(take(vi())); witnesses.push(items); }
+  const locktime = take(4);
+  if (o !== b.length) throw new Error("trailing bytes after the locktime");
+  return { stripped: cat(version, body, locktime), witnesses };
+}
+
 /**
- * Parse the witness of a signed one-input tx and check it is the MPC branch of `witnessScript`:
- * `[DER(sig)||01, 01, witnessScript]`, the script's first key is `pubkey33`, and the signature verifies over `sighash`.
+ * Check a signed settlement end to end: its non-witness body is exactly `unsignedHex` (the transaction rebuilt
+ * from the commitment: same input, same single output, same fee, same locktime), it has one input whose witness
+ * is the MPC branch of `witnessScript` (`[DER(sig)||01, 01, witnessScript]`), the script's first key is `pubkey33`,
+ * and the signature verifies over `sighash`.
  */
-export function verifySignedTx(signedHex: string, sighash: string, pubkey33: Uint8Array, witnessScript: Uint8Array): { ok: boolean; reason?: string } {
-  const b = hex.from(signedHex);
-  if (!(b[4] === 0 && b[5] === 1)) return { ok: false, reason: "not segwit" };
-  // version(4) marker(2) nIn(1) prevout(36) scriptlen(1=0) seq(4) nOut(1) value(8) scriptlen(1) script … witness … locktime
-  let o = 6 + 1 + 36 + 1 + 4 + 1 + 8;
-  const sl = b[o]; o += 1 + sl;
-  const nItems = b[o]; o += 1;
-  if (nItems !== 3) return { ok: false, reason: "witness must be [sig, 01, witness script]" };
-  const sigLen = b[o]; const sig = b.slice(o + 1, o + 1 + sigLen); o += 1 + sigLen;
-  const selLen = b[o]; const sel = b.slice(o + 1, o + 1 + selLen); o += 1 + selLen;
-  const wsLen = b[o]; const ws = b.slice(o + 1, o + 1 + wsLen);
-  if (!(selLen === 1 && sel[0] === 1)) return { ok: false, reason: "not the MPC branch" };
+export function verifySignedTx(signedHex: string, sighash: string, pubkey33: Uint8Array, witnessScript: Uint8Array, unsignedHex: string): { ok: boolean; reason?: string } {
+  let p: ReturnType<typeof parseSegwitTx>;
+  try { p = parseSegwitTx(hex.from(signedHex)); } catch (e) { return { ok: false, reason: (e as Error).message }; }
+  if (hex.to(p.stripped) !== unsignedHex) return { ok: false, reason: "signed transaction body differs from the committed transaction" };
+  if (p.witnesses.length !== 1) return { ok: false, reason: "must spend exactly one input" };
+  const w = p.witnesses[0];
+  if (w.length !== 3) return { ok: false, reason: "witness must be [sig, 01, witness script]" };
+  const [sig, sel, ws] = w;
+  if (!(sel.length === 1 && sel[0] === 1)) return { ok: false, reason: "not the MPC branch" };
   if (hex.to(ws) !== hex.to(witnessScript)) return { ok: false, reason: "witness script is not the deposit script" };
   if (hex.to(ws.slice(2, 35)) !== hex.to(pubkey33)) return { ok: false, reason: "script key is not the derived key" };
   if (sig[sig.length - 1] !== 1) return { ok: false, reason: "sighash type must be ALL" };

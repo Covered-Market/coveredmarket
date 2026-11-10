@@ -51,8 +51,38 @@ export function makeKit(offer: { serial: number; address: string; witness_script
 }
 
 const key = (serial: number) => `coveredmarket.rescue.${CFG.contract}.${serial}`;
-export function storeKit(kit: RescueKit) { try { localStorage.setItem(key(kit.serial), JSON.stringify({ kit, downloaded: false })); } catch {} }
+const pendingKey = (pubHex: string) => `coveredmarket.rescue-pending.${CFG.contract}.${pubHex}`;
+
+/**
+ * Keep a fresh rescue key in this browser before `create_offer` is sent. The offer is created with only the public
+ * half; if the page is reloaded, a wallet redirects, or reading the new offer back fails, the private half must
+ * still be here to make the kit. Returns false when the browser will not store it (the caller must warn).
+ */
+export function storePendingKey(priv: Uint8Array): boolean {
+  try { localStorage.setItem(pendingKey(hex.to(secp.getPublicKey(priv, true))), hex.to(priv)); return true; } catch { return false; }
+}
+function takePendingKey(pubHex: string): Uint8Array | null {
+  try { const h = localStorage.getItem(pendingKey(pubHex)); return h ? hex.from(h) : null; } catch { return null; }
+}
+export function storeKit(kit: RescueKit): boolean {
+  try {
+    localStorage.setItem(key(kit.serial), JSON.stringify({ kit, downloaded: false }));
+    localStorage.removeItem(pendingKey(kit.rescue_public_key)); // now held in the kit itself
+    return true;
+  } catch { return false; }
+}
 export function loadKit(serial: number): { kit: RescueKit; downloaded: boolean } | null { try { return JSON.parse(localStorage.getItem(key(serial)) ?? "null"); } catch { return null; } }
+
+/** The kit for `offer` from this browser: a stored kit, or one rebuilt from a pending key that matches the offer's rescue key. */
+export function kitFor(offer: Parameters<typeof makeKit>[0]): { kit: RescueKit; downloaded: boolean } | null {
+  const have = loadKit(offer.serial);
+  if (have) return have;
+  const priv = takePendingKey(offer.rescue_pubkey);
+  if (!priv) return null;
+  const kit = makeKit(offer, priv);
+  storeKit(kit);
+  return { kit, downloaded: false };
+}
 export function downloadKit(kit: RescueKit) {
   const blob = new Blob([JSON.stringify(kit, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
