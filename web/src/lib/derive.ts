@@ -55,6 +55,8 @@ export function scriptFromAddress(addr: string, net: Net): Uint8Array {
   const [v, ...rest] = d.words;
   if (v !== 0) throw new Error("only v0 witness programs");
   const prog = bech32.fromWords(rest);
+  // BIP-141: a v0 program is a 20-byte key hash or a 32-byte script hash; any other length is unspendable.
+  if (prog.length !== 20 && prog.length !== 32) throw new Error(`a v0 witness program is 20 or 32 bytes, not ${prog.length}`);
   return new Uint8Array([0x00, prog.length, ...prog]);
 }
 export function deriveAddress(rootKeyHex: string, prefix: string, predecessor: string, path: string, net: Net): string {

@@ -14,7 +14,7 @@ import { KeyPairSigner } from "@near-js/signers";
 import { actionCreators } from "@near-js/transactions";
 import { readFileSync, writeFileSync } from "node:fs";
 import { buildProof, esplora, lcArgsV2, txidOf } from "../relayer/src/btc/proof.ts";
-import { verifySignedTx } from "../web/src/lib/bip143.ts";
+import { buildSpend, verifySignedTx } from "../web/src/lib/bip143.ts";
 import { addressFromScript, depositWitnessScript, hex, p2wpkhScript, p2wshScript, parseRootKey, scriptFromAddress } from "../web/src/lib/derive.ts";
 import * as secp from "@noble/secp256k1";
 
@@ -90,7 +90,7 @@ await call(coveredmarket, usdc.id, "storage_deposit", {}, 10n ** 22n, 30n);
 await call(usdc, usdc.id, "mint", { account_id: buyer.id, amount: "1000000000000" }, 0n, 30n);
 log("deployed coveredmarket with the real signer; root key", rootKey.slice(0, 24) + "…");
 // The deploy-time check the mainnet script relies on: the contract's own sign path, end to end, against the real MPC.
-const selftest = await call(seller, coveredmarket.id, "selftest_sign", {}, 0n, 300n);
+const selftest = await call(seller, coveredmarket.id, "selftest_sign", {}, BigInt(tuned.sign_deposit), 300n);
 if (selftest !== true) throw new Error(`selftest_sign returned ${JSON.stringify(selftest)}`);
 log("selftest_sign: the real MPC signed for the contract and the signature verified on chain");
 report.selftest_sign = true;
@@ -125,7 +125,10 @@ async function signedAndValid(serial: number, label: string, by: U) {
     if (x.state === "Committed" && x.retry_after_s && (await chainNow()) >= Number(x.retry_after_s)) { log(`CV-${serial} still Committed; re-requesting the same sighash`); await signing(by, "request_signature", { serial }); }
     return null;
   }, 420_000);
-  const v = verifySignedTx(o.signed_tx, o.commitment_sighash, Buffer.from(o.derived_pubkey, "hex"), Buffer.from(o.witness_script, "hex"));
+  const net = o.commitment_to_address.startsWith("bcrt1") ? "Regtest" : o.commitment_to_address.startsWith("bc1") ? "Mainnet" : "Testnet4";
+  const rebuilt = buildSpend({ collateralTxid: o.collateral_txid, vout: o.collateral_vout, valueSats: BigInt(o.collateral_value_sats), witnessScript: Buffer.from(o.witness_script, "hex"), toScript: scriptFromAddress(o.commitment_to_address, net), feeSats: BigInt(o.commitment_fee_sats) });
+  if (rebuilt.sighash !== o.commitment_sighash) throw new Error(`${label}: rebuilt sighash differs from the commitment`);
+  const v = verifySignedTx(o.signed_tx, o.commitment_sighash, Buffer.from(o.derived_pubkey, "hex"), Buffer.from(o.witness_script, "hex"), rebuilt.unsignedHex);
   if (!v.ok) throw new Error(`${label}: MPC signature does not verify: ${v.reason}`);
   log(`CV-${serial} ${label}: real MPC signature verifies against the derived key; tx ${o.commitment_txid}`);
   report[label] = { serial, txid: o.commitment_txid, sighash: o.commitment_sighash, signed_tx: o.signed_tx };

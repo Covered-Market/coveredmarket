@@ -59,10 +59,14 @@ export function plan(offers: OfferView[], params: Params, chain: ChainView, nowS
           break;
         }
         const depth = chain.depthOf[o.commitment_txid ?? ""];
+        if (depth !== undefined && depth >= params.min_conf) { out.push({ kind: "confirm_spend", serial: o.serial, txid: o.commitment_txid! }); break; }
         if (depth === undefined && o.signed_tx) out.push({ kind: "broadcast", serial: o.serial, raw: o.signed_tx });
-        else if (depth !== undefined && depth >= params.min_conf) out.push({ kind: "confirm_spend", serial: o.serial, txid: o.commitment_txid! });
-        else if (depth === 0 && params.fee_bump_after_s !== undefined && nowS >= Number(o.signed_at_s ?? Infinity) + params.fee_bump_after_s && Number(o.commitment_fee_sats ?? 0) < Number(params.max_fee_sats ?? 0))
-          out.push({ kind: "bump_fee", serial: o.serial }); // stuck in the mempool: re-sign with double the fee
+        // Unconfirmed past fee_bump_after_s: re-sign with double the fee. That covers a version stuck in the mempool
+        // (depth 0) and one nodes refused or evicted for its fee (not in the mempool at all, so re-broadcasting the
+        // same bytes can never help).
+        const bumpDue = params.fee_bump_after_s !== undefined && nowS >= Number(o.signed_at_s ?? Infinity) + params.fee_bump_after_s;
+        if ((depth === undefined || depth === 0) && bumpDue && Number(o.commitment_fee_sats ?? 0) < Number(params.max_fee_sats ?? 0))
+          out.push({ kind: "bump_fee", serial: o.serial });
         break;
       }
     }

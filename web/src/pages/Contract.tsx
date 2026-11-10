@@ -5,7 +5,7 @@ import { runChecks, type CheckResult } from "../lib/verify";
 import { stampFor, useOffer, useParams } from "./hooks";
 import { btcAddr, btcTx, Ext, nearAcct, OnChainRecord } from "../Explorer";
 import { BlockWait } from "../ChainClock";
-import { downloadKit, loadKit } from "../lib/rescue";
+import { downloadKit, kitFor } from "../lib/rescue";
 
 export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | null }) {
   const { Certificate, Button, Countdown, StatTile, SettlementTimeline, Notice, Figure, Stamp } = C();
@@ -57,7 +57,7 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
           <Button onClick={() => navigator.clipboard.writeText(location.href)}>Copy link</Button>
           {isSeller && offer.state === "Funded" && <Button variant="danger" disabled={busy} onClick={() => act("withdraw", { serial })}>Withdraw coins</Button>}
           {isSeller && offer.state === "Created" && <Button href={`#/deposit/${serial}`}>Deposit instructions</Button>}
-          {isSeller && loadKit(serial) && <Button onClick={() => downloadKit(loadKit(serial)!.kit)}>Rescue kit</Button>}
+          {isSeller && (() => { let k: ReturnType<typeof kitFor> = null; try { k = kitFor(offer); } catch {} return k ? <Button onClick={() => downloadKit(k!.kit)}>Rescue kit</Button> : null; })()}
           {isBuyer && offer.state === "Sold" && windowOpen && <Button variant="primary" disabled={busy} onClick={exercise}>Exercise · pay {usd(offer.strike_total_units)}</Button>}
           {isBuyer && offer.escrow_units !== "0" && now >= reclaimFrom && <Button disabled={busy} onClick={() => act("reclaim_strike", { serial })}>Reclaim strike</Button>}
           {offer.state === "Sold" && now >= expiry + grace && <Button disabled={busy || !wallet} onClick={() => act("settle", { serial })}>Settle</Button>}
