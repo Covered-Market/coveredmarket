@@ -241,3 +241,18 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 .lg-links { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; font-size: 14px; }
 .lg-links a { color: var(--ink); }
 @media (max-width: 599px) { .lg { padding-top: 32px; } }
+
+/* Mainnet waitlist (pages/Waitlist.tsx), on the landing page and the Updates page */
+.wl-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; align-self: center; width: 100%; max-width: 560px; }
+.wl-field { flex: 1 1 240px; display: flex; flex-direction: column; gap: 6px; }
+.wl-field input { min-height: 48px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: 2px; background: var(--paper-raised, var(--paper)); color: var(--ink); font: 400 16px/1 var(--font-sans); }
+.wl-note { flex: 1 1 100%; margin: 0; }
+.wl-done { flex-direction: column; align-items: flex-start; gap: 8px; }
+.wl-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.wl-note a, .lg .wl-note a { color: var(--intaglio); }
+@media (max-width: 599px) { .wl-form > .ld-btn { flex: 1 1 100%; } }
+
+/* Updates (pages/Updates.tsx): the date beside each entry on wide screens, above it on phones */
+.up-entry { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 0 24px; }
+.up-date { margin: 6px 0 8px !important; font-size: 13px !important; }
+@media (max-width: 599px) { .up-entry { grid-template-columns: minmax(0, 1fr); } }

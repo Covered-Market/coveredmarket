@@ -74,6 +74,10 @@ jobs:
         if: env.ACTION != 'destroy'
         env:
           RESET_CONTRACT: ${{ env.ACTION == 'reset-contract' && '1' || '' }}
+          # The mainnet waitlist's inbox (relayer/src/waitlist.ts). Optional: unset, the VM keeps the login it has.
+          IMAP_PASS: ${{ secrets.WAITLIST_IMAP_PASS }}
+          IMAP_USER: ${{ vars.WAITLIST_IMAP_USER }}
+          IMAP_HOST: ${{ vars.WAITLIST_IMAP_HOST }}
         run: bin/coveredmarket deploy
       - name: save terraform state
         if: always()

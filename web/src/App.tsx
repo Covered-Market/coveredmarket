@@ -11,6 +11,7 @@ import { Sell } from "./pages/Sell";
 import { Portfolio, usePortfolio } from "./pages/Portfolio";
 import { Landing } from "./pages/Landing";
 import { Legal, LegalLinks } from "./pages/Legal";
+import { Updates } from "./pages/Updates";
 import { NetworkBand, NotLive } from "./Network";
 import { ChainClock } from "./ChainClock";
 
@@ -31,6 +32,7 @@ export function App() {
 function Website() {
   const { path, parts } = useRoute();
   if (parts[0] === "terms" || parts[0] === "privacy") return <Legal doc={parts[0]} />;
+  if (parts[0] === "updates") return <Updates />;
   if (path && CFG.testnetUrl) { location.replace(`${CFG.testnetUrl}/${location.hash}`); return null; }
   return <Landing />;
 }
@@ -90,6 +92,7 @@ function AppShell() {
   // With a separate website the app's own `/` is the market; on the local stack `/` is still the landing page.
   if (page === "home" && !CFG.siteUrl) return <Landing />;
   if (page === "terms" || page === "privacy") return <Legal doc={page} />;
+  if (page === "updates") return <Updates />;
   const content = CFG.disabled ? <NotLive /> : (() => {
     switch (page) {
       case "market": return <Market />;

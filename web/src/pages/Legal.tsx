@@ -66,6 +66,7 @@ function Privacy() {
       <Sec n={1} title="What our servers receive">
         <p>The website and app are static files served from DigitalOcean. Our web server does not keep access logs.</p>
         <p>The relayer receives what the app sends it to do its job: your NEAR account name, the transactions you have signed, requests for test funds, and the Bitcoin addresses and transaction ids of offers. Its logs record when a transaction was relayed or test funds were sent, with the account, addresses and amounts involved. We use these logs to run and debug the service.</p>
+        <p>If you join the mainnet waitlist, the relayer also receives your email address. Section 6 says what we do with it.</p>
         <p>To stop abuse of test funds, the relayer keeps your IP address in memory for up to an hour. It is not written to the logs.</p>
       </Sec>
       <Sec n={2} title="What stays in your browser">
@@ -88,6 +89,7 @@ function Privacy() {
       </Sec>
       <Sec n={6} title="Your choices">
         <p>You can use the market without connecting a wallet. You can ask us what our logs hold about your account, or ask us to delete it, at <Mail />. We cannot change or delete anything on a blockchain. If you write to us, we keep your email to answer it.</p>
+        <p>If you join the mainnet waitlist, the relayer stores your email address with the time you joined and which page you used, and forwards it to our inbox. It does not store your IP address with it. We use the address only to tell you when mainnet opens, never share it, and delete it when you ask at <Mail />.</p>
       </Sec>
       <Sec n={7} title="Changes">
         <p>If we start collecting anything new, we will update this page first. The date at the top shows when it last changed.</p>
@@ -118,7 +120,7 @@ export function Legal({ doc }: { doc: "terms" | "privacy" }) {
 
 /** A plain footer row with both documents, for the app and these pages. */
 export function LegalLinks({ inline }: { inline?: boolean }) {
-  const links = <><a href="#/terms">Terms</a><a href="#/privacy">Privacy</a></>;
+  const links = <><a href="#/updates">Updates</a><a href="#/terms">Terms</a><a href="#/privacy">Privacy</a></>;
   if (inline) return <span className="lg-links">{links}</span>;
   return <footer className="ld-foot"><div className="ld-wrap lg-links">{links}<span className="ld-muted">CoveredMarket runs on test coins only.</span></div></footer>;
 }
