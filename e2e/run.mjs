@@ -148,11 +148,16 @@ page.on("dialog", (d) => { errors.push("dialog: " + d.message()); d.dismiss(); }
 const relayedBefore = (await (await fetch(`${WEB}/api/health`)).json()).relayed;
 const refund = (await (await fetch(`${WEB}/btc/dev/address`, { method: "POST" })).json()).address;
 const offersBefore = (await view("get_account_offers", { account: astrid.id })).length;
+await page.evaluate(() => sessionStorage.removeItem("coveredmarket.sell.draft"));
 await page.goto(`${WEB}/#/sell`); await page.reload(); await page.waitForTimeout(1500);
+// Sell is a flow, one question per screen: size, strike, expiry (the default pick), premium, return address, review.
 const field = (t) => page.locator("label.cv-field", { hasText: t }).locator("input");
-await field("Size").fill("0.002"); await field("Strike").fill("150000"); await field("Premium you ask").fill("25"); await field("Return coins to").fill(refund);
+const button = (name) => page.getByRole("button", { name, exact: true });
+const answer = async (label, value, go = "Continue") => { if (label) await field(label).fill(value); await button(go).click(); };
+await answer("Size", "0.002"); await answer("Strike", "150000"); await answer(null); await answer("Premium", "25"); await answer("Return coins to", refund, "Review");
+await page.getByRole("heading", { name: "Review and confirm" }).waitFor({ timeout: 10_000 });
 const kitDownload = page.waitForEvent("download", { timeout: 60_000 });
-await page.getByRole("button", { name: "Continue to deposit" }).click();
+await button("Confirm and create offer").click();
 try { await until("UI offer on chain and deposit page shown", async () => /#\/deposit\/\d+/.test(page.url()), 60_000); }
 catch (e) { await page.screenshot({ path: `${ART}sell-failed.png`, fullPage: true }); throw new Error(`${e.message}; url ${page.url()}; console: ${consoleWarn.join(" | ")}; errors: ${errors.join(" | ")}`); }
 const relayedAfter = (await (await fetch(`${WEB}/api/health`)).json()).relayed;
