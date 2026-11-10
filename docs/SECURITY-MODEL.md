@@ -21,7 +21,8 @@ What you are **not** trusting: us. The relayer and the website only relay proofs
 
 - **No third-party spend.** No person, server or key outside the MPC threshold can sign for a deposit address. The operator cannot move coins.
 - **Coins return.** Unsold, the seller can withdraw. Sold and not exercised, anyone can settle after the window, and the coins go back to the seller. If NEAR or the MPC network stops, the seller's own rescue key can sweep them on Bitcoin after the timelock.
-- **Exercise is payment.** Coins go to the buyer only in the same receipt where the buyer paid at least the full strike, inside the window.
+- **Exercise is payment.** A delivery to the buyer is committed only in a receipt where the buyer paid at least the full strike, inside the window. The strike then sits in escrow and moves by proof: to the seller when the delivery is proven on Bitcoin (`confirm_spend`), back to the buyer when the seller's rescue spend is proven instead (`confirm_rescue`). Without either proof the buyer can reclaim it only after the seller's exit has been open for the whole escrow timeout (`unlock + escrow_timeout`), so the buyer can never take the strike back while the seller still has no way to take the coins back.
+- **Exercise does not need the light client.** By default the contract re-checks the deposit's depth and refunds the strike if the light client cannot confirm it. The buyer may instead pay with `skip_depth_check`, which commits the delivery in the payment receipt; a paused or pruned light client cannot cost the buyer the option.
 - **Purchase is final.** The premium is credited to the seller in the receipt that records the buyer.
 - **One spend per deposit.** A settlement is committed once, before the first signature request, and never replaced.
 - **Public verifiability.** Each guarantee maps to a Verify check that reads Bitcoin and NEAR directly, with no CoveredMarket server in the loop.
@@ -39,7 +40,7 @@ What you are **not** trusting: us. The relayer and the website only relay proofs
 Every certificate page has a **Verify** button. It reads only public Bitcoin and NEAR RPCs:
 
 1. Deployed code hash and configuration match this repository; the contract has no access keys.
-2. The deposit address derives from the contract account and the offer's path on `v1.signer`.
+2. The deposit address derives from the contract account and the offer's path on `v1.signer`, and the root key the contract derives from is the one the signer itself reports (`public_key`).
 3. The deposit is included on Bitcoin and its current state is what the contract says.
 4. Payment receipts add up: what the contract holds equals what it owes.
 5. State transitions happened in order and at the right times.
@@ -68,7 +69,7 @@ In `contracts/coveredmarket/src/lib.rs`: `commit_and_sign`, `accept_signature`, 
 1. A commitment (recipient script, unsigned tx, sighash, txid) is written once, before the first `sign`, and never replaced; retries re-request the same sighash.
 2. The committed tx spends exactly the collateral outpoint to exactly one output: the seller's refund script, or the buyer's script only when `reason == Exercise`. A fee bump changes only the fee (within `max_fee_sats`), never the input or the recipient.
 3. A signature is accepted only if it verifies against the derived key for the committed sighash.
-4. USDC enters only via `ft_on_transfer` from the pinned token with `sender_id` as the acting party; it leaves only via `claim` / `reclaim_strike` to the owner of the balance. `get_accounting()` equals the token balance.
+4. USDC enters only via `ft_on_transfer` from the pinned token with `sender_id` as the acting party; it leaves only via `claim` to the owner of the balance; escrow becomes a claimable balance only through `confirm_spend` (seller), `confirm_rescue` or `reclaim_strike` (buyer). `get_accounting()` equals the token balance.
 
 ## Pinned external interfaces
 

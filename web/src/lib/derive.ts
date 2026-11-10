@@ -35,6 +35,9 @@ export function parseRootKey(k: string): string {
   return (b.length === 64 ? "04" : "") + hex.to(b);
 }
 
+/** One canonical form (compressed, hex) of a root key in any accepted spelling, for comparing two of them. */
+export const rootKeyCompressed = (k: string): string => hex.to(secp.ProjectivePoint.fromHex(parseRootKey(k)).toRawBytes(true));
+
 export type Net = "Mainnet" | "Testnet4" | "Regtest";
 const HRP: Record<Net, string> = { Mainnet: "bc", Testnet4: "tb", Regtest: "bcrt" };
 

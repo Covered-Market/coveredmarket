@@ -448,26 +448,142 @@ fn exercise_refused_on_depth_refunds_everything() {
     assert_eq!(c.offer(s).state, State::ExercisePending);
 }
 
+/// A transaction that spends the offer's collateral without the contract: the seller's rescue sweep.
+fn rescue_sweep_tx(c: &Contract, serial: u64) -> String {
+    use bitcoin::hashes::Hash;
+    let o = c.offer(serial);
+    let col = o.collateral.clone().unwrap();
+    let tx = bitcoin::Transaction {
+        version: bitcoin::transaction::Version::TWO,
+        lock_time: bitcoin::absolute::LockTime::from_consensus(o.unlock_s as u32),
+        input: vec![bitcoin::TxIn {
+            previous_output: bitcoin::OutPoint { txid: bitcoin::Txid::from_byte_array(col.txid), vout: col.vout },
+            script_sig: bitcoin::ScriptBuf::new(),
+            sequence: bitcoin::Sequence::ENABLE_RBF_NO_LOCKTIME,
+            witness: bitcoin::Witness::new(),
+        }],
+        output: vec![bitcoin::TxOut { value: bitcoin::Amount::from_sat(col.value_sats - 500), script_pubkey: bitcoin::ScriptBuf::from_bytes(o.refund_script.clone()) }],
+    };
+    hex::encode(bitcoin::consensus::serialize(&tx))
+}
+
 #[test]
-fn reclaim_after_timeout() {
+fn reclaim_only_after_the_sellers_exit_has_been_open_for_the_timeout() {
     let mut c = new_contract();
     let s = create(&mut c, 200_000_000, 150_000_000_000, 6_000_000_000);
     fund(&mut c, s);
     buy(&mut c, s, 6_000_000_000, T0 + 100);
     let expiry = c.offer(s).expiry_s;
+    let unlock = c.offer(s).unlock_s;
     exercise(&mut c, s, 300_000_000_000, expiry + 10);
     set(&me(), expiry + 11);
     let _ = c.on_exercise_depth(s, U128(0), U128(300_000_000_000), Ok(true));
+    // The old rule (escrow timeout after the commitment) let the buyer take the strike back and
+    // then confirm the still-valid delivery. Refused now, right up to unlock + timeout.
     set(&buyer(), expiry + 11 + 7 * DAY);
+    assert!(panics(|| c.reclaim_strike(s)), "not while the seller cannot yet exit");
+    set(&buyer(), unlock + 7 * DAY - 1);
+    assert!(panics(|| c.reclaim_strike(s)));
+    set(&accounts(4), unlock + 7 * DAY);
+    assert!(panics(|| c.reclaim_strike(s)), "only the buyer");
+    set(&buyer(), unlock + 7 * DAY);
     c.reclaim_strike(s);
     assert_eq!(c.get_claimable(buyer()).0, 300_000_000_000);
     assert_eq!(c.get_accounting().escrow_total.0, 0);
     // a later confirm_spend must not credit the seller twice
-    sign_committed(&mut c, s, expiry + 11 + 7 * DAY + 10);
-    set(&me(), expiry + 11 + 7 * DAY + 20);
+    sign_committed(&mut c, s, unlock + 7 * DAY + 10);
+    set(&me(), unlock + 7 * DAY + 20);
     assert!(c.on_spend_verified(s, Ok(true)));
     assert_eq!(c.get_claimable(seller()).0, 6_000_000_000);
     accounting_ok(&c, 6_000_000_000 + 300_000_000_000);
+}
+
+#[test]
+fn proven_rescue_returns_the_strike_and_ends_the_offer() {
+    let mut c = new_contract();
+    let s = create(&mut c, 200_000_000, 150_000_000_000, 6_000_000_000);
+    fund(&mut c, s);
+    buy(&mut c, s, 6_000_000_000, T0 + 100);
+    let expiry = c.offer(s).expiry_s;
+    let unlock = c.offer(s).unlock_s;
+    exercise(&mut c, s, 300_000_000_000, expiry + 10);
+    set(&me(), expiry + 11);
+    let _ = c.on_exercise_depth(s, U128(0), U128(300_000_000_000), Ok(true));
+    sign_committed(&mut c, s, expiry + 20);
+    // the committed delivery is not a rescue; neither is a transaction that spends something else
+    let delivery = c.get_signed_tx(s).unwrap();
+    set(&accounts(3), unlock + 100);
+    assert!(panics(|| c.confirm_rescue(s, proof_for(&delivery))), "a committed version goes through confirm_spend");
+    let (unrelated, _) = deposit_tx(&c, s, 200_000_000);
+    assert!(panics(|| c.confirm_rescue(s, proof_for(&unrelated))), "must spend the collateral");
+    // the seller's sweep, proven by anyone
+    let sweep = rescue_sweep_tx(&c, s);
+    let _ = c.confirm_rescue(s, proof_for(&sweep));
+    let sweep_txid = btc::parse_tx(&hex::decode(&sweep).unwrap()).unwrap().0;
+    set(&me(), unlock + 101);
+    assert!(!c.on_rescue_verified(s, sweep_txid, Ok(false)), "the light client must agree");
+    assert_eq!(c.offer(s).state, State::Signed);
+    assert!(c.on_rescue_verified(s, sweep_txid, Ok(true)));
+    assert_eq!(c.offer(s).state, State::Rescued);
+    assert_eq!(c.get_claimable(buyer()).0, 300_000_000_000, "strike back to the buyer");
+    assert_eq!(c.get_claimable(seller()).0, 6_000_000_000, "seller keeps the premium only");
+    assert_eq!(c.get_accounting().escrow_total.0, 0);
+    assert_eq!(c.get_accounting().open_offers, 0);
+    accounting_ok(&c, 6_000_000_000 + 300_000_000_000);
+    // final: nothing further can move
+    assert!(!c.on_rescue_verified(s, sweep_txid, Ok(true)));
+    assert!(!c.on_spend_verified(s, Ok(true)));
+    set(&buyer(), unlock + 8 * DAY);
+    assert!(panics(|| c.reclaim_strike(s)));
+}
+
+#[test]
+fn exercise_without_the_depth_check_commits_in_the_payment_receipt() {
+    let mut c = new_contract();
+    let s = create(&mut c, 200_000_000, 150_000_000_000, 6_000_000_000);
+    fund(&mut c, s);
+    buy(&mut c, s, 6_000_000_000, T0 + 100);
+    let expiry = c.offer(s).expiry_s;
+    let msg = serde_json::json!({ "serial": s, "exercise": true, "skip_depth_check": true }).to_string();
+    // the same guards as a checked exercise
+    set(&usdc(), expiry - 1);
+    assert!(panics(|| c.ft_on_transfer(buyer(), U128(300_000_000_000), msg.clone())));
+    set(&usdc(), expiry + 10);
+    assert!(panics(|| c.ft_on_transfer(accounts(4), U128(300_000_000_000), msg.clone())));
+    assert!(panics(|| c.ft_on_transfer(buyer(), U128(299_999_999_999), msg.clone())));
+    match c.ft_on_transfer(buyer(), U128(300_000_000_007), msg.clone()) {
+        PromiseOrValue::Value(v) => assert_eq!(v.0, 7, "no promise: the light client is not asked; excess returned"),
+        _ => panic!("an unchecked exercise must not create a promise"),
+    }
+    let o = c.offer(s);
+    assert_eq!(o.state, State::Committed);
+    assert_eq!(o.escrow_units, 300_000_000_000);
+    let cm = o.commitment.as_ref().unwrap();
+    assert_eq!(cm.reason, Reason::Exercise);
+    assert_eq!(cm.to_script, o.buyer_script.clone().unwrap());
+    assert_eq!(c.get_accounting().escrow_total.0, 300_000_000_000);
+    // paying twice is refused
+    assert!(panics(|| c.ft_on_transfer(buyer(), U128(300_000_000_000), msg.clone())));
+    sign_committed(&mut c, s, expiry + 20);
+    assert_witness_valid(&c, s);
+}
+
+#[test]
+fn anyone_may_cancel_an_unfunded_offer_once_it_has_expired() {
+    let mut c = new_contract();
+    let s = create(&mut c, 200_000_000, 150_000_000_000, 6_000_000_000);
+    let expiry = c.offer(s).expiry_s;
+    set(&accounts(4), expiry - 1);
+    assert!(panics(|| c.cancel(s)), "before expiry only the seller");
+    set(&accounts(4), expiry);
+    c.cancel(s);
+    assert_eq!(c.offer(s).state, State::Cancelled);
+    assert!(c.get_created(0, 10).is_empty());
+    // a funded offer is never cancellable
+    let s2 = create(&mut c, 200_000_000, 150_000_000_000, 6_000_000_000);
+    fund(&mut c, s2);
+    set(&accounts(4), c.offer(s2).expiry_s + 1);
+    assert!(panics(|| c.cancel(s2)));
 }
 
 #[test]

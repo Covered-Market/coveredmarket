@@ -27,6 +27,8 @@ const GAS_FT_TRANSFER: Gas = Gas::from_tgas(15);
 const GAS_STORAGE_DEPOSIT: Gas = Gas::from_tgas(10);
 const GAS_CB_SMALL: Gas = Gas::from_tgas(15);
 const GAS_CB_SIGN: Gas = Gas::from_tgas(30);
+/// The exercise callback only records the commitment (no `sign` inside the token's call chain).
+const GAS_CB_COMMIT: Gas = Gas::from_tgas(30);
 const RETRY_DELAY_S: u64 = 600;
 /// Reserved derivation path for `selftest_sign`; offers use `<seller>/CV-<serial>`.
 const SELFTEST_PATH: &str = "coveredmarket/selftest";
@@ -45,6 +47,9 @@ pub enum State {
     Exercised,
     Withdrawn,
     Cancelled,
+    /// The collateral was spent on Bitcoin by a transaction the contract never committed: the
+    /// seller's rescue branch. Final; an escrowed strike went back to the buyer.
+    Rescued,
 }
 
 #[near(serializers = [json, borsh])]
@@ -230,6 +235,12 @@ pub struct TransferMsg {
     pub btc_address: Option<String>,
     #[serde(default)]
     pub exercise: bool,
+    /// Exercise without asking the light client to re-check the collateral's depth. The strike is
+    /// escrowed and the delivery committed in this receipt, so exercising never depends on the
+    /// light client answering inside the window. The buyer gives up the refusal-and-refund that
+    /// the re-check provides if the deposit has since left the chain.
+    #[serde(default)]
+    pub skip_depth_check: bool,
 }
 
 #[near(contract_state)]
@@ -356,9 +367,13 @@ impl Contract {
         serial
     }
 
+    /// The seller may cancel an unfunded offer at any time. Once its expiry has passed it can never
+    /// be sold, so then anyone may cancel it (keeps `get_created` free of dead offers). A deposit
+    /// that arrives later is returned with `recover`.
     pub fn cancel(&mut self, serial: u64) {
+        let now = now_s();
         let offer = self.offer_mut(serial);
-        require!(offer.seller == env::predecessor_account_id(), "only seller");
+        require!(offer.seller == env::predecessor_account_id() || now >= offer.expiry_s, "only seller, until the offer has expired");
         require!(offer.state == State::Created, "only while Created");
         offer.state = State::Cancelled;
         self.created.remove(&serial);
@@ -430,7 +445,7 @@ impl Contract {
         let offer = self.offer(serial);
         require!(offer.seller == env::predecessor_account_id(), "only seller");
         require!(
-            matches!(offer.state, State::Created | State::Cancelled | State::Kept | State::Exercised | State::Withdrawn),
+            matches!(offer.state, State::Created | State::Cancelled | State::Kept | State::Exercised | State::Withdrawn | State::Rescued),
             "recovery not allowed in this state"
         );
         let (txid, outputs) = self.parse_proof_tx(&proof);
@@ -566,13 +581,20 @@ impl Contract {
         require!(amount.0 >= total, "amount below strike");
         let proof = offer.deposit_proof.clone().unwrap_or_else(|| env::panic_str("no deposit proof"));
         offer.escrow_units = total;
-        offer.state = State::ExercisePending;
         self.escrow_total += total;
-        events::emit("exercise_pending", m.serial, serde_json::json!({ "strike_units": total.to_string() }));
         let excess = amount.0 - total;
+        if m.skip_depth_check {
+            // The buyer's choice: commit in this receipt, no promise. Paying is exercising even if
+            // the light client is paused or no longer holds the deposit's block.
+            events::emit("exercise_unchecked", m.serial, serde_json::json!({ "strike_units": total.to_string() }));
+            self.commit(m.serial, Reason::Exercise);
+            return PromiseOrValue::Value(U128(excess));
+        }
+        self.offer_mut(m.serial).state = State::ExercisePending;
+        events::emit("exercise_pending", m.serial, serde_json::json!({ "strike_units": total.to_string() }));
         PromiseOrValue::Promise(self.lc_verify(&proof, min_conf).then(
             Self::ext(env::current_account_id())
-                .with_static_gas(GAS_CB_SMALL.saturating_add(GAS_SIGN).saturating_add(GAS_CB_SIGN))
+                .with_static_gas(GAS_CB_COMMIT)
                 .on_exercise_depth(m.serial, U128(excess), amount),
         ))
     }
@@ -729,7 +751,54 @@ impl Contract {
         true
     }
 
-    /// Buyer reclaims an escrowed strike if delivery never confirmed.
+    /// Prove that the collateral was spent on Bitcoin by a transaction that is not a committed
+    /// version: the seller's rescue branch (the only other way the deposit script can be spent).
+    /// No committed settlement can confirm any more, so the offer is final: an escrowed strike
+    /// returns to the buyer at once. Permissionless.
+    pub fn confirm_rescue(&mut self, serial: u64, proof: Proof) -> Promise {
+        let offer = self.offer(serial);
+        require!(matches!(offer.state, State::Funded | State::Sold | State::Committed | State::Signed), "no live collateral in this state");
+        let collateral = offer.collateral.as_ref().unwrap_or_else(|| env::panic_str("no collateral"));
+        let raw = hex::decode(&proof.tx_raw).unwrap_or_else(|_| env::panic_str("tx_raw must be hex"));
+        let (txid, spends) = btc::tx_spends(&raw, collateral).unwrap_or_else(|| env::panic_str("tx_raw does not parse"));
+        require!(spends, "that transaction does not spend the collateral");
+        if let Some(c) = offer.commitment.as_ref() {
+            require!(txid != c.txid && !c.prior_txids.contains(&txid), "that is a committed version; use confirm_spend");
+        }
+        let pref = ProofRef::from_proof(&proof, txid);
+        self.lc_verify(&pref, self.params.min_conf)
+            .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SMALL).on_rescue_verified(serial, txid))
+    }
+
+    #[private]
+    pub fn on_rescue_verified(&mut self, serial: u64, txid: [u8; 32], #[callback_result] r: Result<bool, PromiseError>) -> bool {
+        if !matches!(r, Ok(true)) {
+            return false;
+        }
+        let offer = self.offer_mut(serial);
+        if !matches!(offer.state, State::Funded | State::Sold | State::Committed | State::Signed) {
+            return false;
+        }
+        let buyer = offer.buyer.clone();
+        let escrow = offer.escrow_units;
+        offer.escrow_units = 0;
+        offer.state = State::Rescued;
+        offer.retry_after_s = None;
+        self.open.remove(&serial);
+        if escrow > 0 {
+            self.escrow_total -= escrow;
+            self.credit(&buyer.unwrap_or_else(|| env::panic_str("escrow without a buyer")), escrow);
+        }
+        events::emit("rescued", serial, serde_json::json!({ "txid": btc::display_hex(&txid), "strike_returned_units": escrow.to_string() }));
+        true
+    }
+
+    /// Last resort for the buyer: reclaim an escrowed strike when neither the delivery nor the
+    /// seller's rescue has been proven. The delivery commitment cannot be revoked once it exists,
+    /// so this opens only after the seller's own exit has been available for the whole escrow
+    /// timeout (`unlock_s + escrow_timeout_s`): a seller who is owed nothing can by then have taken
+    /// the coins back. Normally the strike moves earlier, by proof: `confirm_spend` pays the seller,
+    /// `confirm_rescue` refunds the buyer.
     pub fn reclaim_strike(&mut self, serial: u64) {
         let timeout = self.params.escrow_timeout_s;
         let offer = self.offer_mut(serial);
@@ -738,7 +807,7 @@ impl Contract {
         require!(matches!(offer.state, State::Committed | State::Signed), "not reclaimable in this state");
         let c = offer.commitment.as_ref().unwrap();
         require!(c.reason == Reason::Exercise, "not an exercise");
-        require!(now_s() >= c.committed_at_s + timeout, "escrow timeout not reached");
+        require!(now_s() >= offer.unlock_s + timeout, "not before the seller's exit has been open for the escrow timeout");
         let amount = offer.escrow_units;
         let buyer = offer.buyer.clone().unwrap();
         offer.escrow_units = 0;

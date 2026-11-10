@@ -37,6 +37,7 @@ export const verifyClients = (): Clients => ({
     accessKeys: async (a) => { const r: any = await provider.query({ request_type: "view_access_key_list", account_id: a, finality: "final" }); return r.keys.length; },
     view: (m, args) => view(m, args),
     ftBalance: (token, account) => view<string>("ft_balance_of", { account_id: account }, token),
+    signerRootKey: (signer) => view<string>("public_key", { domain_id: 0 }, signer),
   },
   btc: {
     outspend: async (txid, vout) => { const j = await btcJson(`/tx/${txid}/outspend/${vout}`); return { spent: j.spent, txid: j.txid }; },

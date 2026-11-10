@@ -11,7 +11,7 @@ const offer: Offer = {
   commitment_reason: "Withdraw", commitment_txid: vectors.txid, commitment_sighash: vectors.sighash, commitment_to_address: null, commitment_amount_sats: "199999000", committed_at_s: "1800000200", signed_tx: vectors.signed_tx, escrow_units: "0", state: "Signed",
 };
 const clients = (over: Partial<Clients["expected"]> = {}, bal = "0"): Clients => ({
-  near: { codeHash: async () => "abc", accessKeys: async () => 0, view: async () => ({ claimable_total: "0", escrow_total: "0", near_balance: "1" }) as any, ftBalance: async () => bal },
+  near: { codeHash: async () => "abc", accessKeys: async () => 0, view: async () => ({ claimable_total: "0", escrow_total: "0", near_balance: "1" }) as any, ftBalance: async () => bal, signerRootKey: async () => vectors.root_key_hex },
   btc: { outspend: async () => ({ spent: false }), txStatus: async (id) => (id === vectors.collateral_txid ? { confirmed: true, depth: 9 } : id === vectors.txid ? { confirmed: true, depth: 1 } : null) },
   expected: { codeHash: "abc", contract: "coveredmarket.test", signer: "signer.test", lightClient: "btc.test", usdc: "usdc.test", minConf: 6, ...over },
 });
@@ -36,6 +36,14 @@ describe("verify checks", () => {
     expect((await runChecks(clients(), { ...good, unlock_s: String(vectors.unlock_s - 1) }, params, 0))[1].status, "the exit must unlock exactly expiry + grace + delay").toBe("failed");
     expect((await runChecks(clients(), { ...good, commitment_sighash: "00".repeat(32) }, params, 0))[5].status).toBe("failed");
     expect((await runChecks(clients(), { ...good, signed_tx: "deadbeef" }, params, 0))[5].status).toBe("failed");
+    const otherRoot = clients(); otherRoot.near.signerRootKey = async () => "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"; // a valid key, not the contract's
+    expect((await runChecks(otherRoot, good, params, 0))[1].status, "a root key that is not the signer's own").toBe("failed");
+    const noSigner = clients(); noSigner.near.signerRootKey = async () => { throw new Error("signer unreachable"); };
+    expect((await runChecks(noSigner, good, params, 0))[1].status, "never green without reading the signer").toBe("unavailable");
+    const rescued = clients(); rescued.btc.outspend = async () => ({ spent: true, txid: "sweep" });
+    const r = await runChecks(rescued, { ...good, state: "Rescued" }, params, 0);
+    expect([r[2].status, r[6].status]).toEqual(["verified", "verified"]);
+    expect((await runChecks(clients(), { ...good, state: "Rescued" }, params, 0))[2].status, "rescued but unspent on Bitcoin").toBe("failed");
     const unseen = clients(); unseen.btc.txStatus = async (id) => (id === vectors.collateral_txid ? { confirmed: true, depth: 9 } : null);
     expect((await runChecks(unseen, good, params, 0))[6].status).toBe("failed");
   });
