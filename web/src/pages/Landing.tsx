@@ -373,12 +373,50 @@ export function Landing() {
           </div>
         </section>
 
+        {/* compare */}
+        <section id="compare" className="ld-sec pt-seamed" aria-labelledby="compare-h">
+          <Seam n="06" />{/* patterns-v1 */}
+          <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
+            <div><Kicker n="06">Compared</Kicker><h2 id="compare-h" className="ld-h2">Other ways to earn on Bitcoin, side by side.</h2></div>
+            <div className="ld-cmp-desk" role="table" aria-label="CoveredMarket compared with other ways to earn on Bitcoin">
+              <div className="ld-table">
+                <div className="rh ch" role="columnheader" />
+                <div className="ch ours" role="columnheader" data-theme="vault"><img src="/site/lockup-22-on-vault.svg" alt="CoveredMarket" style={{ height: 22 }} /><span className="body-small ld-muted">Native Bitcoin, NEAR contract</span></div>
+                {[["Deribit", "Options exchange"], ["Binance Dual Investment", "Exchange earn product"], ["DeFi call vaults", "Thetanuts, StakeDAO and others"]].map(([n, k]) => <div key={n} className="ch" role="columnheader"><span className="heading" style={{ fontSize: 15 }}>{n}</span><span className="body-small ld-muted">{k}</span></div>)}
+                {COMPARE.map(([row, ...cells]) => [
+                  <div key={row} className="rh body" role="rowheader">{row}</div>,
+                  ...cells.map(([m, note], i) => <CmpCell key={row + i} m={m} note={note} ours={i === 0} end={i === cells.length - 1} />),
+                ])}
+              </div>
+            </div>
+            <ComparePhone />
+            <p className="body-small ld-muted" style={{ margin: 0, maxWidth: "90ch" }}>Sources: Deribit requires ID verification for all users (<a href="https://malaysia.news.yahoo.com/crypto-options-exchange-deribit-require-174321313.html" target="_blank" rel="noreferrer">2020</a>); Binance Dual Investment pays rewards at settlement, Tuesdays and Fridays for BTC (<a href="https://www.binance.com/en/support/faq/09911be9f5754c34806bd3ab4a427e0e" target="_blank" rel="noreferrer">Binance FAQ</a>); DeFi call vaults run on wrapped BTC and pick strikes by algorithm (<a href="https://www.spark.money/tools/bitcoin-structured-product-comparison" target="_blank" rel="noreferrer">Spark</a>). Checked 6 Nov 2026. Names are trademarks of their owners.</p>
+          </div>
+        </section>
+
+        <img src="/site/band.svg" alt="" aria-hidden="true" style={{ display: "block", width: "100%", height: 40, objectFit: "cover", opacity: 0.45 }} />
+
+        {/* trust */}
+        <section id="trust" className="ld-sec" style={{ borderTop: "none" }} aria-labelledby="trust-h">
+          <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
+            <div><Kicker n="07">What you are trusting</Kicker><h2 id="trust-h" className="ld-h2" style={{ maxWidth: "16ch" }}>No custodian. Here is who can sign.</h2></div>
+            <div className="ld-trust" role="table" aria-label="Who can and cannot act on your coins">
+              <div className="ld-label ld-muted hd">Party</div><div className="ld-label hd" style={{ color: "var(--intaglio)" }}>Can</div><div className="ld-label hd" style={{ color: "var(--oxblood)" }}>Cannot</div>
+              {[["The contract", "Sign your coins after expiry, only to the address its terms name.", "Be upgraded. It has no owner key after deployment."], ["NEAR’s MPC network", "Produce the signatures the contract asks for.", "Sign on its own. No single node holds the key."], ["The CoveredMarket team", "Run the relayer that pays gas and this site.", "Move your coins or change a contract’s terms."], ["You, the seller", "Withdraw before the call sells; claim your premium any time; reclaim the coins with your rescue key if NEAR ever stops.", "Withdraw coins during the term. They return or are sold at expiry."]].map(([w, c, n]) => [
+                <div key={w} className="heading">{w}</div>,
+                <div key={w + "c"} className="body"><span className="ld-label ph" style={{ color: "var(--intaglio)" }}>Can</span>{c}</div>,
+                <div key={w + "n"} className="body"><span className="ld-label ph" style={{ color: "var(--oxblood)" }}>Cannot</span>{n}</div>,
+              ])}
+            </div>
+          </div>
+        </section>
+
         {/* agent friendly */}
         <section id="agents" className="ld-sec ld-vault" data-theme="vault" aria-labelledby="agents-h">
           <div className="ld-wrap ld-stack" style={{ gap: 48 }}>
             <div className="ld-2">
               <div className="ld-stack" style={{ gap: 24 }}>
-                <div><Kicker n="06">Agent friendly</Kicker><h2 id="agents-h" className="ld-h2">Built for agents as well as people.</h2></div>
+                <div><Kicker n="08">Agent friendly</Kicker><h2 id="agents-h" className="ld-h2">Built for agents as well as people.</h2></div>
                 <p className="ld-lede" style={{ maxWidth: "44ch" }}>Anything you can do here, an AI agent or a script can do too: read the market, sell a call, buy one, exercise it and claim. On testnet it gets its own funded wallet the first time it acts.</p>
                 <ul className="ld-agent-points">
                   {AGENT_POINTS.map(([t, d]) => <li key={t}><span className="heading">{t}</span><span className="body ld-muted">{d}</span></li>)}
@@ -407,49 +445,11 @@ export function Landing() {
           </div>
         </section>
 
-        {/* compare */}
-        <section id="compare" className="ld-sec pt-seamed" aria-labelledby="compare-h">
-          <Seam n="07" />{/* patterns-v1 */}
-          <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
-            <div><Kicker n="07">Compared</Kicker><h2 id="compare-h" className="ld-h2">Other ways to earn on Bitcoin, side by side.</h2></div>
-            <div className="ld-cmp-desk" role="table" aria-label="CoveredMarket compared with other ways to earn on Bitcoin">
-              <div className="ld-table">
-                <div className="rh ch" role="columnheader" />
-                <div className="ch ours" role="columnheader" data-theme="vault"><img src="/site/lockup-22-on-vault.svg" alt="CoveredMarket" style={{ height: 22 }} /><span className="body-small ld-muted">Native Bitcoin, NEAR contract</span></div>
-                {[["Deribit", "Options exchange"], ["Binance Dual Investment", "Exchange earn product"], ["DeFi call vaults", "Thetanuts, StakeDAO and others"]].map(([n, k]) => <div key={n} className="ch" role="columnheader"><span className="heading" style={{ fontSize: 15 }}>{n}</span><span className="body-small ld-muted">{k}</span></div>)}
-                {COMPARE.map(([row, ...cells]) => [
-                  <div key={row} className="rh body" role="rowheader">{row}</div>,
-                  ...cells.map(([m, note], i) => <CmpCell key={row + i} m={m} note={note} ours={i === 0} end={i === cells.length - 1} />),
-                ])}
-              </div>
-            </div>
-            <ComparePhone />
-            <p className="body-small ld-muted" style={{ margin: 0, maxWidth: "90ch" }}>Sources: Deribit requires ID verification for all users (<a href="https://malaysia.news.yahoo.com/crypto-options-exchange-deribit-require-174321313.html" target="_blank" rel="noreferrer">2020</a>); Binance Dual Investment pays rewards at settlement, Tuesdays and Fridays for BTC (<a href="https://www.binance.com/en/support/faq/09911be9f5754c34806bd3ab4a427e0e" target="_blank" rel="noreferrer">Binance FAQ</a>); DeFi call vaults run on wrapped BTC and pick strikes by algorithm (<a href="https://www.spark.money/tools/bitcoin-structured-product-comparison" target="_blank" rel="noreferrer">Spark</a>). Checked 6 Nov 2026. Names are trademarks of their owners.</p>
-          </div>
-        </section>
-
-        <img src="/site/band.svg" alt="" aria-hidden="true" style={{ display: "block", width: "100%", height: 40, objectFit: "cover", opacity: 0.45 }} />
-
-        {/* trust */}
-        <section id="trust" className="ld-sec" style={{ borderTop: "none" }} aria-labelledby="trust-h">
-          <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
-            <div><Kicker n="08">What you are trusting</Kicker><h2 id="trust-h" className="ld-h2" style={{ maxWidth: "16ch" }}>No custodian. Here is who can sign.</h2></div>
-            <div className="ld-trust" role="table" aria-label="Who can and cannot act on your coins">
-              <div className="ld-label ld-muted hd">Party</div><div className="ld-label hd" style={{ color: "var(--intaglio)" }}>Can</div><div className="ld-label hd" style={{ color: "var(--oxblood)" }}>Cannot</div>
-              {[["The contract", "Sign your coins after expiry, only to the address its terms name.", "Be upgraded. It has no owner key after deployment."], ["NEAR’s MPC network", "Produce the signatures the contract asks for.", "Sign on its own. No single node holds the key."], ["The CoveredMarket team", "Run the relayer that pays gas and this site.", "Move your coins or change a contract’s terms."], ["You, the seller", "Withdraw before the call sells; claim your premium any time; reclaim the coins with your rescue key if NEAR ever stops.", "Withdraw coins during the term. They return or are sold at expiry."]].map(([w, c, n]) => [
-                <div key={w} className="heading">{w}</div>,
-                <div key={w + "c"} className="body"><span className="ld-label ph" style={{ color: "var(--intaglio)" }}>Can</span>{c}</div>,
-                <div key={w + "n"} className="body"><span className="ld-label ph" style={{ color: "var(--oxblood)" }}>Cannot</span>{n}</div>,
-              ])}
-            </div>
-          </div>
-        </section>
-
         {/* faq */}
         <section id="faq" className="ld-sec pt-host" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="faq-h">
           <Rosette className="pt-echo" />{/* patterns-v1 */}
           <div className="ld-wrap ld-2">
-            <div><Kicker n="09">Questions</Kicker><h2 id="faq-h" className="ld-h2">What people ask first.</h2></div>
+            <div><Kicker n="09">Questions</Kicker><h2 id="faq-h" className="ld-h2">Frequently Asked Questions</h2></div>
             <div className="ld-faq">{FAQ.map(([q, a]) => <details key={q}><summary>{q}</summary><p className="body">{a}</p></details>)}</div>
           </div>
         </section>
