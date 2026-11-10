@@ -73,71 +73,7 @@ def svg(w, h, body, bg=None, vb=None):
 def wordmark(x, y, size, ink, italic=False, caps=False):
     return mark2.wordmark(x, y, size, ink, caps=caps)
 
-# Logos — the Lid in every variant
-def L(name, w, h, inner, bg=None): write(f'Logos/{name}.svg', svg(w, h, inner, bg=bg))
-# symbol: primary two-tone, copper colourway, one-colour, reversed (thinned 3%), small cut
-L('coveredmarket-symbol', 64, 64, LID.lid(body=INTAGLIO, cap=GILT))
-L('coveredmarket-symbol-copper', 64, 64, LID.lid(body=COPPER, cap=INTAGLIO))
-L('coveredmarket-symbol-ink', 64, 64, LID.lid(body=INK))
-L('coveredmarket-symbol-intaglio', 64, 64, LID.lid(body=INTAGLIO))
-L('coveredmarket-symbol-on-vault', 64, 64, LID.lid(body=INK_V, cap=GILT_V, thin=0.03), bg=VAULT)
-L('coveredmarket-symbol-reversed', 64, 64, LID.lid(body=INK_V, thin=0.03), bg=VAULT)
-L('coveredmarket-symbol-small', 64, 64, LID.lid(body=INK, small=True))
-L('coveredmarket-symbol-small-on-vault', 64, 64, LID.lid(body=INK_V, cap=GILT_V, small=True), bg=VAULT)
-# states (for the system: stamps, timelines, motion)
-for st in ('open', 'kept', 'exercised'):
-    L(f'coveredmarket-symbol-state-{st}', 64, 64, LID.lid(body=INTAGLIO, cap=GILT, state=st))
-# wordmarks
-wm, ww = wordmark(0, 46, 56, INK); L('coveredmarket-wordmark', math.ceil(ww) + 2, 64, wm)
-wm, ww = wordmark(0, 46, 56, INK_V); L('coveredmarket-wordmark-on-vault', math.ceil(ww) + 2, 64, wm, bg=VAULT)
-wm, ww = wordmark(0, 36, 48, INK, caps=True); L('coveredmarket-wordmark-caps', math.ceil(ww) + 2, 48, wm)
-# horizontal lockups: symbol cap-height-plus, gap = half the symbol
-def lockup(body, cap, ink, bg=None, name='coveredmarket-lockup'):
-    wm, ww = wordmark(84, 47, 56, ink)
-    L(name, math.ceil(ww) + 88, 64, LID.lid(0, 0, 64, body=body, cap=cap, thin=(0.03 if bg else 0)) + wm, bg=bg)
-lockup(INTAGLIO, GILT, INK)
-lockup(INK, INK, INK, name='coveredmarket-lockup-ink')
-lockup(INK_V, GILT_V, INK_V, bg=VAULT, name='coveredmarket-lockup-on-vault')
-lockup(COPPER, INTAGLIO, INK, name='coveredmarket-lockup-copper')
-# stacked
-wm, ww = wordmark(0, 0, 40, INK); W = math.ceil(ww); H = 64 + 14 + 40
-L('coveredmarket-lockup-stacked', W, H, f'<g transform="translate({W/2-32:.1f},0)">' + LID.lid(body=INTAGLIO, cap=GILT) + '</g>' + f'<g transform="translate(0,{64+14+30})">' + wm + '</g>')
-wm, ww = wordmark(0, 0, 40, INK_V)
-L('coveredmarket-lockup-stacked-on-vault', W, H, f'<g transform="translate({W/2-32:.1f},0)">' + LID.lid(body=INK_V, cap=GILT_V, thin=0.03) + '</g>' + f'<g transform="translate(0,{64+14+30})">' + wm + '</g>', bg=VAULT)
-# seal: the lid inside a ring of outlined microtext
-def seal(ink, body, cap, bg=None):
-    txt = 'COVEREDMARKET · NATIVE BITCOIN · NO CUSTODIAN · '
-    out = []
-    rr, fs = 45.5, 6.25  # sized so the 13-letter name keeps the original ring density
-    f = font(*SANS_B); gs = f.getGlyphSet(); cmap = f.getBestCmap(); upm = f['head'].unitsPerEm; sc = fs/upm
-    chars = txt * 2
-    adv = [ (gs[cmap[ord(c)]].width*sc if ord(c) in cmap else fs*0.3) + fs*0.14 for c in chars]
-    k = 2*math.pi*rr / sum(adv); adv = [a*k for a in adv]
-    ang = -math.pi/2
-    for c, a in zip(chars, adv):
-        mid = ang + (a/rr)/2
-        if ord(c) in cmap:
-            pen = SVGPathPen(gs); tp = TransformPen(pen, (sc, 0, 0, -sc, -gs[cmap[ord(c)]].width*sc/2, 0)); gs[cmap[ord(c)]].draw(tp)
-            out.append(f'<path d="{pen.getCommands()}" fill="{ink}" transform="translate({64+rr*math.cos(mid):.2f},{64+rr*math.sin(mid):.2f}) rotate({math.degrees(mid)+90:.2f})"/>')
-        ang += a/rr
-    out.append(f'<circle cx="64" cy="64" r="54" fill="none" stroke="{ink}" stroke-width="1.2"/>')
-    out.append(f'<circle cx="64" cy="64" r="37" fill="none" stroke="{ink}" stroke-width="1.2"/>')
-    out.append(f'<g transform="translate(38,38) scale(0.8125)">' + LID.lid(body=body, cap=cap) + '</g>')
-    return ''.join(out)
-L('coveredmarket-seal', 128, 128, seal(INK, INTAGLIO, GILT))
-L('coveredmarket-seal-ink', 128, 128, seal(INK, INK, INK))
-L('coveredmarket-seal-on-vault', 128, 128, seal(INK_V, INK_V, GILT_V), bg=VAULT)
-# app icons: square (iOS masks it) and a 22%-radius rounded square; symbol at 62%
-for n, size, rx in (('app-icon-1024', 1024, 0), ('app-icon-1024-rounded', 1024, 225), ('app-icon-192', 192, 0)):
-    s = size / 64
-    body = f'<rect width="{size}" height="{size}" rx="{rx}" fill="{VAULT}"/>'
-    body += f'<g transform="translate({size*0.19:.1f},{size*0.17:.1f}) scale({size*0.62/64:.4f})">' + LID.lid(body=INK_V, cap=GILT_V) + '</g>'
-    L(n, size, size, body)
-L('favicon', 64, 64, LID.lid(body=INK, small=True), bg=PAPER)
-L('favicon-on-vault', 64, 64, LID.lid(body=INK_V, cap=GILT_V, small=True), bg=VAULT)
-# the "built on NEAR" rule: lockup + hairline + a text slot (NEAR's own mark goes to the right, supplied by NEAR)
-wm, ww = wordmark(84, 47, 56, INK)
-L('coveredmarket-lockup-with-partner-rule', math.ceil(ww) + 88 + 40, 64, LID.lid(0, 0, 64, body=INTAGLIO, cap=GILT) + wm + f'<line x1="{math.ceil(ww)+104}" y1="12" x2="{math.ceil(ww)+104}" y2="52" stroke="{RULE}" stroke-width="1"/>')
+# Logos: generated by gen_logos.py (overlap-free outlines, measured margins, screen cuts). Not here.
 
 # ---------- Patterns ----------
 # The rosette's outermost curves reach ROSETTE_REACH * R from its centre. Every composition below sizes R
