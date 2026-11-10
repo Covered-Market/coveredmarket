@@ -110,15 +110,15 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 .ld-code:focus-visible { outline: 2px solid var(--intaglio); outline-offset: -2px; }
 @media (max-width: 599px) { .ld-code { font-size: 11px; padding: 14px; } }
 
-/* product frames */
-.ld-shotplate { background: var(--paper); padding: 24px; border-radius: 12px; }
+/* a framed panel with a title bar (the agent example) */
 .ld-frame { border: 1px solid var(--rule); background: var(--paper-raised); box-shadow: var(--shadow-lift); }
 .ld-frame-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--rule); font: 400 13px/18px var(--font-mono); color: var(--ink-muted); white-space: nowrap; overflow: hidden; }
 .ld-frame-bar span { overflow: hidden; text-overflow: ellipsis; }
 .ld-frame-bar i { width: 8px; height: 8px; border-radius: 999px; border: 1px solid var(--rule-strong); flex-shrink: 0; }
-.ld-frame img { display: block; width: 100%; height: auto; }
-.ld-step { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 32px; align-items: start; border-top: 1px solid var(--rule); padding-top: 32px; }
-.ld-step img { max-height: 400px; object-fit: cover; object-position: top; }
+
+/* how it works: four steps side by side */
+.ld-steps { row-gap: 32px; }
+.ld-step { border-top: 1px solid var(--rule); padding-top: 32px; }
 .ld-label { font: 600 12px/16px var(--font-sans); letter-spacing: .12em; text-transform: uppercase; }
 
 /* built with */
@@ -182,7 +182,7 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
   .ld-wrap { padding: 0 32px; }
   .ld-nav, .ld-hide-tab { display: none; }
   .ld-menu { display: inline-flex; }
-  .ld-hero-grid, .ld-2, .ld-step { grid-template-columns: minmax(0, 1fr); }
+  .ld-hero-grid, .ld-2 { grid-template-columns: minmax(0, 1fr); }
   .ld-hero-grid { gap: 40px; }
   .ld-hero { padding: 88px 0 48px; }
   .ld-hero-seal { display: none; }
@@ -213,8 +213,6 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
   .ld-foot-grid > :first-child { grid-column: 1 / -1; }
   .ld-benefit { grid-template-columns: 52px minmax(0, 1fr); padding: 20px 0; column-gap: 16px; }
   .ld-benefit > .ld-disc { grid-row: span 2; }
-  .ld-shotplate { padding: 12px; border-radius: 8px; }
-  .ld-step img { max-height: 280px; }
   .ld-calc { padding: 20px; }
   .ld-big { font-size: 30px; }
   .ld-cmp-desk { display: none; }

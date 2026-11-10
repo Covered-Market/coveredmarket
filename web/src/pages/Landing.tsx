@@ -2,7 +2,7 @@
  * The public landing page. On the website (CFG.mode "site", covered.market) it carries no network band, switch
  * or contract ids, and every app link leaves for the testnet app (CFG.testnetUrl). On the local stack it is `/` of
  * the local app.
- * Product images are real captures of the app (scripts/shots). The hero shows the film (HeroFilm).
+ * The page shows no captures of the app, so it cannot fall out of step with it. The hero shows the film (HeroFilm).
  */
 import { useEffect, useState, type ReactNode } from "react";
 import { CFG } from "../lib/near";
@@ -64,9 +64,6 @@ function HeroFilm() {
 }
 
 const Kicker = ({ n, children }: { n?: string; children: ReactNode }) => <p className="ld-kicker">{n ? `Art. ${n} · ` : ""}{children}</p>;
-const Frame = ({ path, src, alt }: { path: string; src: string; alt: string }) => (
-  <div className="ld-frame" data-theme="paper"><div className="ld-frame-bar"><i /><i /><span>{path}</span></div><img src={src} alt={alt} loading="lazy" decoding="async" /></div>
-);
 const Icon = ({ d }: { d: string }) => <svg viewBox="0 0 24 24" aria-hidden="true"><path d={d} fill="none" stroke="var(--intaglio)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 
 // Marks are one SVG each, drawn on a 28-unit grid: "yes" is a solid disc; "no" and "part" are a ring with the same
@@ -151,10 +148,10 @@ const built = (): { status: "Live" | "Partly" | "Next"; name: string; what: stri
 const STATUS_COLOR = { Live: "var(--intaglio)", Partly: "var(--gilt-ink)", Next: "var(--ink-muted)" };
 
 const STEPS = [
-  { n: "01", title: "Choose your terms", text: "Size, strike, expiry and the premium you ask. Before you commit, the page says in words what happens in each outcome.", tech: "Meta-transactions · NEP-366", path: "covered · /sell", img: "/site/shots/step-sell.webp", alt: "The sell form: 2 BTC, strike $150,000, premium $6,000" },
-  { n: "02", title: "Deposit to your contract’s own address", text: "A Bitcoin address is derived for this one contract. Only the contract can ask for a signature for it; a rescue key only you hold is the way out if NEAR ever stops. Your deposit is proven on NEAR by a Bitcoin light client.", tech: "Chain Signatures · Bitcoin light client", path: "covered · /c/1 · on-chain record", img: "/site/shots/step-deposit.webp", alt: "The on-chain record of CV-1: deposit address, deposit transaction, refund address, contract, signer and light client" },
-  { n: "03", title: "Get paid when it sells", text: "A buyer pays the premium in USDC on NEAR. It is credited to you in the same transaction that records the buyer. Claim it any time.", tech: "USDC on NEAR", path: "covered · /contracts", img: "/site/shots/step-sold2.webp", alt: "My contracts: 0.0010 BTC at rest in live contracts and $5.00 of premium ready to claim" },
-  { n: "04", title: "At expiry, the contract signs", text: "After expiry the buyer has a short exercise window to pay the strike. If they do, the contract signs the coins to them; if not, it signs them back to your address.", tech: "Chain Signatures", path: "covered · /c/1", img: "/site/shots/step-cert.webp", alt: "The certificate of CV-1: 0.0010 BTC, strike $150,000, expires 6 Nov 2026, 11:07 UTC" },
+  { n: "01", title: "Choose your terms", text: "Size, strike, expiry and the premium you ask. Before you commit, the page says in words what happens in each outcome.", tech: "Meta-transactions · NEP-366" },
+  { n: "02", title: "Deposit to your contract’s own address", text: "A Bitcoin address is derived for this one contract. Only the contract can ask for a signature for it; a rescue key only you hold is the way out if NEAR ever stops. Your deposit is proven on NEAR by a Bitcoin light client.", tech: "Chain Signatures · Bitcoin light client" },
+  { n: "03", title: "Get paid when it sells", text: "A buyer pays the premium in USDC on NEAR. It is credited to you in the same transaction that records the buyer. Claim it any time.", tech: "USDC on NEAR" },
+  { n: "04", title: "At expiry, the contract signs", text: "After expiry the buyer has a short exercise window to pay the strike. If they do, the contract signs the coins to them; if not, it signs them back to your address.", tech: "Chain Signatures" },
 ];
 
 /** Agent friendly: the ways software uses CoveredMarket (agent/README.md). Testnet and the local stack only. */
@@ -337,18 +334,17 @@ export function Landing() {
         {/* how it works */}
         <section id="how" className="ld-sec" aria-labelledby="how-h">
           <div className="ld-wrap ld-stack" style={{ gap: 40 }}>
-            <div><Kicker n="04">How it works</Kicker><h2 id="how-h" className="ld-h2">Four steps. Your coins move twice.</h2></div>
-            {STEPS.map((s) => (
-              <div className="ld-step" key={s.n}>
-                <div className="ld-stack" style={{ gap: 12 }}>
+            <h2 id="how-h" className="ld-kicker" style={{ margin: 0 }}>Art. 04 · How it works</h2>
+            <div className="ld-4 ld-steps">
+              {STEPS.map((s) => (
+                <div className="ld-step ld-stack" style={{ gap: 12 }} key={s.n}>
                   <div className="ld-mono pt-serial"><SerialRosette serial={`step-${s.n}`} size={44} />{s.n}</div>{/* patterns-v1 */}
                   <h3 className="heading" style={{ margin: 0 }}>{s.title}</h3>
                   <p className="body ld-muted" style={{ margin: 0 }}>{s.text}</p>
-                  <div className="ld-label" style={{ color: "var(--intaglio)" }}>{s.tech}</div>
+                  <div className="ld-label" style={{ color: "var(--intaglio)", marginTop: "auto" }}>{s.tech}</div>
                 </div>
-                <div className="ld-shotplate" data-theme="vault"><Frame path={s.path} src={s.img} alt={s.alt} /></div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </section>
 
