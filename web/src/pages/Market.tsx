@@ -4,17 +4,21 @@ import { view } from "../lib/near";
 import type { Offer } from "../lib/verify";
 import { toOfferCard, useSpotStatus } from "./hooks";
 import { AllContracts, useContracts } from "./AllContracts";
+import { ForSale } from "./Board";
 
 /** The public view, the same with or without a wallet: every recent contract in tabs by
- *  where it is in its life (offers for sale as cards you can buy). */
+ *  where it is in its life (offers for sale as a board by strike and expiry, or as cards, each with Buy). */
 export function Market() {
   const { OfferCard, StatTile } = C();
   const { spot, failed: spotFailed } = useSpotStatus();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => { const f = () => view<Offer[]>("get_offers", { from: 0, limit: 60 }).then((o) => { setOffers(o); setLoaded(true); }).catch(() => {}); f(); const t = setInterval(f, 15_000); return () => clearInterval(t); }, []);
+  // Dev server only: `/?sample#/market` shows made-up offers, to look at the board when the network has few.
+  const [sample, setSample] = useState<Offer[] | null>(null);
+  useEffect(() => { if (import.meta.env.DEV && location.search.includes("sample")) import("../lib/board.sample").then((m) => setSample(m.sampleOffers(spot?.price ?? 0))); }, [spot?.price]);
   const now = Date.now() / 1000;
-  const forSale = offers.filter((o) => o.state === "Funded" && Number(o.expiry_s) > now);
+  const forSale = sample ?? offers.filter((o) => o.state === "Funded" && Number(o.expiry_s) > now);
   const rest = offers.reduce((s, o) => s + Number(o.size_sats), 0) / 1e8;
   const all = useContracts(offers.reduce((m, o) => Math.max(m, o.serial), 0));
   return (
@@ -31,10 +35,12 @@ export function Market() {
         </div>
       </div>
 
-      <AllContracts rows={all.rows} saleCount={loaded ? forSale.length : null} sale={
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(340px, 100%), 1fr))", gap: 24 }}>
-          {forSale.map((o) => <OfferCard key={o.serial} offer={toOfferCard(o, spot?.price ?? 0)} action="Buy this call" onAct={() => (location.hash = `#/buy/${o.serial}`)} />)}
-        </div>
+      <AllContracts rows={all.rows} saleCount={loaded || sample ? forSale.length : null} sale={
+        <ForSale offers={forSale} spot={spot?.price ?? 0} cards={
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(340px, 100%), 1fr))", gap: 24 }}>
+            {forSale.map((o) => <OfferCard key={o.serial} offer={toOfferCard(o, spot?.price ?? 0)} action="Buy this call" onAct={() => (location.hash = `#/buy/${o.serial}`)} />)}
+          </div>
+        } />
       } />
     </div>
   );
