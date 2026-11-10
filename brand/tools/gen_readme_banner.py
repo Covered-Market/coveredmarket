@@ -1,11 +1,12 @@
 """README banners (docs/readme/banner-paper.svg, banner-vault.svg): the X-header style, rosette from the top right.
 Rasterise each SVG to a 2560x720 PNG beside it."""
-import math, sys
+import math, os, sys
 from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
-F='/Volumes/T7/Work/near-hackathon/coveredmarket/brand/fonts/'
+ROOT=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+F=os.path.join(ROOT,'brand','fonts','')
 _c={}
 def font(n,ax):
     k=(n,tuple(sorted(ax.items())))
@@ -51,5 +52,5 @@ for name,t in THEMES.items():
     d,_=tp('Earn on Bitcoin',*FR,150,m-6,372); b+=f'<path fill="{t["ink"]}" d="{d}"/>'
     d,_=tp('you still hold.',*FR,150,m-6,516); b+=f'<path fill="{t["line2"]}" d="{d}"/>'
     d,_=tp('Covered calls on native Bitcoin. No custodian, no bridge, no wrapper.',*SN,40,m,628); b+=f'<path fill="{t["muted"]}" d="{d}"/>'
-    open(f'/Volumes/T7/Work/near-hackathon/coveredmarket/docs/readme/banner-{name}.svg','w').write(f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">{b}</svg>')
+    open(os.path.join(ROOT,'docs','readme',f'banner-{name}.svg'),'w').write(f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">{b}</svg>')
     print(name)
