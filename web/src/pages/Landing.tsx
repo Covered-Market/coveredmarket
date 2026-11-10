@@ -323,10 +323,7 @@ export function Landing() {
         <section id="stack" className="ld-sec ld-raised" style={{ borderTop: "1px solid var(--rule)", position: "relative", overflow: "visible" }} aria-labelledby="stack-h">
           <Seam n="05" />{/* patterns-v1: overflow was "hidden"; visible lets the seal sit on the seam */}
           <div className="ld-wrap ld-stack" style={{ gap: 32, position: "relative" }}>
-            <div className="ld-2" style={{ alignItems: "end", gap: "24px 48px" }}>
-              <div><Kicker n="05">Built with</Kicker><h2 id="stack-h" className="ld-h2" style={{ maxWidth: "16ch" }}>Built on NEAR. Settled on Bitcoin.</h2></div>
-              <p className="ld-lede" style={{ maxWidth: "40ch" }}>CoveredMarket is one contract and a thin relayer. What makes it possible is NEAR: a contract that can hold a Bitcoin key without anyone holding it.</p>
-            </div>
+            <div><Kicker n="05">Built with</Kicker><h2 id="stack-h" className="ld-h2" style={{ maxWidth: "16ch" }}>Built on NEAR. Settled on Bitcoin.</h2></div>
             <div className="ld-3 ld-built">
               {built().map((t) => (
                 <article className="ld-tech" key={t.name}>
