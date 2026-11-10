@@ -64,6 +64,48 @@
   .cv-todo { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; padding: 14px 16px; border-top: 1px solid var(--rule); }
   .cv-todo:first-child { border-top: none; }
   @media (max-width: 520px) { .cv-todo { grid-template-columns: minmax(0, 1fr); } }
+  /* Sell flow: one centered column (header, steps, the current step), never stretched across a wide screen. */
+  .cv-flowpage { box-sizing: border-box; width: 100%; max-width: 856px; margin: 0 auto; padding: 32px 48px 48px; display: flex; flex-direction: column; gap: 28px; }
+  .cv-panel { border: 1px solid var(--rule); background: var(--paper-raised); padding: 32px; }
+  @media (max-width: 640px) { .cv-panel { padding: 20px 16px; } }
+  .cv-panel .cv-field__wrap { background: var(--paper); }
+  .cv-flow__nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--rule); margin-top: 4px; padding-top: 20px; }
+  .cv-review-pair { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+  @media (max-width: 760px) { .cv-review-pair { grid-template-columns: minmax(0, 1fr); } }
+  .cv-outcome { border: 1px solid var(--rule); background: var(--paper); padding: 14px 16px; }
+  .cv-panel .cv-terms { background: var(--paper); }
+  .cv-panel .cv-choice:not(.cv-choice--on) { background: var(--paper); }
+  /* Sell flow: a bar of numbered steps. Done and current in intaglio; each done step shows what you chose. */
+  .cv-steps { display: grid; gap: 6px; list-style: none; margin: 0; padding: 0; }
+  .cv-step { min-width: 0; border-top: 3px solid var(--rule-strong); }
+  .cv-step--done, .cv-step--now { border-top-color: var(--intaglio); }
+  .cv-step__hit { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 10px 2px 0; background: none; border: 0; font: inherit; color: inherit; text-align: left; }
+  button.cv-step__hit { cursor: pointer; }
+  button.cv-step__hit:hover .cv-step__label { text-decoration: underline; text-underline-offset: 3px; }
+  button.cv-step__hit:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .cv-step__n { flex: none; width: 24px; height: 24px; border-radius: 999px; display: inline-grid; place-items: center; font: 500 12px/1 var(--font-mono); border: 1px solid var(--rule-strong); color: var(--ink-muted); background: var(--paper); }
+  .cv-step--done .cv-step__n { background: var(--intaglio); border-color: var(--intaglio); color: var(--on-intaglio); }
+  .cv-step--now .cv-step__n { border: 2px solid var(--intaglio); color: var(--intaglio); font-weight: 700; }
+  .cv-step__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-top: 3px; }
+  .cv-step__label { font: 600 13px/18px var(--font-sans); color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cv-step--now .cv-step__label { color: var(--ink); }
+  .cv-step--done .cv-step__label { color: var(--ink); }
+  .cv-step__val { font: 500 12px/16px var(--font-mono); color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 900px) { .cv-step__text { display: none; } .cv-step__hit { justify-content: center; } }
+  /* Sell flow: large one-of-many choices (expiry). */
+  .cv-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr)); gap: 8px; }
+  .cv-choice { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border: 1px solid var(--rule-strong); background: var(--paper-raised); color: var(--ink); text-align: left; cursor: pointer; font: inherit; }
+  .cv-choice:hover { border-color: var(--intaglio); }
+  .cv-choice:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .cv-choice__main { font: 600 16px/22px var(--font-sans); }
+  .cv-choice__sub { font: 400 13px/18px var(--font-sans); color: var(--ink-muted); }
+  .cv-choice--on { background: var(--intaglio); border-color: var(--intaglio); color: var(--on-intaglio); }
+  .cv-choice--on .cv-choice__sub { color: var(--on-intaglio); opacity: 0.85; }
+  /* Sell flow: the terms on the review step, each with a way back to its step. */
+  .cv-terms { margin: 0; border: 1px solid var(--rule); background: var(--paper-raised); }
+  .cv-terms__row { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--rule); }
+  .cv-terms__row:first-child { border-top: none; }
+  @media (max-width: 520px) { .cv-terms__row { grid-template-columns: minmax(0, 1fr) auto; } .cv-terms__row dd { grid-column: 1 / -1; grid-row: 2; } }
   @media (max-width: 520px) {
     .cv-tiles { display: grid !important; grid-template-columns: minmax(0, 1fr); width: 100%; }
     .cv-tiles > * { min-width: 0; }
