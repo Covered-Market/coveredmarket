@@ -3,14 +3,14 @@ import { C, dateUtc, duration, usd } from "../ds";
 import { call, CFG, toSats, toUsdcUnits, view, type Wallet } from "../lib/near";
 import { hex } from "../lib/derive";
 import { downloadKit, makeKit, newRescueKey, storeKit, storePendingKey } from "../lib/rescue";
-import { annualised, useSpot, useParams } from "./hooks";
+import { annualised, useSpotStatus, useParams } from "./hooks";
 import { expiryChoices } from "../lib/expiry";
 
 
 /** Step 1: the terms. Anyone can fill them in and see what happens in each outcome; a wallet is needed only to continue. */
 export function Sell({ wallet, onConnect }: { wallet: Wallet | null; onConnect: () => void }) {
-  const { Field, Button, OfferCard, Notice, Stamp } = C();
-  const spot = useSpot()?.price ?? 0;
+  const { Field, Button, OfferCard, Stamp } = C();
+  const spotStatus = useSpotStatus(), spot = spotStatus.spot?.price ?? 0;
   const params = useParams();
   const [size, setSize] = useState("0.01");
   const [strike, setStrike] = useState("");
@@ -52,7 +52,7 @@ export function Sell({ wallet, onConnect }: { wallet: Wallet | null; onConnect: 
           <p className="body" style={{ margin: 0, color: "var(--ink-muted)" }}>You keep the coins on Bitcoin. If at expiry the buyer pays the strike, they are sold at the strike. Either way you keep the premium.</p>
         </div>
         <Field label="Size" value={size} onChange={(e) => setSize(e.target.value)} adorn="BTC" help={`Deposited in step 2, exactly. Minimum ${Number(params?.min_size_sats ?? 100000) / 1e8} BTC.`} inputMode="decimal" />
-        <Field label="Strike" value={strike} onChange={(e) => setStrike(e.target.value)} adorn="USD" invalid={strikeBad} help={strikeBad ? `Strike must be above the reference price (${usd(spot * 1e6)}).` : spot ? `Reference price ${usd(spot * 1e6)}; this is ${k ? Math.round((k / spot - 1) * 100) : 0}% above.` : "Loading reference price"} inputMode="decimal" />
+        <Field label="Strike" value={strike} onChange={(e) => setStrike(e.target.value)} adorn="USD" invalid={strikeBad} help={strikeBad ? `Strike must be above the reference price (${usd(spot * 1e6)}).` : spot ? `Reference price ${usd(spot * 1e6)}; this is ${k ? Math.round((k / spot - 1) * 100) : 0}% above.` : spotStatus.failed ? "Reference price unavailable right now." : "Loading reference price"} inputMode="decimal" />
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <span className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>Expiry</span>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -82,7 +82,6 @@ export function Sell({ wallet, onConnect }: { wallet: Wallet | null; onConnect: 
           <div><div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)", marginBottom: 6 }}>If the buyer does not pay</div><div className="body">You keep the <b>{s.toFixed(8)} BTC</b> (less the {params?.fee_sats ?? 1000}-sat network fee) and the <b>{usd(pr * 1e6)}</b>.</div><div style={{ marginTop: 8 }}><Stamp status="kept" flat /></div></div>
           <div><div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)", marginBottom: 6 }}>If the buyer pays {usd(s * k * 1e6)}</div><div className="body">Your coins are delivered to the buyer; you receive the strike plus the <b>{usd(pr * 1e6)}</b> you already have.</div><div style={{ marginTop: 8 }}><Stamp status="exercised" flat /></div></div>
         </div>
-        <Notice>The contract can sign your coins only after expiry, or to the buyer once the strike is paid. Signatures come from NEAR's MPC network, not from CoveredMarket. The network fee is borne by whoever receives the coins.</Notice>
       </div>
     </div>
   );

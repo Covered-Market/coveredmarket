@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { C } from "../ds";
 import { describe, newestSerial, type FeedRow } from "../lib/activity";
 import { view } from "../lib/near";
@@ -46,31 +46,6 @@ export function useContracts(hint: number) {
   return { rows, newest };
 }
 
-/** The life of one contract, in the words the stamps use, so every status on the page reads as a step. */
-export function Lifecycle() {
-  const steps: [string, string][] = [
-    ["Created", "A seller sets size, strike, expiry and premium. The contract derives a Bitcoin address for it."],
-    ["For sale", "The seller's coins arrive at that address and are proven on NEAR. Anyone can buy the call."],
-    ["Sold", "A buyer pays the premium in USDC, credited to the seller at once. The coins stay put until expiry."],
-    ["Exercise window", "After expiry the buyer may pay the strike. Nothing else decides the outcome."],
-    ["Kept or Exercised", "The contract signs the coins back to the seller, or to the buyer if the strike was paid."],
-  ];
-  return (
-    <section data-cv="lifecycle" aria-labelledby="life-h" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <h2 id="life-h" className="display-2" style={{ margin: 0, fontSize: 28, lineHeight: 1.1 }}>How a contract moves</h2>
-      <ol className="cv-life" style={{ listStyle: "none", margin: 0, padding: 0 }}>
-        {steps.map(([t, d], i) => (
-          <li key={t}>
-            <span className="cv-life__n">{i + 1}</span>
-            <div><div className="body-small" style={{ fontWeight: 600 }}>{t}</div><div className="body-small" style={{ color: "var(--ink-muted)" }}>{d}</div></div>
-          </li>
-        ))}
-      </ol>
-      <p className="body-small" style={{ margin: 0, color: "var(--ink-muted)" }}>Before a buyer comes, the seller can withdraw the coins. If NEAR ever stops, the seller's own rescue key can take them back after a fixed delay.</p>
-    </section>
-  );
-}
-
 /** One contract as a line that opens its certificate. Shared by the Market and the Portfolio. */
 export function ContractLine({ serial, line, stamp, word, sizeBtc, strikeUsd, premiumUsd, when, first }: { serial: number; line: string; stamp: FeedRow["stamp"]; word: string; sizeBtc: number; strikeUsd: number; premiumUsd: number; when?: string; first?: boolean }) {
   const { Stamp, Figure } = C();
@@ -87,33 +62,68 @@ export function ContractLine({ serial, line, stamp, word, sizeBtc, strikeUsd, pr
   );
 }
 
-const TABS: [Group | "all", string][] = [["sale", "For sale"], ["live", "Live"], ["settled", "Settled"], ["all", "All"]];
+/** An empty list: what will be here, and the next step if there is one. Shared by the Market and the Portfolio. */
+export function EmptyBox({ title, text, action, href }: { title: string; text: string; action?: string; href?: string }) {
+  const { Button } = C();
+  return (
+    <div className="cv-empty">
+      <div><div className="body" style={{ fontWeight: 600 }}>{title}</div><div className="body-small" style={{ color: "var(--ink-muted)" }}>{text}</div></div>
+      {action && href && <Button size="sm" href={href}>{action}</Button>}
+    </div>
+  );
+}
 
-/** Every recent contract, in tabs by where it is in its life. Each line opens its public certificate. */
-export function AllContracts({ rows }: { rows: ContractRow[] | null }) {
-  const [tab, setTab] = useState<Group | "all">("live");
+const EMPTY: Record<Group | "all", [string, string, string?, string?]> = {
+  sale: ["Nothing for sale right now", "Offers appear here once their coins are deposited and proven.", "Sell a call", "#/sell"],
+  live: ["No live contracts", "Contracts show here from creation until they settle."],
+  settled: ["Nothing settled yet", "Contracts show here once their coins are returned or delivered."],
+  all: ["No contracts yet", "Every contract on this network will be listed here.", "Sell a call", "#/sell"],
+};
+
+const TABS: [Group | "all", string][] = [["sale", "For sale"], ["live", "Live"], ["settled", "Settled"], ["all", "All"]];
+/** Tab icons: the brand's premium, clock and kept glyphs (assets/Icons), and a list in the same 2px style. */
+const TAB_ICON: Record<Group | "all", string> = {
+  sale: "M12 3v18M8 7h6a2.5 2.5 0 0 1 0 5H9a2.5 2.5 0 0 0 0 5h7",
+  live: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 7v5l3 2",
+  settled: "M5 12l5 5 9-10",
+  all: "M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01",
+};
+
+/** The Market's one list: contracts in tabs by where they are in their life. The For sale tab shows the offers
+ *  as cards with their Buy button (`sale`, from the open offers); the others list the latest contracts as lines
+ *  that open their certificates. It opens on the first tab with something in it: For sale, Live, then All. */
+export function AllContracts({ rows, sale, saleCount }: { rows: ContractRow[] | null; sale: ReactNode; saleCount: number | null }) {
+  const [picked, setPicked] = useState<Group | "all" | null>(null);
+  const count = (g: Group | "all") => (g === "sale" ? saleCount ?? 0 : rows ? (g === "all" ? rows.length : rows.filter((r) => r.group === g).length) : 0);
+  const tab: Group | "all" = picked ?? (saleCount ? "sale" : count("live") || !rows?.length ? "live" : "all");
   const shown = rows?.filter((r) => tab === "all" || r.group === tab) ?? null;
-  const count = (g: Group | "all") => (rows ? (g === "all" ? rows.length : rows.filter((r) => r.group === g).length) : 0);
+  const empty = () => { const [t, x, a, h] = EMPTY[tab]; return <EmptyBox title={t} text={x} action={a} href={h} />; };
   return (
     <section data-cv="activity" aria-labelledby="all-h" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <h2 id="all-h" className="display-2" style={{ margin: 0, fontSize: 28, lineHeight: 1.1 }}>All contracts</h2>
-        <span className="body-small" style={{ color: "var(--ink-muted)" }}>The latest {LATEST} on this network, newest first. Each opens its certificate, which anyone can verify.</span>
+        <h2 id="all-h" className="display-2" style={{ margin: 0, fontSize: 28, lineHeight: 1.1 }}>Contracts</h2>
+        <span className="body-small" style={{ color: "var(--ink-muted)" }}>Buy an offer that is for sale, or open any contract's certificate and verify it yourself.</span>
       </div>
       <div role="tablist" aria-label="Filter contracts" className="cv-tabs">
         {TABS.map(([g, label]) => (
-          <button key={g} type="button" role="tab" aria-selected={tab === g} className={"cv-tab" + (tab === g ? " cv-tab--on" : "")} onClick={() => setTab(g)}>
-            {label} <span className="cv-tab__n">{count(g)}</span>
+          <button key={g} type="button" role="tab" aria-selected={tab === g} className={"cv-tab" + (tab === g ? " cv-tab--on" : "")} onClick={() => setPicked(g)}>
+            <svg className="cv-tab__icon" viewBox="0 0 24 24" aria-hidden="true"><path d={TAB_ICON[g]} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <span className="cv-tab__label">{label}</span>
+            <span className="cv-tab__n">{count(g)}</span>
           </button>
         ))}
       </div>
-      {shown === null && <div className="body-small" style={{ color: "var(--ink-muted)" }}>Reading the contract…</div>}
-      {shown?.length === 0 && <div className="body-small" style={{ color: "var(--ink-muted)" }}>None right now.</div>}
-      {!!shown?.length && (
-        <div role="tabpanel" style={{ display: "flex", flexDirection: "column", border: "1px solid var(--rule)", background: "var(--paper-raised)" }}>
-          {shown.map((r, i) => <ContractLine key={r.serial} {...r} first={i === 0} />)}
-        </div>
-      )}
+      {tab === "sale"
+        ? (saleCount ? <div role="tabpanel">{sale}</div> : empty())
+        : <>
+            {shown === null && <div className="body-small" style={{ color: "var(--ink-muted)" }}>Reading the contract…</div>}
+            {shown?.length === 0 && empty()}
+            {!!shown?.length && (
+              <div role="tabpanel" style={{ display: "flex", flexDirection: "column", border: "1px solid var(--rule)", background: "var(--paper-raised)" }}>
+                {shown.map((r, i) => <ContractLine key={r.serial} {...r} first={i === 0} />)}
+              </div>
+            )}
+          </>}
     </section>
   );
 }

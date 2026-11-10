@@ -18,10 +18,18 @@ export function useParams() {
   useEffect(() => { view<Params>("get_params").then(setP).catch(() => {}); }, []);
   return p;
 }
-export function useSpot() {
+export function useSpot() { return useSpotStatus().spot; }
+/** The reference price, and whether the last attempt to read it failed (so pages can say "unavailable" instead of
+ *  showing $0 as if it were loading). */
+export function useSpotStatus() {
   const [s, setS] = useState<{ price: number; sources: number } | null>(null);
-  useEffect(() => { const f = () => fetch("/api/spot").then((r) => r.json()).then(setS).catch(() => {}); f(); const t = setInterval(f, 60_000); return () => clearInterval(t); }, []);
-  return s;
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const f = () => fetch("/api/spot").then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+      .then((v) => { if (typeof v?.price !== "number") throw new Error("no price"); setS(v); setFailed(false); }).catch(() => setFailed(true));
+    f(); const t = setInterval(f, 60_000); return () => clearInterval(t);
+  }, []);
+  return { spot: s, failed };
 }
 export const annualised = (premiumUsd: number, sizeBtc: number, spot: number, expiryS: number) => {
   const days = Math.max(1, (expiryS - Date.now() / 1000) / 86400);
