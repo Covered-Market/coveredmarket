@@ -37,7 +37,7 @@ Local parameters (set in `infra/local/bootstrap/bootstrap.ts`): `min_conf 1`, `f
 ## Tests
 
 ```
-bin/coveredmarket test        # L0: contract (30), relayer (14), web (9) — no chain needed
+bin/coveredmarket test        # L0: contract, relayer, web and agent unit tests — no chain needed
 bin/coveredmarket e2e         # L1: builds wasm and runs the sandbox flows in integration/tests/flow.rs
 bin/coveredmarket up && bin/coveredmarket e2e-stack
                         # L1+: the whole product on the composed stack, see below
@@ -63,6 +63,7 @@ bin/coveredmarket                 CLI
 contracts/coveredmarket           the contract           contracts/mock-*  sandbox stand-ins (signer, light client, USDC)
 integration/                near-workspaces flows  relayer/          service + Dockerfile
 web/                        app + Dockerfile       brand/            design system and assets
+agent/                      SDK, JSON CLI and MCP server for agents (testnet/local), see agent/README.md
 infra/compose.yaml          cloud stack            infra/compose.local.yaml  local overlay
 infra/local/                sandbox image, contract builder image, bootstrap
 infra/cloud/                Terraform, cloud-init, testnet first-start bootstrap   infra/compose.testnet.yaml  its overlay
