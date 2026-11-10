@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <b><a href="https://testnet.covered.market/#/try">Try it on testnet</a></b> ·
+  <b><a href="https://testnet.covered.market/">Try it on testnet</a></b> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#run-it-yourself">Run it yourself</a> ·
   <a href="#security">Security</a> ·
@@ -86,7 +86,7 @@ Contract: [`covered-app-mw4qlyb3.testnet`](https://testnet.nearblocks.io/address
 
 ## Try it in five minutes
 
-The [testnet site](https://testnet.covered.market/#/try) uses test coins and test USDC with no value.
+The [testnet site](https://testnet.covered.market/) uses test coins and test USDC with no value.
 
 1. **Connect a wallet.** Any NEAR wallet set to testnet (Meteor, Intear, Nightly, …), named or implicit account. You get 100,000 test USDC and a little tNEAR automatically; the relayer pays gas.
 2. **Sell a call.** 0.001 tBTC, a strike above the reference price, the shortest expiry.

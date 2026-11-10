@@ -5,11 +5,10 @@ import { canConnect, connectWallet, disconnectWallet, restoreConnected } from ".
 import { autoFund, getTestFunds, initTestWallet, shortAccount, testWallet, waitForAccount } from "./lib/testwallet";
 import { Buy } from "./pages/Buy";
 import { Contract } from "./pages/Contract";
-import { Contracts } from "./pages/Contracts";
 import { Deposit } from "./pages/Deposit";
 import { Market } from "./pages/Market";
 import { Sell } from "./pages/Sell";
-import { Try } from "./pages/Try";
+import { Portfolio, usePortfolio } from "./pages/Portfolio";
 import { Landing } from "./pages/Landing";
 import { NetworkBand, NetworkSwitch, NotLive } from "./Network";
 import { ChainClock } from "./ChainClock";
@@ -77,11 +76,12 @@ function AppShell() {
     if (!confirm(wallet?.via ? `Disconnect ${wallet.viaName ?? "this wallet"}?` : "Forget this sandbox account on this device? Its key is only stored here.")) return;
     if (wallet?.via) await disconnectWallet(); clearWallet(); setWallet(null);
   };
+  // Two places, Market (public) and Portfolio (yours); selling is an action, a button beside them.
+  const portfolio = usePortfolio(wallet);
+  const waiting = portfolio.todos.length + (portfolio.claimable !== "0" ? 1 : 0);
   const nav = (on: string) => [
-    { label: "Market", href: "#/market", on: on === "market" },
-    { label: "Sell a call", href: "#/sell", on: on === "sell" },
-    { label: "My contracts", href: "#/contracts", on: on === "contracts" },
-    { label: "Try it", href: "#/try", on: on === "try" },
+    { label: "Market", href: "#/market", on: on === "market" || on === "buy" },
+    { label: waiting ? `Portfolio · ${waiting}` : "Portfolio", href: "#/portfolio", on: on === "portfolio" || on === "contracts" },
   ];
   const page = parts[0] ?? "market";
   // With a separate website the app's own `/` is the market; on the local stack `/` is still the landing page.
@@ -89,12 +89,12 @@ function AppShell() {
   const content = CFG.disabled ? <NotLive /> : (() => {
     switch (page) {
       case "market": return <Market />;
-      case "sell": return wallet ? <Sell wallet={wallet} /> : <NeedWallet onCreate={getWallet} />;
+      case "sell": return <Sell wallet={wallet} onConnect={getWallet} />;
       case "deposit": return <Deposit serial={Number(parts[1])} wallet={wallet} />;
-      case "contracts": return wallet ? <Contracts wallet={wallet} /> : <NeedWallet onCreate={getWallet} />;
+      case "portfolio":
+      case "contracts": return <Portfolio wallet={wallet} data={portfolio} onConnect={getWallet} />;
       case "c": return <Contract serial={Number(parts[1])} wallet={wallet} />;
       case "buy": return <Buy serial={Number(parts[1])} wallet={wallet} onCreate={getWallet} />;
-      case "try": return <Try wallet={wallet} onCreate={getWallet} />;
       default: return <Market />;
     }
   })();
@@ -103,6 +103,7 @@ function AppShell() {
       <NetworkBand />
       <TopBar items={CFG.disabled ? [] : nav(page)} href={CFG.siteUrl || "/"}>
         <NetworkSwitch />
+        {!CFG.disabled && <Button size="sm" variant="quiet" href="#/sell" aria-current={page === "sell" ? "page" : undefined}>Sell a call</Button>}
         {CFG.disabled ? null : wallet ? (
           <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
             {wallet.testRole && <span title="Hidden test wallet for automated testing: key in this browser, testnet only" style={{ padding: "3px 8px", fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", background: "var(--gilt)", color: "var(--on-gilt)" }}>Test wallet · {wallet.testRole}</span>}
@@ -130,20 +131,8 @@ function AppShell() {
       {content}
       <div style={{ padding: "16px 48px 24px", borderTop: "1px solid var(--rule)", marginTop: 48 }} className="body-small cv-pad">
         <ChainClock />
-        <Notice>CoveredMarket is unaudited hackathon software.{CFG.disabled ? null : <> Only the contract <a href={`${CFG.explorerNear}/address/${CFG.contract}`} target="_blank" rel="noreferrer"><code>{CFG.contract}</code></a> can ask NEAR's signing network to spend a deposit address; CoveredMarket the company cannot. If the signing network stopped, settlement would stop with it.</>}</Notice>
+        {CFG.mode !== "testnet" && <Notice>CoveredMarket is unaudited hackathon software.{CFG.disabled ? null : <> Only the contract <a href={`${CFG.explorerNear}/address/${CFG.contract}`} target="_blank" rel="noreferrer"><code>{CFG.contract}</code></a> can ask NEAR's signing network to spend a deposit address; CoveredMarket the company cannot. If the signing network stopped, settlement would stop with it.</>}</Notice>}
       </div>
-    </div>
-  );
-}
-
-function NeedWallet({ onCreate }: { onCreate: () => void }) {
-  const { Button } = C();
-  return (
-    <div className="cv-pad" style={{ padding: "48px" }}>
-      <h1 className="title" style={{ margin: "0 0 8px" }}>You need a wallet first</h1>
-      <p className="body" style={{ color: "var(--ink-muted)", maxWidth: 520 }}>A NEAR account identifies you as seller or buyer. Your Bitcoin stays in your own Bitcoin wallet; this account only signs instructions.</p>
-      <Button variant="primary" onClick={onCreate}>{canConnect() ? "Connect wallet" : "Create account"}</Button>
-      {canConnect() && <p className="body-small" style={{ color: "var(--ink-muted)", maxWidth: 520, marginTop: 12 }}>No NEAR wallet yet? <a href="https://meteorwallet.app" target="_blank" rel="noreferrer">Meteor</a> is a browser extension that works on testnet and mainnet. Your Bitcoin wallet (UniSat, Xverse, Leather…) is only needed to pay a deposit.</p>}
     </div>
   );
 }

@@ -137,7 +137,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 await page.goto(WEB + "/#/market");
 await page.evaluate((w) => localStorage.setItem("coveredmarket.wallet", JSON.stringify(w)), { accountId: astrid.id, key: astrid.key });
-for (const [route, name] of [["#/market", "market"], ["#/sell", "sell"], [`#/deposit/${k.serial}`, "deposit"], ["#/contracts", "contracts"], ["#/try", "try"]]) {
+for (const [route, name] of [["#/market", "market"], ["#/sell", "sell"], [`#/deposit/${k.serial}`, "deposit"], ["#/portfolio", "portfolio"]]) {
   await page.goto(`${WEB}/${route}`); await page.reload(); await page.waitForTimeout(2500);
   await page.screenshot({ path: `${ART}${name}.png`, fullPage: true });
 }

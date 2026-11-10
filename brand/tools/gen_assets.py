@@ -73,73 +73,13 @@ def svg(w, h, body, bg=None, vb=None):
 def wordmark(x, y, size, ink, italic=False, caps=False):
     return mark2.wordmark(x, y, size, ink, caps=caps)
 
-# Logos — the Lid in every variant
-def L(name, w, h, inner, bg=None): write(f'Logos/{name}.svg', svg(w, h, inner, bg=bg))
-# symbol: primary two-tone, copper colourway, one-colour, reversed (thinned 3%), small cut
-L('coveredmarket-symbol', 64, 64, LID.lid(body=INTAGLIO, cap=GILT))
-L('coveredmarket-symbol-copper', 64, 64, LID.lid(body=COPPER, cap=INTAGLIO))
-L('coveredmarket-symbol-ink', 64, 64, LID.lid(body=INK))
-L('coveredmarket-symbol-intaglio', 64, 64, LID.lid(body=INTAGLIO))
-L('coveredmarket-symbol-on-vault', 64, 64, LID.lid(body=INK_V, cap=GILT_V, thin=0.03), bg=VAULT)
-L('coveredmarket-symbol-reversed', 64, 64, LID.lid(body=INK_V, thin=0.03), bg=VAULT)
-L('coveredmarket-symbol-small', 64, 64, LID.lid(body=INK, small=True))
-L('coveredmarket-symbol-small-on-vault', 64, 64, LID.lid(body=INK_V, cap=GILT_V, small=True), bg=VAULT)
-# states (for the system: stamps, timelines, motion)
-for st in ('open', 'kept', 'exercised'):
-    L(f'coveredmarket-symbol-state-{st}', 64, 64, LID.lid(body=INTAGLIO, cap=GILT, state=st))
-# wordmarks
-wm, ww = wordmark(0, 46, 56, INK); L('coveredmarket-wordmark', math.ceil(ww) + 2, 64, wm)
-wm, ww = wordmark(0, 46, 56, INK_V); L('coveredmarket-wordmark-on-vault', math.ceil(ww) + 2, 64, wm, bg=VAULT)
-wm, ww = wordmark(0, 36, 48, INK, caps=True); L('coveredmarket-wordmark-caps', math.ceil(ww) + 2, 48, wm)
-# horizontal lockups: symbol cap-height-plus, gap = half the symbol
-def lockup(body, cap, ink, bg=None, name='coveredmarket-lockup'):
-    wm, ww = wordmark(84, 47, 56, ink)
-    L(name, math.ceil(ww) + 88, 64, LID.lid(0, 0, 64, body=body, cap=cap, thin=(0.03 if bg else 0)) + wm, bg=bg)
-lockup(INTAGLIO, GILT, INK)
-lockup(INK, INK, INK, name='coveredmarket-lockup-ink')
-lockup(INK_V, GILT_V, INK_V, bg=VAULT, name='coveredmarket-lockup-on-vault')
-lockup(COPPER, INTAGLIO, INK, name='coveredmarket-lockup-copper')
-# stacked
-wm, ww = wordmark(0, 0, 40, INK); W = math.ceil(ww); H = 64 + 14 + 40
-L('coveredmarket-lockup-stacked', W, H, f'<g transform="translate({W/2-32:.1f},0)">' + LID.lid(body=INTAGLIO, cap=GILT) + '</g>' + f'<g transform="translate(0,{64+14+30})">' + wm + '</g>')
-wm, ww = wordmark(0, 0, 40, INK_V)
-L('coveredmarket-lockup-stacked-on-vault', W, H, f'<g transform="translate({W/2-32:.1f},0)">' + LID.lid(body=INK_V, cap=GILT_V, thin=0.03) + '</g>' + f'<g transform="translate(0,{64+14+30})">' + wm + '</g>', bg=VAULT)
-# seal: the lid inside a ring of outlined microtext
-def seal(ink, body, cap, bg=None):
-    txt = 'COVEREDMARKET · NATIVE BITCOIN · NO CUSTODIAN · '
-    out = []
-    rr, fs = 45.5, 6.25  # sized so the 13-letter name keeps the original ring density
-    f = font(*SANS_B); gs = f.getGlyphSet(); cmap = f.getBestCmap(); upm = f['head'].unitsPerEm; sc = fs/upm
-    chars = txt * 2
-    adv = [ (gs[cmap[ord(c)]].width*sc if ord(c) in cmap else fs*0.3) + fs*0.14 for c in chars]
-    k = 2*math.pi*rr / sum(adv); adv = [a*k for a in adv]
-    ang = -math.pi/2
-    for c, a in zip(chars, adv):
-        mid = ang + (a/rr)/2
-        if ord(c) in cmap:
-            pen = SVGPathPen(gs); tp = TransformPen(pen, (sc, 0, 0, -sc, -gs[cmap[ord(c)]].width*sc/2, 0)); gs[cmap[ord(c)]].draw(tp)
-            out.append(f'<path d="{pen.getCommands()}" fill="{ink}" transform="translate({64+rr*math.cos(mid):.2f},{64+rr*math.sin(mid):.2f}) rotate({math.degrees(mid)+90:.2f})"/>')
-        ang += a/rr
-    out.append(f'<circle cx="64" cy="64" r="54" fill="none" stroke="{ink}" stroke-width="1.2"/>')
-    out.append(f'<circle cx="64" cy="64" r="37" fill="none" stroke="{ink}" stroke-width="1.2"/>')
-    out.append(f'<g transform="translate(38,38) scale(0.8125)">' + LID.lid(body=body, cap=cap) + '</g>')
-    return ''.join(out)
-L('coveredmarket-seal', 128, 128, seal(INK, INTAGLIO, GILT))
-L('coveredmarket-seal-ink', 128, 128, seal(INK, INK, INK))
-L('coveredmarket-seal-on-vault', 128, 128, seal(INK_V, INK_V, GILT_V), bg=VAULT)
-# app icons: square (iOS masks it) and a 22%-radius rounded square; symbol at 62%
-for n, size, rx in (('app-icon-1024', 1024, 0), ('app-icon-1024-rounded', 1024, 225), ('app-icon-192', 192, 0)):
-    s = size / 64
-    body = f'<rect width="{size}" height="{size}" rx="{rx}" fill="{VAULT}"/>'
-    body += f'<g transform="translate({size*0.19:.1f},{size*0.17:.1f}) scale({size*0.62/64:.4f})">' + LID.lid(body=INK_V, cap=GILT_V) + '</g>'
-    L(n, size, size, body)
-L('favicon', 64, 64, LID.lid(body=INK, small=True), bg=PAPER)
-L('favicon-on-vault', 64, 64, LID.lid(body=INK_V, cap=GILT_V, small=True), bg=VAULT)
-# the "built on NEAR" rule: lockup + hairline + a text slot (NEAR's own mark goes to the right, supplied by NEAR)
-wm, ww = wordmark(84, 47, 56, INK)
-L('coveredmarket-lockup-with-partner-rule', math.ceil(ww) + 88 + 40, 64, LID.lid(0, 0, 64, body=INTAGLIO, cap=GILT) + wm + f'<line x1="{math.ceil(ww)+104}" y1="12" x2="{math.ceil(ww)+104}" y2="52" stroke="{RULE}" stroke-width="1"/>')
+# Logos: generated by gen_logos.py (overlap-free outlines, measured margins, screen cuts). Not here.
 
 # ---------- Patterns ----------
+# The rosette's outermost curves reach ROSETTE_REACH * R from its centre. Every composition below sizes R
+# from the space it has (R = room / ROSETTE_REACH), so the rosette is always whole, never cut by an edge.
+ROSETTE_REACH = 1.14
+
 def rosette(cx, cy, R, ink, rings=7, sw=0.9):
     """Classic spirograph rosette: a set of thin rotated ellipses, in two families."""
     out = []
@@ -157,8 +97,9 @@ def rosette(cx, cy, R, ink, rings=7, sw=0.9):
             out.append(f'<polygon points="{" ".join(pts)}" fill="none" stroke="{ink}" stroke-width="{sw}"/>')
     return ''.join(out)
 
-write('Patterns/guilloche-rosette.svg', svg(480, 480, rosette(240, 240, 220, INK)))
-write('Patterns/guilloche-rosette-gilt-on-vault.svg', svg(480, 480, rosette(240, 240, 220, GILT_V, sw=0.8), bg=VAULT))
+_RP = (240 - 4) / ROSETTE_REACH   # whole inside the 480 canvas, with 4px to spare
+write('Patterns/guilloche-rosette.svg', svg(480, 480, rosette(240, 240, _RP, INK)))
+write('Patterns/guilloche-rosette-gilt-on-vault.svg', svg(480, 480, rosette(240, 240, _RP, GILT_V, sw=0.8), bg=VAULT))
 
 def band(w, h, ink, waves=10, sw=0.7):
     """A braid: one sine at two phases per strand, mirrored, tileable over w."""
@@ -248,14 +189,15 @@ def social(w, h, dark=True):
     muted = MUTED_V if dark else MUTED
     rule = RULE_V if dark else RULE
     body = ''
-    # engraved rosette bleeding off the right
-    R = h * 0.78
-    body += f'<g opacity="{0.42 if dark else 0.28}">' + rosette(w - R * 0.22, h * 0.5, R, gilt if dark else INK, rings=8, sw=0.9) + '</g>'
     # plate frame
     m = h * 0.08
+    # engraved rosette, whole, in the top-right corner of the frame, clear of the tagline below it
+    tag_top = h - m * 2.2 - h * 0.11 * 0.75
+    room = (tag_top - 16 - m * 1.5) / 2
+    body += f'<g opacity="{0.42 if dark else 0.28}">' + rosette(w - m * 1.5 - room, m * 1.5 + room, room / ROSETTE_REACH, gilt if dark else INK, rings=8, sw=0.9) + '</g>'
     body += f'<rect x="{m}" y="{m}" width="{w-2*m}" height="{h-2*m}" fill="none" stroke="{rule}" stroke-width="1"/>'
     # mark + wordmark
-    ms = h * 0.22
+    ms = h * 0.16
     body += f'<g transform="translate({m*1.6},{m*1.6}) scale({ms/64})">' + mark(ink=(INK_V if dark else INTAGLIO), coin=(INK_V if dark else INTAGLIO), finial=gilt, two_tone=True) + '</g>'
     wmp, ww = wordmark(m * 1.6 + ms * 1.2, m * 1.6 + ms * 0.72, ms * 0.9, ink)
     body += wmp
@@ -279,7 +221,9 @@ write('Social/avatar-400.svg', svg(400, 400, body))
 # video title card and end card 1920x1080
 def title_card():
     w, h = 1920, 1080
-    body = f'<g opacity="0.4">' + rosette(1700, 540, 700, GILT_V, rings=9, sw=1) + '</g>'
+    # whole, in the top-right corner, above the name (whose cap height starts near y = 640 - 0.72 * 160)
+    room = (640 - 0.72 * 160 - 32 - 64 - 48) / 2
+    body = f'<g opacity="0.4">' + rosette(w - 64 - 48 - room, 64 + 48 + room, room / ROSETTE_REACH, GILT_V, rings=9, sw=1) + '</g>'
     body += f'<rect x="64" y="64" width="{w-128}" height="{h-128}" fill="none" stroke="{RULE_V}" stroke-width="1.5"/>'
     body += f'<g transform="translate(120,112) scale(1.5)">' + mark(ink=INK_V, coin=INK_V, finial=GILT_V, two_tone=True) + '</g>'
     d, _ = name_path(*FRAUNCES, 160, 120, 640)
@@ -307,7 +251,8 @@ write('Social/video-end-card-1920x1080.svg', end_card())
 # square social card 1080
 def square():
     w = h = 1080
-    body = f'<g opacity="0.45">' + rosette(900, 200, 520, GILT_V, rings=8, sw=1) + '</g>'
+    room = 262   # whole, top right, and clear of the headline's cap height (y = 700 - 0.72 * 120)
+    body = f'<g opacity="0.45">' + rosette(w - 48 - 24 - room, 48 + 24 + room, room / ROSETTE_REACH, GILT_V, rings=8, sw=1) + '</g>'
     body += f'<rect x="48" y="48" width="{w-96}" height="{h-96}" fill="none" stroke="{RULE_V}" stroke-width="1.5"/>'
     body += f'<g transform="translate(96,96) scale(1.25)">' + mark(ink=INK_V, coin=INK_V, finial=GILT_V, two_tone=True) + '</g>'
     d, _ = text_path('Sell a call.', *FRAUNCES, 120, 96, 700); body += f'<path d="{d}" fill="{INK_V}"/>'
@@ -315,4 +260,34 @@ def square():
     d, _ = text_path('Non-custodial covered calls on native Bitcoin', *SANS, 30, 100, 930, tracking=0.01); body += f'<path d="{d}" fill="{GILT_V}"/>'
     return svg(w, h, body, bg=VAULT)
 write('Social/square-card-1080.svg', square())
+
+# The film's poster, 1920x1080, and the video's thumbnail (rendered to PNG). The rosette sits whole on the right
+# and a player puts its play button in the rosette's eye (POSTER_EYE, as fractions of the width and height). The
+# plain version leaves the rosette out, for pages that carry the rosette themselves (the landing page). Title and
+# subtitle are fitted to the space left of the rosette either way.
+POSTER_EYE = (0.71875, 0.5)
+def poster(with_rosette=True):
+    w, h = 1920, 1080
+    room = h / 2 - 64 - 56
+    cx, cy = w * POSTER_EYE[0], h * POSTER_EYE[1]
+    body = (f'<g opacity="0.38">' + rosette(cx, cy, room / ROSETTE_REACH, GILT_V, rings=9, sw=1.1) + '</g>') if with_rosette else ''
+    body += f'<rect x="64" y="64" width="{w-128}" height="{h-128}" fill="none" stroke="{RULE_V}" stroke-width="1.5"/>'
+    body += f'<g transform="translate(128,128) scale(1.4)">' + mark(ink=INK_V, coin=INK_V, finial=GILT_V, two_tone=True) + '</g>'
+    wp, _ = wordmark(128 + 64 * 1.4 + 28, 128 + 64 * 1.4 * 0.68, 60, INK_V)
+    body += wp
+    left, max_w = 128, cx - room - 128 - 48
+    def fit(txt, f, size):
+        _, tw = text_path(txt, *f, size, 0, 0)
+        return size * min(1, max_w / tw)
+    t1, t2 = 'From offer', 'to settlement.'
+    ts = min(fit(t1, FRAUNCES, 150), fit(t2, FRAUNCES, 150))
+    d, _ = text_path(t1, *FRAUNCES, ts, left, 560); body += f'<path d="{d}" fill="{INK_V}"/>'
+    d, _ = text_path(t2, *FRAUNCES, ts, left, 560 + ts * 1.02); body += f'<path d="{d}" fill="{INK_V}"/>'
+    sub = 'One covered call on native Bitcoin.'
+    ss = fit(sub, FRAUNCES_IT, 52)
+    d, _ = text_path(sub, *FRAUNCES_IT, ss, left + 4, 560 + ts * 1.02 + 96); body += f'<path d="{d}" fill="{GILT_V}"/>'
+    d, _ = text_path('COVERED.MARKET', *SANS_B, 26, left + 4, h - 128, tracking=0.16); body += f'<path d="{d}" fill="{MUTED_V}"/>'
+    return svg(w, h, body, bg=VAULT)
+write('Social/video-poster-1920x1080.svg', poster())
+write('Social/video-poster-plain-1920x1080.svg', poster(with_rosette=False))
 print('done')

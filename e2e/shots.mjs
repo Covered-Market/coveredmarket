@@ -91,8 +91,8 @@ const fillSell = async (page) => {
 
 if (MODE === "audit") {
   const routes = [
-    ["market", "/market", null], ["try", "/try", null], ["sell", "/sell", me, fillSell], ["sell-nowallet", "/sell", null],
-    ["contracts", "/contracts", me], [`deposit-${open}`, `/deposit/${open}`, null], created && [`deposit-${created}`, `/deposit/${created}`, null],
+    ["market", "/market", null], ["sell", "/sell", me, fillSell], ["sell-nowallet", "/sell", null],
+    ["portfolio", "/portfolio", me], [`deposit-${open}`, `/deposit/${open}`, null], created && [`deposit-${created}`, `/deposit/${created}`, null],
     [`buy-${open}`, `/buy/${open}`, null], [`c-${open}-open`, `/c/${open}`, null], [`c-${kept}-kept`, `/c/${kept}`, null], [`c-${exercised}-exercised`, `/c/${exercised}`, null],
   ].filter((r) => r && !r[1].includes("undefined"));
   for (const [name, route, wallet, before] of routes)
@@ -117,10 +117,9 @@ if (MODE === "audit") {
     ["S6", `/buy/${open}`, { wallet: { accountId: "buyer.testnet" } }],
     ["S7", `/c/${kept}`, { fullPage: true }],
     ["S8", `/c/${exercised}`, {}, cert],
-    ["S9", "/contracts", { wallet: me }],
+    ["S9", "/portfolio", { wallet: me }],
     ["S10", `/c/${open}`, { before: verify }, "[data-cv=verify]"],
     ["S11", `/c/${kept}`, {}, "[data-cv=timeline]"],
-    ["S12", "/try", {}],
     ["S4m", "/sell", { wallet: me, viewport: PHONE, before: fillSell }],
     ["S5m", `/deposit/${open}`, { wallet: me, viewport: PHONE }],
     ["S6m", `/buy/${open}`, { wallet: { accountId: "buyer.testnet" }, viewport: PHONE }],

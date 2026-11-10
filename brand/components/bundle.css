@@ -115,8 +115,8 @@
 /* ---- TopBar ---- */
 .cv-topbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); padding: var(--space-3) var(--space-5); border-bottom: var(--stroke-hair) solid var(--rule); background: var(--paper); }
 .cv-topbar__brand { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--ink); text-decoration: none; }
-.cv-topbar__brand svg { width: 28px; height: 28px; }
-.cv-topbar__word { font-family: var(--font-display); font-weight: 500; font-size: 22px; letter-spacing: -0.01em; font-variation-settings: "opsz" 48; }
+.cv-topbar__logo { display: block; line-height: 0; }
+.cv-topbar__logo svg { display: block; width: auto; height: 32px; max-width: 100%; }
 .cv-topbar__nav { display: flex; gap: var(--space-5); }
 .cv-topbar__link { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--ink-muted); text-decoration: none; padding: var(--space-2) 0; border-bottom: var(--stroke-mark) solid transparent; }
 .cv-topbar__link--on { color: var(--ink); border-bottom-color: var(--gilt); }
