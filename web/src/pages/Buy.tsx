@@ -54,7 +54,7 @@ export function Buy({ serial, wallet, onCreate }: { serial: number; wallet: Wall
             { title: "Window opens at expiry", detail: `pay ${strikeTotal} to exercise; anything else and it expires`, state: "todo" },
             { title: "Delivery", detail: "the contract signs the coins to your address; strike held in escrow until it confirms", state: "todo" },
           ]} />
-          <Notice>Exercise is a payment, not a request: the coins move only after the strike has arrived and the collateral has been re-checked on Bitcoin. If delivery never confirms, you reclaim the strike after {duration(params?.escrow_timeout_s ?? 604800)}.</Notice>
+          <Notice>Exercise is a payment, not a request: the coins move only after the strike has arrived and the collateral has been re-checked on Bitcoin. Your strike waits in escrow until delivery confirms. If the seller instead takes the coins back through their own exit, it is returned to you as soon as that is proven; failing both, you can reclaim it {duration(params?.escrow_timeout_s ?? 604800)} after that exit opens.</Notice>
         </div>
       </div>
     </div>

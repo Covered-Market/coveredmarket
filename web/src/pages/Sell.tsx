@@ -2,7 +2,7 @@ import { useState } from "react";
 import { C, dateUtc, duration, usd } from "../ds";
 import { call, CFG, toSats, toUsdcUnits, view, type Wallet } from "../lib/near";
 import { hex } from "../lib/derive";
-import { downloadKit, makeKit, newRescueKey, storeKit } from "../lib/rescue";
+import { downloadKit, makeKit, newRescueKey, storeKit, storePendingKey } from "../lib/rescue";
 import { annualised, useSpotStatus, useParams } from "./hooks";
 import { expiryChoices } from "../lib/expiry";
 
@@ -28,13 +28,17 @@ export function Sell({ wallet, onConnect }: { wallet: Wallet | null; onConnect: 
   const hrp = net === "Mainnet" ? "bc1" : net === "Regtest" ? "bcrt1" : "tb1";
   const submit = async () => {
     if (!wallet) { onConnect(); return; }
+    // Keep the private half before the offer exists: a reload or wallet redirect must not lose it.
+    if (!storePendingKey(rescue.priv) && !confirm("This browser will not store your rescue key. If anything interrupts this step, the key is gone and the offer has no rescue exit. Continue anyway?")) return;
     setBusy(true);
     try {
       const serial = await call(wallet, CFG.contract, "create_offer", { terms: { size_sats: String(toSats(s)), strike_units: String(toUsdcUnits(k)), premium_units: String(toUsdcUnits(pr)), expiry_s: String(expiry), refund_address: refund, rescue_pubkey: hex.to(rescue.pub33) } }, 10n ** 23n, 60);
       const id = typeof serial === "number" ? serial : typeof serial === "string" ? Number(serial) : (serial as any)?.status?.SuccessValue ? Number(atob((serial as any).status.SuccessValue)) : null;
       if (id) {
         // The rescue kit: everything needed to sweep the coins with only Bitcoin, after the unlock time.
-        for (let i = 0; i < 10; i++) { try { const o: any = await view("get_offer", { serial: id }); if (o) { const kit = makeKit(o, rescue.priv); storeKit(kit); downloadKit(kit); break; } } catch {} await new Promise((r) => setTimeout(r, 1000)); }
+        let made = false;
+        for (let i = 0; i < 10 && !made; i++) { try { const o: any = await view("get_offer", { serial: id }); if (o) { const kit = makeKit(o, rescue.priv); storeKit(kit); downloadKit(kit); made = true; break; } } catch {} await new Promise((r) => setTimeout(r, 1000)); }
+        if (!made) alert(`CV-${id} was created, but its rescue kit could not be made yet. The deposit page will make it from the key kept in this browser: save the kit there before you deposit.`);
       }
       location.hash = id ? `#/deposit/${id}` : "#/portfolio";
     } catch (e) { alert((e as Error).message); } finally { setBusy(false); }

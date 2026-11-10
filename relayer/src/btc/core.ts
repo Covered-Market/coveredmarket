@@ -78,6 +78,12 @@ export class Core implements Esplora {
     void tip;
     return [...byTx.values()];
   }
+  /** Esplora-style `GET /tx/:txid`: the outputs (address, value in sats) and confirmation status. */
+  async tx(txid: string) {
+    const tx = await this.rpc("getrawtransaction", [txid, true]);
+    const h = tx.blockhash ? (await this.rpc("getblockheader", [tx.blockhash])).height : undefined;
+    return { txid: tx.txid, status: { confirmed: !!tx.blockhash, block_height: h }, vout: tx.vout.map((v: any) => ({ scriptpubkey: v.scriptPubKey.hex, scriptpubkey_address: v.scriptPubKey.address, value: Math.round(v.value * 1e8) })) };
+  }
   async txStatus(txid: string) {
     try { const tx = await this.rpc("getrawtransaction", [txid, true]); const h = tx.blockhash ? (await this.rpc("getblockheader", [tx.blockhash])).height : undefined; return { confirmed: !!tx.blockhash, block_height: h }; }
     catch { return null; }

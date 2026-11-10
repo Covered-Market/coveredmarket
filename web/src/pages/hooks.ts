@@ -41,4 +41,4 @@ export const toOfferCard = (o: { size_sats: string; strike_units: string; premiu
   size: Number(o.size_sats) / 1e8, spot, vault: `${o.address.slice(0, 4)}…${o.address.slice(-4)}`, seller: o.seller, status: stampFor(o.state),
 });
 export const stampFor = (state: string): "open" | "kept" | "exercised" | "settled" | "pending" | "refused" =>
-  state === "Kept" ? "kept" : state === "Exercised" ? "exercised" : state === "Withdrawn" || state === "Cancelled" ? "settled" : state === "Created" ? "pending" : "open";
+  state === "Kept" ? "kept" : state === "Exercised" ? "exercised" : state === "Withdrawn" || state === "Cancelled" || state === "Rescued" ? "settled" : state === "Created" ? "pending" : "open";

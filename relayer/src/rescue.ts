@@ -28,7 +28,21 @@ export function scriptFromAddress(addr: string, hrp: string): Uint8Array {
   const [v, ...rest] = d.words;
   if (v !== 0) throw new Error("only v0 witness addresses (bc1q… / tb1q… / bcrt1q…)");
   const prog = bech32.fromWords(rest);
+  // BIP-141: a v0 program is a 20-byte key hash or a 32-byte script hash; any other length is unspendable.
+  if (prog.length !== 20 && prog.length !== 32) throw new Error(`a v0 witness program is 20 or 32 bytes, not ${prog.length}`);
   return Uint8Array.from([0x00, prog.length, ...prog]);
+}
+
+/**
+ * A fee rate in whole sat/vB from `--fee-rate` or an Esplora `/fee-estimates` answer. Esplora reports
+ * decimals (`1.003`), so round up rather than hand a float to BigInt. Never below 1 sat/vB.
+ */
+export function feeRateSatVb(flag: string | undefined, estimates: unknown, fallback = 5): bigint {
+  const pick = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : undefined; };
+  const fromFlag = flag === undefined ? undefined : pick(flag);
+  if (flag !== undefined && fromFlag === undefined) throw new Error(`--fee-rate must be a positive number, not "${flag}"`);
+  const est = estimates && typeof estimates === "object" ? (estimates as Record<string, unknown>)["6"] : undefined;
+  return BigInt(Math.max(1, Math.ceil(fromFlag ?? pick(est) ?? fallback)));
 }
 export function wifToKey(wif: string): Uint8Array {
   const b = base58.decode(wif);
@@ -75,7 +89,9 @@ async function main(argv: string[]) {
   const tipHash = (await (await get(`/blocks/tip/hash`)).text()).trim();
   const mtp = Number((await (await get(`/block/${tipHash}`)).json()).mediantime ?? 0);
   if (mtp && mtp < kit.unlock_s) console.log(`note: Bitcoin's median time past is ${new Date(mtp * 1000).toISOString()}; the exit unlocks at ${kit.unlock_utc}. Nodes will refuse it until then.`);
-  const rate = BigInt(opt("--fee-rate") ?? (await (await get(`/fee-estimates`)).json().catch(() => ({})))["6"] ?? 5);
+  const flag = opt("--fee-rate");
+  const estimates = flag === undefined ? await get(`/fee-estimates`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})) : {};
+  const rate = feeRateSatVb(flag, estimates);
   const vbytes = BigInt(11 + 41 * utxos.length + 31 + Math.ceil((utxos.length * (1 + 73 + 1 + 1 + ws.length)) / 4));
   const fee = rate * vbytes;
   const r = buildRescue(utxos, ws, scriptFromAddress(to, kit.hrp), fee, kit.unlock_s, priv);

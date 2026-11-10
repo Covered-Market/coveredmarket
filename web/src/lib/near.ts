@@ -37,10 +37,12 @@ export const verifyClients = (): Clients => ({
     accessKeys: async (a) => { const r: any = await provider.query({ request_type: "view_access_key_list", account_id: a, finality: "final" }); return r.keys.length; },
     view: (m, args) => view(m, args),
     ftBalance: (token, account) => view<string>("ft_balance_of", { account_id: account }, token),
+    signerRootKey: (signer) => view<string>("public_key", { domain_id: 0 }, signer),
   },
   btc: {
     outspend: async (txid, vout) => { const j = await btcJson(`/tx/${txid}/outspend/${vout}`); return { spent: j.spent, txid: j.txid }; },
     txStatus: async (txid) => { const r = await btcFetch(`/tx/${txid}/status`); if (r.status === 404) return null; if (!r.ok) throw new Error(`esplora ${r.status}`); const j = await r.json(); const tip = Number(await btcText(`/blocks/tip/height`)); return { confirmed: j.confirmed, depth: j.confirmed ? tip - j.block_height + 1 : 0 }; },
+    output: async (txid, vout) => { const r = await btcFetch(`/tx/${txid}`); if (r.status === 404) return null; if (!r.ok) throw new Error(`esplora ${r.status}`); const o = (await r.json()).vout?.[vout]; return o ? { address: o.scriptpubkey_address, value: Number(o.value) } : null; },
   },
   expected: { codeHash: CFG.codeHash, contract: CFG.contract, signer: CFG.signer, lightClient: CFG.lightClient, usdc: CFG.usdc, minConf: CFG.minConf },
 });

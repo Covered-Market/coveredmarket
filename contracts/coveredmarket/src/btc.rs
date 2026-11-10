@@ -233,6 +233,17 @@ pub fn parse_tx(raw: &[u8]) -> Option<([u8; 32], Vec<(u32, u64, Vec<u8>)>)> {
     Some((txid, outs))
 }
 
+/// Parse a raw transaction and say whether one of its inputs spends `outpoint`.
+/// Returns `(txid_internal_order, spends)`.
+pub fn tx_spends(raw: &[u8], outpoint: &Outpoint) -> Option<([u8; 32], bool)> {
+    let tx: Transaction = deserialize(raw).ok()?;
+    let spends = tx
+        .input
+        .iter()
+        .any(|i| i.previous_output.txid.to_byte_array() == outpoint.txid && i.previous_output.vout == outpoint.vout);
+    Some((tx.compute_txid().to_byte_array(), spends))
+}
+
 /// Verify a Merkle branch: `txid` at `index` with `branch` reaches `root`.
 /// All hashes in internal byte order.
 pub fn merkle_root_from_branch(txid: [u8; 32], index: u32, branch: &[[u8; 32]]) -> [u8; 32] {

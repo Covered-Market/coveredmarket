@@ -27,13 +27,16 @@ export function derivePubkey(rootKeyHex: string, prefix: string, predecessor: st
   return root.add(secp.ProjectivePoint.BASE.multiply(eps)).toRawBytes(true);
 }
 
-/** Accepts hex (33/65 bytes) or the signer's `secp256k1:<base58 of 64-byte x||y>` form. */
+/** Accepts hex (33/65 bytes), the signer's `secp256k1:<base58 of 64-byte x||y>` form, or the local mock signer's `secp256k1-hex:<hex>`. */
 export function parseRootKey(k: string): string {
-  const body = k.replace(/^secp256k1:/, "");
+  const body = k.replace(/^secp256k1(-hex)?:/, "");
   if (/^[0-9a-fA-F]+$/.test(body) && (body.length === 66 || body.length === 130)) return body;
   const b = base58.decode(body);
   return (b.length === 64 ? "04" : "") + hex.to(b);
 }
+
+/** One canonical form (compressed, hex) of a root key in any accepted spelling, for comparing two of them. */
+export const rootKeyCompressed = (k: string): string => hex.to(secp.ProjectivePoint.fromHex(parseRootKey(k)).toRawBytes(true));
 
 export type Net = "Mainnet" | "Testnet4" | "Regtest";
 const HRP: Record<Net, string> = { Mainnet: "bc", Testnet4: "tb", Regtest: "bcrt" };
@@ -52,6 +55,8 @@ export function scriptFromAddress(addr: string, net: Net): Uint8Array {
   const [v, ...rest] = d.words;
   if (v !== 0) throw new Error("only v0 witness programs");
   const prog = bech32.fromWords(rest);
+  // BIP-141: a v0 program is a 20-byte key hash or a 32-byte script hash; any other length is unspendable.
+  if (prog.length !== 20 && prog.length !== 32) throw new Error(`a v0 witness program is 20 or 32 bytes, not ${prog.length}`);
   return new Uint8Array([0x00, prog.length, ...prog]);
 }
 export function deriveAddress(rootKeyHex: string, prefix: string, predecessor: string, path: string, net: Net): string {

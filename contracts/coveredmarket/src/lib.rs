@@ -27,7 +27,13 @@ const GAS_FT_TRANSFER: Gas = Gas::from_tgas(15);
 const GAS_STORAGE_DEPOSIT: Gas = Gas::from_tgas(10);
 const GAS_CB_SMALL: Gas = Gas::from_tgas(15);
 const GAS_CB_SIGN: Gas = Gas::from_tgas(30);
+/// The exercise callback only records the commitment (no `sign` inside the token's call chain).
+const GAS_CB_COMMIT: Gas = Gas::from_tgas(30);
 const RETRY_DELAY_S: u64 = 600;
+/// State an offer adds after `create_offer` (deposit proof, buyer, commitment, signed tx, fee-bump history),
+/// prepaid by the seller at creation so later permissionless calls never draw on the contract's own NEAR.
+/// `offer_growth_after_creation_fits_the_prepaid_reserve` pins it above the worst case.
+pub const POST_CREATE_STORAGE_BYTES: u64 = 3_072;
 /// Reserved derivation path for `selftest_sign`; offers use `<seller>/CV-<serial>`.
 const SELFTEST_PATH: &str = "coveredmarket/selftest";
 const DUST_SATS: u64 = 546;
@@ -45,6 +51,9 @@ pub enum State {
     Exercised,
     Withdrawn,
     Cancelled,
+    /// The collateral was spent on Bitcoin by a transaction the contract never committed: the
+    /// seller's rescue branch. Final; an escrowed strike went back to the buyer.
+    Rescued,
 }
 
 #[near(serializers = [json, borsh])]
@@ -230,6 +239,12 @@ pub struct TransferMsg {
     pub btc_address: Option<String>,
     #[serde(default)]
     pub exercise: bool,
+    /// Exercise without asking the light client to re-check the collateral's depth. The strike is
+    /// escrowed and the delivery committed in this receipt, so exercising never depends on the
+    /// light client answering inside the window. The buyer gives up the refusal-and-refund that
+    /// the re-check provides if the deposit has since left the chain.
+    #[serde(default)]
+    pub skip_depth_check: bool,
 }
 
 #[near(contract_state)]
@@ -248,6 +263,8 @@ pub struct Contract {
     claimable_total: u128,
     escrow_total: u128,
     recoveries: LookupMap<(u64, Outpoint), Commitment>,
+    /// Accounts `claim` has already paid the token's storage registration for: paid at most once each.
+    registered: LookupSet<AccountId>,
 }
 
 fn now_s() -> u64 {
@@ -284,6 +301,7 @@ impl Contract {
             claimable_total: 0,
             escrow_total: 0,
             recoveries: LookupMap::new(b"r"),
+            registered: LookupSet::new(b"g"),
         }
     }
 
@@ -351,14 +369,19 @@ impl Contract {
         self.offers.insert(serial, offer);
         self.created.insert(serial);
         self.index_account(&seller, serial);
-        self.charge_storage(storage_before, self.params.usdc_storage_deposit);
+        let growth = env::storage_byte_cost().saturating_mul(POST_CREATE_STORAGE_BYTES as u128);
+        self.charge_storage(storage_before, self.params.usdc_storage_deposit.saturating_add(growth));
         events::emit("offer_created", serial, serde_json::json!({ "seller": seller }));
         serial
     }
 
+    /// The seller may cancel an unfunded offer at any time. Once its expiry has passed it can never
+    /// be sold, so then anyone may cancel it (keeps `get_created` free of dead offers). A deposit
+    /// that arrives later is returned with `recover`.
     pub fn cancel(&mut self, serial: u64) {
+        let now = now_s();
         let offer = self.offer_mut(serial);
-        require!(offer.seller == env::predecessor_account_id(), "only seller");
+        require!(offer.seller == env::predecessor_account_id() || now >= offer.expiry_s, "only seller, until the offer has expired");
         require!(offer.state == State::Created, "only while Created");
         offer.state = State::Cancelled;
         self.created.remove(&serial);
@@ -430,7 +453,7 @@ impl Contract {
         let offer = self.offer(serial);
         require!(offer.seller == env::predecessor_account_id(), "only seller");
         require!(
-            matches!(offer.state, State::Created | State::Cancelled | State::Kept | State::Exercised | State::Withdrawn),
+            matches!(offer.state, State::Created | State::Cancelled | State::Kept | State::Exercised | State::Withdrawn | State::Rescued),
             "recovery not allowed in this state"
         );
         let (txid, outputs) = self.parse_proof_tx(&proof);
@@ -566,13 +589,20 @@ impl Contract {
         require!(amount.0 >= total, "amount below strike");
         let proof = offer.deposit_proof.clone().unwrap_or_else(|| env::panic_str("no deposit proof"));
         offer.escrow_units = total;
-        offer.state = State::ExercisePending;
         self.escrow_total += total;
-        events::emit("exercise_pending", m.serial, serde_json::json!({ "strike_units": total.to_string() }));
         let excess = amount.0 - total;
+        if m.skip_depth_check {
+            // The buyer's choice: commit in this receipt, no promise. Paying is exercising even if
+            // the light client is paused or no longer holds the deposit's block.
+            events::emit("exercise_unchecked", m.serial, serde_json::json!({ "strike_units": total.to_string() }));
+            self.commit(m.serial, Reason::Exercise);
+            return PromiseOrValue::Value(U128(excess));
+        }
+        self.offer_mut(m.serial).state = State::ExercisePending;
+        events::emit("exercise_pending", m.serial, serde_json::json!({ "strike_units": total.to_string() }));
         PromiseOrValue::Promise(self.lc_verify(&proof, min_conf).then(
             Self::ext(env::current_account_id())
-                .with_static_gas(GAS_CB_SMALL.saturating_add(GAS_SIGN).saturating_add(GAS_CB_SIGN))
+                .with_static_gas(GAS_CB_COMMIT)
                 .on_exercise_depth(m.serial, U128(excess), amount),
         ))
     }
@@ -729,7 +759,54 @@ impl Contract {
         true
     }
 
-    /// Buyer reclaims an escrowed strike if delivery never confirmed.
+    /// Prove that the collateral was spent on Bitcoin by a transaction that is not a committed
+    /// version: the seller's rescue branch (the only other way the deposit script can be spent).
+    /// No committed settlement can confirm any more, so the offer is final: an escrowed strike
+    /// returns to the buyer at once. Permissionless.
+    pub fn confirm_rescue(&mut self, serial: u64, proof: Proof) -> Promise {
+        let offer = self.offer(serial);
+        require!(matches!(offer.state, State::Funded | State::Sold | State::Committed | State::Signed), "no live collateral in this state");
+        let collateral = offer.collateral.as_ref().unwrap_or_else(|| env::panic_str("no collateral"));
+        let raw = hex::decode(&proof.tx_raw).unwrap_or_else(|_| env::panic_str("tx_raw must be hex"));
+        let (txid, spends) = btc::tx_spends(&raw, collateral).unwrap_or_else(|| env::panic_str("tx_raw does not parse"));
+        require!(spends, "that transaction does not spend the collateral");
+        if let Some(c) = offer.commitment.as_ref() {
+            require!(txid != c.txid && !c.prior_txids.contains(&txid), "that is a committed version; use confirm_spend");
+        }
+        let pref = ProofRef::from_proof(&proof, txid);
+        self.lc_verify(&pref, self.params.min_conf)
+            .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SMALL).on_rescue_verified(serial, txid))
+    }
+
+    #[private]
+    pub fn on_rescue_verified(&mut self, serial: u64, txid: [u8; 32], #[callback_result] r: Result<bool, PromiseError>) -> bool {
+        if !matches!(r, Ok(true)) {
+            return false;
+        }
+        let offer = self.offer_mut(serial);
+        if !matches!(offer.state, State::Funded | State::Sold | State::Committed | State::Signed) {
+            return false;
+        }
+        let buyer = offer.buyer.clone();
+        let escrow = offer.escrow_units;
+        offer.escrow_units = 0;
+        offer.state = State::Rescued;
+        offer.retry_after_s = None;
+        self.open.remove(&serial);
+        if escrow > 0 {
+            self.escrow_total -= escrow;
+            self.credit(&buyer.unwrap_or_else(|| env::panic_str("escrow without a buyer")), escrow);
+        }
+        events::emit("rescued", serial, serde_json::json!({ "txid": btc::display_hex(&txid), "strike_returned_units": escrow.to_string() }));
+        true
+    }
+
+    /// Last resort for the buyer: reclaim an escrowed strike when neither the delivery nor the
+    /// seller's rescue has been proven. The delivery commitment cannot be revoked once it exists,
+    /// so this opens only after the seller's own exit has been available for the whole escrow
+    /// timeout (`unlock_s + escrow_timeout_s`): a seller who is owed nothing can by then have taken
+    /// the coins back. Normally the strike moves earlier, by proof: `confirm_spend` pays the seller,
+    /// `confirm_rescue` refunds the buyer.
     pub fn reclaim_strike(&mut self, serial: u64) {
         let timeout = self.params.escrow_timeout_s;
         let offer = self.offer_mut(serial);
@@ -738,7 +815,7 @@ impl Contract {
         require!(matches!(offer.state, State::Committed | State::Signed), "not reclaimable in this state");
         let c = offer.commitment.as_ref().unwrap();
         require!(c.reason == Reason::Exercise, "not an exercise");
-        require!(now_s() >= c.committed_at_s + timeout, "escrow timeout not reached");
+        require!(now_s() >= offer.unlock_s + timeout, "not before the seller's exit has been open for the escrow timeout");
         let amount = offer.escrow_units;
         let buyer = offer.buyer.clone().unwrap();
         offer.escrow_units = 0;
@@ -754,21 +831,33 @@ impl Contract {
         require!(amount > 0, "nothing to claim");
         self.claimable.insert(who.clone(), 0);
         self.claimable_total -= amount;
-        // NEP-145: a token like Circle's USDC only pays registered accounts. Register the payee
-        // (refunded by the token if already registered), paid from the reserve each offer keeps.
-        ext::ext_storage::ext(self.params.usdc.clone())
-            .with_attached_deposit(self.params.usdc_storage_deposit)
-            .with_static_gas(GAS_STORAGE_DEPOSIT)
-            .storage_deposit(Some(who.clone()), Some(true))
-            .then(ext_ft::ext(self.params.usdc.clone())
+        let transfer = ext_ft::ext(self.params.usdc.clone())
             .with_attached_deposit(NearToken::from_yoctonear(1))
             .with_static_gas(GAS_FT_TRANSFER)
-            .ft_transfer(who.clone(), U128(amount), Some("coveredmarket claim".into())))
-            .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SMALL).on_claim(who, U128(amount)))
+            .ft_transfer(who.clone(), U128(amount), Some("coveredmarket claim".into()));
+        // NEP-145: a token like Circle's USDC only pays registered accounts. Register the payee once,
+        // paid from the reserve each offer keeps (refunded by the token if already registered). An
+        // account that later unregisters itself registers again on its own: a failed transfer is
+        // credited back, so nothing is lost, and the reserve cannot be drained by repeated claims.
+        let first = !self.registered.contains(&who);
+        let paid = if first {
+            ext::ext_storage::ext(self.params.usdc.clone())
+                .with_attached_deposit(self.params.usdc_storage_deposit)
+                .with_static_gas(GAS_STORAGE_DEPOSIT)
+                .storage_deposit(Some(who.clone()), Some(true))
+                .then(transfer)
+        } else {
+            transfer
+        };
+        paid.then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SMALL).on_claim(who, U128(amount), first))
     }
 
     #[private]
-    pub fn on_claim(&mut self, who: AccountId, amount: U128, #[callback_result] r: Result<(), PromiseError>) -> bool {
+    pub fn on_claim(&mut self, who: AccountId, amount: U128, registered_now: bool, #[callback_result] r: Result<(), PromiseError>) -> bool {
+        if registered_now {
+            // The registration deposit was spent whether or not the transfer then succeeded.
+            self.registered.insert(who.clone());
+        }
         if r.is_err() {
             self.credit(&who, amount.0);
             events::emit("claim_failed", 0, serde_json::json!({ "account": who }));
@@ -782,7 +871,16 @@ impl Contract {
     /// fixed constant under a reserved path (never an offer's `<account>/CV-<n>`, so its key holds no
     /// coins) and verify the answer against the key this contract derives for that path. Permissionless;
     /// the deploy script runs it before deleting the contract's key, and it can be re-run any time.
+    /// The caller pays the signer's deposit (attach at least `sign_deposit`; any excess is returned),
+    /// so running it never spends the NEAR the contract keeps for settlements.
+    #[payable]
     pub fn selftest_sign(&mut self) -> Promise {
+        let need = self.params.sign_deposit;
+        let got = env::attached_deposit();
+        require!(got >= need, "attach sign_deposit: the caller pays for the selftest signature");
+        if got > need {
+            let _ = Promise::new(env::predecessor_account_id()).transfer(got.saturating_sub(need));
+        }
         let digest: [u8; 32] = near_sdk::env::sha256_array(b"coveredmarket selftest");
         self.sign_promise(SELFTEST_PATH, digest)
             .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SMALL).on_selftest_signed())

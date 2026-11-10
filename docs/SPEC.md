@@ -704,8 +704,8 @@ These changes supersede the corresponding parts above where they differ.
 
 **Fees.** Settlements signal RBF (sequence 0xfffffffd). `bump_fee(serial)` — anyone, once a signed settlement is unproven `fee_bump_after_s` after its last signature — rebuilds the same spend (same outpoint, same single recipient) with double the fee, up to `max_fee_sats`, and requests a new signature. Earlier versions stay valid; `confirm_spend` accepts any version (invariant G5 now reads: the commitment's outpoint and recipient are written once; only the fee may rise, within the cap).
 
-**USDC.** `claim` calls `storage_deposit(account, registration_only)` on the token before `ft_transfer`, paid from a `usdc_storage_deposit` reserve (0.00125 NEAR) charged at `create_offer`.
+**USDC.** The first `claim` by an account calls `storage_deposit(account, registration_only)` on the token before `ft_transfer`, paid from a `usdc_storage_deposit` reserve (0.00125 NEAR) charged at `create_offer`; the contract remembers the account and never pays its registration again (an account that unregisters itself re-registers on its own; a failed transfer is credited back). `create_offer` also prepays `POST_CREATE_STORAGE_BYTES` (3,072 bytes) for everything the offer stores later (proofs, buyer, commitment, signatures, fee bumps), so permissionless calls never draw on the contract's balance.
 
 **Caps and depth.** `max_size_sats` per deployment; `min_conf` 3 on mainnet. All parameters per network live in `params/*.json`.
 
-**Signing check.** `selftest_sign()` signs a constant under the reserved path `coveredmarket/selftest` and verifies it against the derived key on chain; the mainnet deploy aborts before deleting the key if it fails.
+**Signing check.** `selftest_sign()` signs a constant under the reserved path `coveredmarket/selftest` and verifies it against the derived key on chain; the mainnet deploy aborts before deleting the key if it fails. The caller attaches the signer's deposit (`sign_deposit`, excess returned), so repeated calls never spend the contract's own NEAR.
