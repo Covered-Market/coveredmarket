@@ -52,20 +52,23 @@
 .ld-drawer a { padding: 12px 0; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); font-size: 17px; }
 
 /* hero */
-.ld-hero { padding: 96px 0 112px; }
-.ld-hero-grid { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: clamp(40px, 5vw, 64px); align-items: center; }
-.ld-hero-lede { font: 400 18px/1.55 var(--font-sans); color: var(--ink-muted); margin: 0; max-width: 36ch; }
+/* The hero fills the first screen below the sticky header (73px), within sensible bounds, with its content centred. */
+.ld-hero { padding: 112px 0 144px; min-height: clamp(640px, calc(100svh - 73px), 920px); display: flex; align-items: center; box-sizing: border-box; }
+.ld-hero > .ld-wrap { width: 100%; }
+.ld-hero .ld-stack { gap: 32px; }
+.ld-hero .ld-h1 { font-size: clamp(56px, 6.6vw, 88px); }
+.ld-hero-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(40px, 5vw, 64px); align-items: center; }
+.ld-hero-lede { font: 400 20px/1.55 var(--font-sans); color: var(--ink-muted); margin: 0; max-width: 34ch; }
 /* The caption hangs below the film, out of the grid's flow, so the film itself centres on the text. */
 .ld-hero-film { position: relative; margin: 0; min-width: 0; }
 .ld-hero-film > figcaption { position: absolute; top: 100%; left: 0; right: 0; margin-top: 12px; }
 
 /* Built with: five cards, all the same size, as 3 + 2 with the second row centred (2 + 2 + 1 on tablets, the last
    centred; one column on phones). Rows share one height. */
-.ld-3.ld-built { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-rows: 1fr; }
-.ld-3.ld-built > * { grid-column: span 2; }
-.ld-3.ld-built > :nth-child(4) { grid-column: 2 / span 2; }
-@media (max-width: 1023px) { .ld-3.ld-built { grid-template-columns: repeat(4, minmax(0, 1fr)); } .ld-3.ld-built > :nth-child(4) { grid-column: span 2; } .ld-3.ld-built > :last-child:nth-child(odd) { grid-column: 2 / span 2; } }
-@media (max-width: 599px) { .ld-3.ld-built { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; } .ld-3.ld-built > *, .ld-3.ld-built > :nth-child(4), .ld-3.ld-built > :last-child:nth-child(odd) { grid-column: auto; } }
+/* Built with: four cards, one row when there is room, then 2 × 2, then one column. */
+.ld-3.ld-built { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1023px) { .ld-3.ld-built { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 599px) { .ld-3.ld-built { grid-template-columns: minmax(0, 1fr); } }
 
 /* film: the hero's player (HeroFilm). The poster is brand/assets/Social/video-poster-plain; the play button sits
    where the full poster's rosette has its eye (POSTER_EYE in gen_assets.py), so both versions share one layout. */
@@ -82,6 +85,8 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 .ld-benefit { padding: 28px 0; border-bottom: 1px solid var(--rule); display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-content: start; }
 .ld-disc { width: 52px; height: 52px; border-radius: 999px; border: 1px solid var(--rule-strong); background: var(--paper-raised); box-shadow: inset 0 0 0 4px var(--paper-raised), inset 0 0 0 5px var(--rule); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .ld-disc img, .ld-disc svg { width: 24px; height: 24px; }
+/* Icon files are drawn in Paper ink; the mask repaints them in the current theme's ink, so they read on Vault too. */
+.ld-glyph { width: 24px; height: 24px; display: block; background: var(--ink); -webkit-mask: var(--glyph) center / contain no-repeat; mask: var(--glyph) center / contain no-repeat; }
 
 /* story + chart */
 .ld-range { width: 100%; height: 44px; accent-color: var(--intaglio); }
@@ -93,7 +98,7 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 .ld-big { font: 500 40px/1.1 var(--font-mono); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
 
 /* product frames */
-.ld-shotplate { background: var(--paper); padding: 24px; }
+.ld-shotplate { background: var(--paper); padding: 24px; border-radius: 12px; }
 .ld-frame { border: 1px solid var(--rule); background: var(--paper-raised); box-shadow: var(--shadow-lift); }
 .ld-frame-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--rule); font: 400 13px/18px var(--font-mono); color: var(--ink-muted); white-space: nowrap; overflow: hidden; }
 .ld-frame-bar span { overflow: hidden; text-overflow: ellipsis; }
@@ -116,10 +121,21 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 .ld-table > .rh { align-items: flex-start; text-align: left; padding-left: 0; font-weight: 600; }
 .ld-table > .ch { border-bottom-color: var(--rule-strong); padding-top: 20px; padding-bottom: 16px; }
 .ld-table > .ours { background: var(--paper); }
-.ld-mark { width: 28px; height: 28px; border-radius: 999px; display: flex; align-items: center; justify-content: center; border: 1.5px solid; }
-.ld-mark svg { width: 14px; height: 14px; }
+.ld-mark { display: block; flex-shrink: 0; }
 .ld-word { font: 600 11px/16px var(--font-sans); letter-spacing: .12em; text-transform: uppercase; }
-.ld-note { font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.ld-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Comparison notes: a tooltip above the mark on hover or focus, in the column's own ink (dark on Paper, cream on the Vault column). */
+.ld-tipped { position: relative; display: inline-flex; cursor: help; border-radius: 999px; outline-offset: 4px; }
+.ld-tip { position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translate(-50%, 4px); z-index: 5; background: var(--ink); color: var(--paper); font: 400 13px/18px var(--font-sans); padding: 6px 10px; border-radius: 4px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .12s ease, transform .12s ease; box-shadow: var(--shadow-lift); }
+.ld .ld-tip { color: var(--paper); }
+.ld-tip::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border: 5px solid transparent; border-top-color: var(--ink); }
+.ld-tipped:hover .ld-tip, .ld-tipped:focus .ld-tip { opacity: 1; transform: translate(-50%, 0); }
+/* last column: the tooltip hangs left from the mark so it stays inside the page */
+.ld-tipped--end .ld-tip { left: auto; right: -10px; transform: translate(0, 4px); }
+.ld-tipped--end .ld-tip::after { left: auto; right: 19px; margin-left: 0; }
+.ld-tipped--end:hover .ld-tip, .ld-tipped--end:focus .ld-tip { transform: translate(0, 0); }
+.ld-cmp-tap { border: 0; background: transparent; font: inherit; color: inherit; cursor: pointer; box-shadow: inset 0 -2px 0 transparent; }
+.ld-cmp-tap.on { box-shadow: inset 0 -2px 0 var(--gilt); }
 .ld-cmp-phone { display: none; }
 
 /* trust */
@@ -155,7 +171,8 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
   .ld-menu { display: inline-flex; }
   .ld-hero-grid, .ld-2, .ld-step { grid-template-columns: minmax(0, 1fr); }
   .ld-hero-grid { gap: 40px; }
-  .ld-hero { padding: 64px 0 72px; }
+  .ld-hero { padding: 88px 0 96px; min-height: 0; display: block; }
+  .ld-hero .ld-h1 { font-size: clamp(46px, 10vw, 84px); }
   .ld-hero-film > figcaption { position: static; }
   .ld-h1 { font-size: clamp(46px, 10vw, 84px); }
   .ld-h2 { font-size: clamp(32px, 6vw, 48px); }
@@ -164,10 +181,11 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 @media (max-width: 599px) {
   .ld-wrap { padding: 0 16px; }
   .ld-sec { padding: 56px 0; }
-  .ld-hero { padding: 40px 0 48px; }
+  .ld-hero { padding: 56px 0 64px; }
+  .ld-hero .ld-stack { gap: 24px; }
   .ld-hide-phone { display: none !important; }
   .ld-lede { font-size: 18px; }
-  .ld-hero-lede { font-size: 16px; }
+  .ld-hero-lede { font-size: 17px; }
   .ld-row > .ld-btn { flex: 1 1 100%; }
   .ld-head .ld-btn { white-space: nowrap; padding: 10px 12px !important; font-size: 14px !important; }
   .ld-head .ld-wrap { gap: 12px; }
@@ -179,7 +197,7 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
   .ld-foot-grid > :first-child { grid-column: 1 / -1; }
   .ld-benefit { grid-template-columns: 52px minmax(0, 1fr); padding: 20px 0; column-gap: 16px; }
   .ld-benefit > .ld-disc { grid-row: span 2; }
-  .ld-shotplate { padding: 12px; }
+  .ld-shotplate { padding: 12px; border-radius: 8px; }
   .ld-step img { max-height: 280px; }
   .ld-calc { padding: 20px; }
   .ld-big { font-size: 30px; }

@@ -39,7 +39,6 @@ Paid in USDC on NEAR or in BTC, your choice, to the address in your report. Amou
 | **Critical** | Anyone but the committed recipient gets a valid signature for a deposit address · the contract commits a spend to the buyer without the strike being paid · the code can be changed or a key added after deploy · USDC can leave the contract to someone who is not owed it | up to **$2,000** |
 | **High** | Coins or USDC locked with no path out · a seller can sell the same coins twice · a fake deposit proof is accepted · a settlement can be forced before expiry + grace | up to **$750** |
 | **Medium** | Verify shows *verified* for something that is false · the relayer or app can be made to show a wrong deposit address · a griefing attack that costs others more than it costs the attacker | up to **$250** |
-| **Low** | Information leaks, UI spoofing, hardening gaps with a concrete exploit path | **$50** and a thank-you |
 
 The first valid report of an issue gets the reward. Several reports with one root cause are one issue. Final severity is our call, and we will explain it.
 

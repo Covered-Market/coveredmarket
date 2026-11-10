@@ -61,7 +61,7 @@ export function Try({ wallet, onCreate }: { wallet: Wallet | null; onCreate: () 
             </div>
           ))}
         </div>
-        <Notice>Everything on this page can be checked without us: the Verify button on any certificate reads Bitcoin and NEAR directly. Mainnet runs the same contract code at its own site, behind the switch at the top of every page.</Notice>
+        <Notice>Everything on this page can be checked without us: the Verify button on any certificate reads Bitcoin and NEAR directly.</Notice>
       </div>
     </div>
   );
