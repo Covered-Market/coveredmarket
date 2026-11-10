@@ -3,7 +3,7 @@
  * verified | failed | unavailable. Clients are injected so this runs offline in tests.
  */
 import { buildSpend, verifySignedTx } from "./bip143.js";
-import { depositAddress, hex, scriptFromAddress, type Net } from "./derive.js";
+import { depositAddress, hex, rootKeyCompressed, scriptFromAddress, type Net } from "./derive.js";
 
 export type Status = "verified" | "failed" | "unavailable";
 export interface CheckResult { n: number; title: string; status: Status; detail: string }
@@ -26,6 +26,8 @@ export interface Clients {
     accessKeys(account: string): Promise<number>;
     view<T>(method: string, args?: Record<string, unknown>): Promise<T>;
     ftBalance(token: string, account: string): Promise<string>;
+    /** The signer's own root public key, read from the signer contract (not from our contract). */
+    signerRootKey(signer: string): Promise<string>;
   };
   btc: {
     outspend(txid: string, vout: number): Promise<{ spent: boolean; txid?: string }>;
@@ -52,6 +54,10 @@ export async function runChecks(c: Clients, offer: Offer, params: Params, nowS: 
 
   out.push(await guard(2, "Address derivation and the seller's exit", async () => {
     const unlock = Number(offer.expiry_s) + params.grace_s + params.rescue_delay_s;
+    // The contract derives addresses from the root key it was initialised with. That key must be the
+    // signer's own: with any other root, whoever knows its private half could spend every deposit.
+    const live = await c.near.signerRootKey(params.signer);
+    if (rootKeyCompressed(live) !== rootKeyCompressed(params.mpc_root_key)) return ["failed", `the contract's root key is not ${params.signer}'s: deposit addresses would not belong to the signing network`];
     const d = depositAddress(params.mpc_root_key, params.derivation_prefix, c.expected.contract, offer.path, hex.from(offer.rescue_pubkey), unlock, net);
     const ok = hex.to(d.mpc33) === offer.derived_pubkey && d.address === offer.address && hex.to(d.witnessScript) === offer.witness_script && Number(offer.unlock_s) === unlock;
     const when = new Date(unlock * 1000).toISOString().slice(0, 16).replace("T", " ");
@@ -63,6 +69,11 @@ export async function runChecks(c: Clients, offer: Offer, params: Params, nowS: 
     const st = await c.btc.txStatus(offer.collateral_txid);
     if (!st || !st.confirmed) return ["failed", "deposit transaction not confirmed on Bitcoin"];
     const sp = await c.btc.outspend(offer.collateral_txid, offer.collateral_vout!);
+    const versions0 = [offer.commitment_txid, ...(offer.prior_txids ?? [])];
+    if (offer.state === "Rescued") {
+      const own = sp.spent && !versions0.includes(sp.txid ?? null);
+      return [own ? "verified" : "failed", own ? `spent by ${sp.txid}, the seller's rescue exit; no committed settlement can confirm` : "recorded as rescued, but Bitcoin does not show a rescue spend"];
+    }
     const final = ["Kept", "Exercised", "Withdrawn"].includes(offer.state) || offer.state === "Signed";
     if (!final && sp.spent) return ["failed", `collateral already spent by ${sp.txid}`];
     const versions = [offer.commitment_txid, ...(offer.prior_txids ?? [])];
@@ -109,6 +120,7 @@ export async function runChecks(c: Clients, offer: Offer, params: Params, nowS: 
 
   out.push(await guard(7, "Bitcoin confirmation", async () => {
     if (!offer.commitment_txid) return ["verified", "no settlement yet"];
+    if (offer.state === "Rescued") return ["verified", "no settlement: the seller's rescue spent the coins on Bitcoin (check 3)"];
     let st = await c.btc.txStatus(offer.commitment_txid);
     for (const prior of offer.prior_txids ?? []) { if (st?.confirmed) break; const p = await c.btc.txStatus(prior); if (p?.confirmed) st = p; }
     if (!st) return [offer.signed_tx ? "failed" : "verified", offer.signed_tx ? "signed but not seen on Bitcoin; broadcast it" : "not signed yet"];

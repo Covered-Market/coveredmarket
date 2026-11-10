@@ -3,7 +3,7 @@ import { Core } from "./btc/core.js";
 import { failoverFetch } from "./btc/failover.js";
 import { esploraFaucet, type FaucetWallet } from "./btc/faucet.js";
 import { esplora, type Esplora } from "./btc/proof.js";
-import { checkDelegate } from "./metatx.js";
+import { checkDelegate, defaultRelayLimits, RelayLimits } from "./metatx.js";
 import { decodeSignedDelegate, relayResult, viewOf } from "./near/delegate.js";
 import { nearClient } from "./near/client.js";
 import { tick, type Services } from "./run.js";
@@ -36,11 +36,21 @@ app.get("/api/spot", async (_req, res) => {
   if (Date.now() - spot.at > 60_000) { try { spot = { ...(await spotUsd()), at: Date.now() }; } catch {} }
   res.json(spot);
 });
+/** The client's address as Caddy reports it (it overwrites X-Forwarded-For with the real peer). */
+const clientIp = (req: express.Request) => String(req.headers["x-forwarded-for"] ?? req.socket.remoteAddress ?? "").split(",")[0].trim();
+const relayLimits = new RelayLimits({
+  perIpPerMin: Number(env("RELAY_PER_IP_PER_MIN", String(defaultRelayLimits.perIpPerMin))),
+  perSenderPerMin: Number(env("RELAY_PER_ACCOUNT_PER_MIN", String(defaultRelayLimits.perSenderPerMin))),
+  perDay: Number(env("RELAY_PER_DAY", String(defaultRelayLimits.perDay))),
+});
 app.post("/api/relay", async (req, res) => {
   let sd: any;
   try { sd = decodeSignedDelegate(String(req.body?.signedDelegate ?? "")); } catch { return res.status(400).json({ error: "signedDelegate must be base64 borsh" }); }
   const v = checkDelegate(viewOf(sd), { coveredmarket: cfg.coveredmarket, usdc: cfg.usdc, maxGas: 300n * 10n ** 12n, maxDepositYocto: 10n ** 24n });
   if (!v.ok) return res.status(400).json({ error: v.reason });
+  // Every relayed call costs the relayer gas, failed ones too: meter it before paying.
+  const limited = relayLimits.take(clientIp(req), String(sd.delegateAction.senderId));
+  if (limited) return res.status(429).json({ error: limited });
   try {
     const outcome: any = await near.relay(sd);
     const r = relayResult(outcome, sd.delegateAction.receiverId);

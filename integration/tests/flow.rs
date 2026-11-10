@@ -261,6 +261,27 @@ async fn exercise_refused_when_collateral_depth_fails() -> Result<()> {
     Ok(())
 }
 
+/// The buyer's way round a light client that does not answer: exercise without the depth re-check.
+#[tokio::test]
+async fn exercise_without_depth_check_does_not_need_the_light_client() -> Result<()> {
+    let e = setup().await?;
+    let s = create_and_fund(&e, 200_000_000, 150_000_000_000, 6_000_000_000).await?;
+    buy(&e, s, 6_000_000_000).await?;
+    let expiry = state(&e, s).await?["expiry_s"].as_str().unwrap().parse::<u64>()?;
+    fast_forward_to(&e, expiry + 5).await?;
+    e.lc.call("set_stale").args_json(json!({ "stale": true })).transact().await?.into_result()?;
+    let before: U128 = e.usdc.view("ft_balance_of").args_json(json!({ "account_id": e.buyer.id() })).await?.json()?;
+    e.buyer.call(e.usdc.id(), "ft_transfer_call")
+        .args_json(json!({ "receiver_id": e.coveredmarket.id(), "amount": "300000000007", "msg": json!({ "serial": s, "exercise": true, "skip_depth_check": true }).to_string() }))
+        .deposit(NearToken::from_yoctonear(1)).max_gas().transact().await?.into_result()?;
+    let after: U128 = e.usdc.view("ft_balance_of").args_json(json!({ "account_id": e.buyer.id() })).await?.json()?;
+    assert_eq!(before.0 - after.0, 300_000_000_000, "strike escrowed, excess refunded");
+    let v = state(&e, s).await?;
+    assert_eq!(v["state"], "Committed");
+    assert_eq!(v["commitment_reason"], "Exercise");
+    Ok(())
+}
+
 #[tokio::test]
 async fn operator_cannot_spend_with_same_path() -> Result<()> {
     // A1: another account asking the signer for the same path gets a different key.

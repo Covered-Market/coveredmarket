@@ -12,11 +12,22 @@ export interface Services {
   beforeProof?(txid: string, blockHash: string, depth: number): Promise<void>;
 }
 
+/** Every offer a paged view returns, not only its first page (a full first page must not hide the rest). */
+export async function viewAll(s: Pick<Services, "near">, method: string, page = 200, maxPages = 50): Promise<OfferView[]> {
+  const all: OfferView[] = [];
+  for (let i = 0; i < maxPages; i++) {
+    const got = await s.near.view<OfferView[]>(method, { from: i * page, limit: page });
+    all.push(...got);
+    if (got.length < page) break;
+  }
+  return all;
+}
+
 export async function tick(s: Services, nowArg?: number) {
   const nowS = nowArg ?? (s.near.chainNow ? await s.near.chainNow() : Math.floor(Date.now() / 1000));
   const params = await s.near.view<{ min_conf: number; grace_s: number; fee_bump_after_s?: number; max_fee_sats?: number }>("get_params");
-  const open = await s.near.view<OfferView[]>("get_offers", { from: 0, limit: 200 });
-  const created = await s.near.view<OfferView[]>("get_created", { from: 0, limit: 200 }).catch(() => [] as OfferView[]);
+  const open = await viewAll(s, "get_offers");
+  const created = await viewAll(s, "get_created").catch(() => [] as OfferView[]);
   const offers = [...created, ...open];
   const tip = await s.esplora.tipHeight();
   const chain: ChainView = { depositsAt: {}, depthOf: {}, spentBy: {} };
@@ -46,6 +57,7 @@ export async function tick(s: Services, nowArg?: number) {
     try {
       switch (a.kind) {
         case "confirm_deposit": { const { proof, depth } = await buildProof(s.esplora, a.txid); await s.beforeProof?.(a.txid, proof.block_hash, depth); await s.near.call("confirm_deposit", { serial: a.serial, proof }); break; }
+        case "confirm_rescue": { const { proof, depth } = await buildProof(s.esplora, a.txid); await s.beforeProof?.(a.txid, proof.block_hash, depth); await s.near.call("confirm_rescue", { serial: a.serial, proof }); break; }
         case "confirm_spend": { const { proof, depth } = await buildProof(s.esplora, a.txid); await s.beforeProof?.(a.txid, proof.block_hash, depth); await s.near.call("confirm_spend", { serial: a.serial, proof }); break; }
         case "settle": await s.near.call("settle", { serial: a.serial }); break;
         case "request_signature": await s.near.call("request_signature", { serial: a.serial }); break;

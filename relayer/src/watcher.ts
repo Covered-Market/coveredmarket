@@ -23,6 +23,7 @@ export type Action =
   | { kind: "request_signature"; serial: number }
   | { kind: "broadcast"; serial: number; raw: string }
   | { kind: "confirm_spend"; serial: number; txid: string }
+  | { kind: "confirm_rescue"; serial: number; txid: string }
   | { kind: "bump_fee"; serial: number };
 
 export function plan(offers: OfferView[], params: Params, chain: ChainView, nowS: number): Action[] {
@@ -45,6 +46,12 @@ export function plan(offers: OfferView[], params: Params, chain: ChainView, nowS
         const versions = [o.commitment_txid, ...(o.prior_txids ?? [])];
         if (spent && versions.includes(spent.txid)) {
           if (spent.depth >= params.min_conf) out.push({ kind: "confirm_spend", serial: o.serial, txid: spent.txid });
+          break;
+        }
+        // Spent by something the contract never committed: the seller's rescue. Prove it, so the offer
+        // ends and an escrowed strike goes back to the buyer.
+        if (spent) {
+          if (spent.depth >= params.min_conf) out.push({ kind: "confirm_rescue", serial: o.serial, txid: spent.txid });
           break;
         }
         if (o.state === "Committed") {

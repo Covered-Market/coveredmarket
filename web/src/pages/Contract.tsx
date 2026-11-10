@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { btc8, C, dateUtc, usd } from "../ds";
-import { call, CFG, verifyClients, type Wallet } from "../lib/near";
+import { call, CFG, verifyClients, view, type Wallet } from "../lib/near";
 import { runChecks, type CheckResult } from "../lib/verify";
 import { stampFor, useOffer, useParams } from "./hooks";
 import { btcAddr, btcTx, Ext, nearAcct, OnChainRecord } from "../Explorer";
@@ -20,6 +20,21 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
   const isSeller = wallet?.accountId === offer.seller, isBuyer = !!wallet && wallet.accountId === offer.buyer;
   const windowOpen = now >= expiry && now < expiry + grace;
   const act = async (m: string, args: Record<string, unknown> = {}, receiver = CFG.contract, dep = 0n) => { if (!wallet) return; setBusy(true); try { await call(wallet, receiver, m, args, dep, 300); } catch (e) { alert((e as Error).message); } finally { setBusy(false); } };
+  // Exercise is a payment. The contract first asks the light client to re-check the deposit and refunds the
+  // strike if it cannot; the buyer may then exercise without that re-check, so a light client that does not
+  // answer can never cost them the option.
+  const exercise = async () => {
+    if (!wallet) return;
+    const pay = (skip: boolean) => call(wallet, CFG.usdc, "ft_transfer_call", { receiver_id: CFG.contract, amount: offer.strike_total_units, msg: JSON.stringify(skip ? { serial, exercise: true, skip_depth_check: true } : { serial, exercise: true }) }, 1n, 300);
+    setBusy(true);
+    try {
+      await pay(false);
+      const after = await view<{ state: string } | null>("get_offer", { serial });
+      if (after?.state === "Sold" && confirm("The Bitcoin light client could not re-check the deposit just now, so your strike was returned and nothing was exercised.\n\nExercise anyway, without that re-check? Your strike then waits in escrow: it is released to the seller only when the delivery to your address confirms on Bitcoin.")) await pay(true);
+    } catch (e) { alert((e as Error).message); } finally { setBusy(false); }
+  };
+  const rescued = offer.state === "Rescued";
+  const reclaimFrom = Number((offer as any).unlock_s ?? 0) + (params?.escrow_timeout_s ?? 604800);
   const contract = {
     serial: `CV-${serial}`, issued: dateUtc(offer.created_s ?? offer.expiry_s).split(",")[0], size: Number(offer.size_sats) / 1e8, strike: Number(offer.strike_units) / 1e6, expiry: dateUtc(offer.expiry_s),
     premium: Number(offer.premium_units) / 1e6, vault: offer.address, seller: offer.seller, buyer: offer.buyer ?? undefined, contractId: CFG.contract, status: stampFor(offer.state),
@@ -28,7 +43,9 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
     { title: "Coins deposited", detail: offer.collateral_txid ? `${btc8(offer.collateral_value_sats!)} · tx ${offer.collateral_txid.slice(0, 10)}…` : "awaiting deposit", state: offer.collateral_txid ? "done" : "now" },
     { title: "Call sold", detail: offer.buyer ? `${offer.buyer} · ${usd(offer.premium_units)} credited to the seller` : "listed", state: offer.buyer ? "done" : offer.collateral_txid ? "now" : "todo" },
     { title: `Exercise window ${dateUtc(expiry).slice(0, 17)} + ${Math.round(grace / 60)} min`, detail: offer.commitment_reason === "Exercise" ? `strike ${usd(offer.strike_total_units)} paid` : now >= expiry + grace ? "closed, not exercised" : windowOpen ? "open now" : "not yet open", state: offer.commitment_reason ? "done" : windowOpen ? "now" : "todo" },
-    { title: offer.commitment_reason === "Exercise" ? "Delivery to the buyer" : "Coins returned to the seller", detail: offer.commitment_txid ? `tx ${offer.commitment_txid.slice(0, 10)}… ${offer.signed_tx ? "signed" : "signature requested"}` : "", state: ["Kept", "Exercised", "Withdrawn"].includes(offer.state) ? "done" : offer.commitment_txid ? "now" : "todo" },
+    rescued
+      ? { title: "Coins taken back by the seller", detail: "through the seller's own exit on Bitcoin; any strike in escrow went back to the buyer", state: "done" }
+      : { title: offer.commitment_reason === "Exercise" ? "Delivery to the buyer" : "Coins returned to the seller", detail: offer.commitment_txid ? `tx ${offer.commitment_txid.slice(0, 10)}… ${offer.signed_tx ? "signed" : "signature requested"}` : "", state: ["Kept", "Exercised", "Withdrawn"].includes(offer.state) ? "done" : offer.commitment_txid ? "now" : "todo" },
   ] as const;
   const verify = async () => { setRunning(true); try { setChecks(await runChecks(verifyClients(), offer, params as any, now)); } finally { setRunning(false); } };
   return (
@@ -41,8 +58,8 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
           {isSeller && offer.state === "Funded" && <Button variant="danger" disabled={busy} onClick={() => act("withdraw", { serial })}>Withdraw coins</Button>}
           {isSeller && offer.state === "Created" && <Button href={`#/deposit/${serial}`}>Deposit instructions</Button>}
           {isSeller && loadKit(serial) && <Button onClick={() => downloadKit(loadKit(serial)!.kit)}>Rescue kit</Button>}
-          {isBuyer && offer.state === "Sold" && windowOpen && <Button variant="primary" disabled={busy} onClick={() => act("ft_transfer_call", { receiver_id: CFG.contract, amount: offer.strike_total_units, msg: JSON.stringify({ serial, exercise: true }) }, CFG.usdc, 1n)}>Exercise · pay {usd(offer.strike_total_units)}</Button>}
-          {isBuyer && offer.escrow_units !== "0" && <Button disabled={busy} onClick={() => act("reclaim_strike", { serial })}>Reclaim strike</Button>}
+          {isBuyer && offer.state === "Sold" && windowOpen && <Button variant="primary" disabled={busy} onClick={exercise}>Exercise · pay {usd(offer.strike_total_units)}</Button>}
+          {isBuyer && offer.escrow_units !== "0" && now >= reclaimFrom && <Button disabled={busy} onClick={() => act("reclaim_strike", { serial })}>Reclaim strike</Button>}
           {offer.state === "Sold" && now >= expiry + grace && <Button disabled={busy || !wallet} onClick={() => act("settle", { serial })}>Settle</Button>}
           {offer.state === "Committed" && <Button disabled={busy || !wallet} onClick={() => act("request_signature", { serial })}>Retry signature</Button>}
         </Certificate></div>
@@ -66,7 +83,7 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
       </div>
       <div className="cv-side" style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 32, minWidth: 0 }}>
         {offer.state === "Sold" && now < expiry + grace && <Countdown totalSeconds={Math.floor(now < expiry ? expiry - Number(offer.created_s ?? expiry - 86400) : grace)} secondsLeft={Math.floor(Math.max(0, (now < expiry ? expiry : expiry + grace) - now))} label={now < expiry ? "Until the exercise window" : "Exercise window closes in"} note={dateUtc(now < expiry ? expiry : expiry + grace)} />}
-        {offer.commitment_reason && (
+        {offer.commitment_reason && !rescued && (
           <div style={{ display: "flex", alignItems: "center", gap: 16, border: "1px solid var(--rule)", background: "var(--paper-raised)", padding: 20 }}>
             <div><div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>{offer.commitment_reason === "Exercise" ? "Delivered to the buyer" : "Returned to the seller"}</div><Figure value={Number(offer.commitment_amount_sats) / 1e8} kind="btc" size="xl" /><div className="body-small" style={{ color: "var(--ink-muted)" }}>to {offer.commitment_to_address && <Ext href={btcAddr(offer.commitment_to_address)}>{offer.commitment_to_address}</Ext>}; fee {(offer as any).commitment_fee_sats ?? params?.fee_sats ?? "—"} sats, paid from the coins</div></div>
           </div>
