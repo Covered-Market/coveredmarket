@@ -146,7 +146,7 @@ const FAQ = [
   ["Where are my coins during the contract?", "On Bitcoin, at an address derived for your contract alone. You can look it up on any explorer. Only the contract can ask for a signature for it."],
   ["Can I get my coins back early?", "Before a buyer takes the call, yes: withdraw the offer. Once it has sold, the coins stay until expiry."],
   ["What if Bitcoin goes far above the strike?", "Your coins are sold at the strike. You keep the premium but not the rise above the strike."],
-  ["Do I need NEAR?", "A little. Creating an offer attaches 0.1 NEAR for storage, and most of it comes back. If your wallet supports gasless signing, a relayer pays the gas; otherwise you pay it. The Try page sends you test NEAR."],
+  ["Do I need NEAR?", "A little. Creating an offer attaches 0.1 NEAR for storage, and most of it comes back. If your wallet supports gasless signing, a relayer pays the gas; otherwise you pay it. On testnet, connecting a wallet sends you test NEAR."],
   ["What if NEAR stops working?", "Your coins are not stuck. Their address also accepts a rescue key that only you hold, saved in the rescue kit you download when you sell. After a fixed delay past expiry, it moves the coins back to you with Bitcoin alone."],
   ["What does CoveredMarket charge?", "Nothing. It runs on test coins only."],
   ["Has the contract been audited?", "Not yet, which is one reason it runs on test coins only."],
@@ -238,7 +238,7 @@ export function Landing() {
             </div>
             <figure id="film" className="ld-hero-film">
               <HeroFilm />
-              <figcaption className="body-small ld-muted">Astrid sells a call on her Bitcoin, Marcus buys it, and the contract settles on Bitcoin. <a href={app("try")}>Try it yourself with test coins</a>: about half an hour, most of it waiting for Bitcoin.</figcaption>
+              <figcaption className="body-small ld-muted">Astrid sells a call on her Bitcoin, Marcus buys it, and the contract settles on Bitcoin.</figcaption>
             </figure>
           </div>
         </section>
@@ -410,7 +410,7 @@ export function Landing() {
         <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
           <div className="ld-foot-grid">
             <div className="ld-stack" style={{ gap: 12 }}><img src="/site/lockup-32.svg" alt="CoveredMarket" style={{ height: 32, alignSelf: "flex-start" }} /><p className="ld-lede" style={{ fontSize: 18 }}>Earn on Bitcoin you still hold.</p></div>
-            <nav aria-label="Product"><span className="ld-label ld-muted">Product</span><a href={app("market")}>Market</a><a href={app("sell")}>Sell a call</a><a href={app("try")}>Try it</a><A to="faq">FAQ</A></nav>
+            <nav aria-label="Product"><span className="ld-label ld-muted">Product</span><a href={app("market")}>Market</a><a href={app("sell")}>Sell a call</a><A to="faq">FAQ</A></nav>
             <nav aria-label="Trust"><span className="ld-label ld-muted">Trust</span><A to="trust">Who can sign</A><A to="security">Report a vulnerability</A><A to="compare">Compared</A></nav>
             <nav aria-label="Build"><span className="ld-label ld-muted">Build</span><A to="stack">Built with</A><a href={REPO} target="_blank" rel="noreferrer">Source code</a><a href={`${REPO}/blob/HEAD/docs/SECURITY-MODEL.md`} target="_blank" rel="noreferrer">Security model</a><a href={`mailto:${SECURITY}`}>{SECURITY}</a></nav>
           </div>
