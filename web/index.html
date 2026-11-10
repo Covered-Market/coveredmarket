@@ -45,18 +45,21 @@
     .cv-root h1.display-2 { font-size: 36px !important; }
   }
   @media (min-width: 761px) { .cv-only-narrow { display: none !important; } }
-  /* Market: the life of a contract as five numbered steps (a row on wide screens, a list on narrow ones). */
-  .cv-life { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--rule); background: var(--paper-raised); }
-  .cv-life > li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; padding: 14px 16px; border-left: 1px solid var(--rule); }
-  .cv-life > li:first-child { border-left: none; }
-  .cv-life__n { width: 24px; height: 24px; border-radius: 999px; background: var(--intaglio); color: var(--on-intaglio); display: grid; place-items: center; font: 500 12px/1 var(--font-mono); }
-  @media (max-width: 1000px) { .cv-life { grid-template-columns: minmax(0, 1fr); } .cv-life > li { border-left: none; border-top: 1px solid var(--rule); } .cv-life > li:first-child { border-top: none; } }
-  /* Tabs over a list: plain words, the selected one underlined in gilt, a count beside each. */
-  .cv-tabs { display: flex; gap: 20px; border-bottom: 1px solid var(--rule); overflow-x: auto; scrollbar-width: none; }
-  .cv-tab { border: 0; background: none; padding: 8px 0; margin-bottom: -1px; font: 600 14px/20px var(--font-sans); color: var(--ink-muted); border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; }
-  .cv-tab--on { color: var(--ink); border-bottom-color: var(--gilt); }
-  .cv-tab__n { font: 400 12px/1 var(--font-mono); color: var(--ink-muted); margin-left: 4px; }
+  /* Tabs over a list: four large buttons with an icon, a label and a count; the selected one in solid intaglio. */
+  .cv-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .cv-tab { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border: 1px solid var(--rule-strong); background: var(--paper-raised); color: var(--ink); font: 600 16px/22px var(--font-sans); cursor: pointer; text-align: left; min-width: 0; }
+  .cv-tab:hover { border-color: var(--intaglio); }
+  .cv-tab__icon { width: 20px; height: 20px; flex-shrink: 0; color: var(--intaglio); }
+  .cv-tab__label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cv-tab__n { font: 500 13px/1 var(--font-mono); padding: 4px 8px; border-radius: 999px; background: var(--paper); border: 1px solid var(--rule); color: var(--ink-muted); }
+  .cv-tab--on { background: var(--intaglio); border-color: var(--intaglio); color: var(--on-intaglio); }
+  .cv-tab--on .cv-tab__icon { color: var(--on-intaglio); }
+  .cv-tab--on .cv-tab__n { background: transparent; border-color: currentColor; color: var(--on-intaglio); }
   .cv-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  @media (max-width: 640px) { .cv-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  /* An empty list: a dashed box with what will be here and, if any, the next step. */
+  .cv-empty { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 16px; align-items: center; padding: 18px 16px; border: 1px dashed var(--rule-strong); }
+  @media (max-width: 520px) { .cv-empty { grid-template-columns: minmax(0, 1fr); justify-items: start; } }
   /* Portfolio: a list of things waiting on you. */
   .cv-todo { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; padding: 14px 16px; border-top: 1px solid var(--rule); }
   .cv-todo:first-child { border-top: none; }

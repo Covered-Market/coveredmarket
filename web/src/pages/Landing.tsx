@@ -33,7 +33,7 @@ const A = ({ to, children, className, style }: { to: string; children: ReactNode
 function HeroFilm() {
   const url = filmUrl();
   const [playing, setPlaying] = useState(false);
-  const play = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor" /></svg>;
+  const play = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l12-7z" fill="currentColor" /></svg>;
   if (playing && url) return (
     <div className="ld-film">
       <iframe src={`${url}${url.includes("?") ? "&" : "?"}autoplay=1&rel=0`} title="CoveredMarket: from offer to settlement" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
@@ -41,7 +41,7 @@ function HeroFilm() {
   );
   return (
     <div className="ld-film">
-      <img src="/site/film/poster.png" alt="From offer to settlement: one covered call on native Bitcoin" />
+      <img src="/site/film/poster.svg" alt="From offer to settlement: one covered call on native Bitcoin" />
       {url ? <button type="button" className="ld-play" onClick={() => setPlaying(true)} aria-label="Play the film">{play}</button> : <span className="ld-play" aria-hidden="true">{play}</span>}
     </div>
   );
@@ -209,22 +209,17 @@ function Calculator() {
 
 export function Landing() {
   const { app } = links();
-  const [menu, setMenu] = useState(false);
   useEffect(() => { document.title = "CoveredMarket — earn on Bitcoin you still hold"; const id = location.hash.slice(1); if (id && !id.startsWith("/")) setTimeout(() => document.getElementById(id)?.scrollIntoView(), 50); }, []);
-  const nav: [string, string][] = [["how", "How it works"], ["returns", "Returns"], ["compare", "Compare"], ["trust", "Trust"], ["stack", "Built with"], ["faq", "FAQ"]];
   return (
     <div className="ld">
       <img className="ld-seal" src="/site/rosette.svg" alt="" aria-hidden="true" />
       <header className="ld-head">
         <div className="ld-wrap">
           <a href="/" aria-label="CoveredMarket home" className="ld-logo-link"><img className="ld-logo" src="/site/lockup-32.svg" alt="CoveredMarket" /></a>
-          <nav className="ld-nav" aria-label="Sections">{nav.map(([id, l]) => <A key={id} to={id}>{l}</A>)}</nav>
           <div className="ld-head-right">
             <a className="ld-btn ld-btn--primary" style={{ minHeight: 44, padding: "10px 16px", fontSize: 15 }} href={app("market")}>Open the app</a>
-            <button type="button" className="ld-btn ld-btn--quiet ld-menu" style={{ minHeight: 44, padding: "10px 12px", fontSize: 15 }} aria-expanded={menu} aria-label="Menu" onClick={() => setMenu(!menu)}><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg></button>
           </div>
         </div>
-        {menu && <div className="ld-wrap"><nav className="ld-drawer" aria-label="Sections">{nav.map(([id, l]) => <a key={id} href={`#${id}`} onClick={(e) => { setMenu(false); jump(e, id); }}>{l}</a>)}</nav></div>}
       </header>
 
       <main>
@@ -232,15 +227,16 @@ export function Landing() {
         <section className="ld-hero" aria-labelledby="hero-h">
           <div className="ld-wrap ld-hero-grid">
             <div className="ld-stack" style={{ minWidth: 0 }}>
-              <p className="ld-kicker" style={{ margin: 0 }}>Covered calls on native Bitcoin</p>
               <h1 id="hero-h" className="ld-h1"><span>Earn on Bitcoin</span><span style={{ color: "var(--intaglio)" }}>you still hold.</span></h1>
-              <p className="ld-hero-lede">Sell covered calls on coins that never leave Bitcoin. A NEAR contract signs for them, a rescue key only you hold is your way out, and the premium is yours whatever happens.</p>
+              <p className="ld-hero-lede">Get paid up front on Bitcoin you plan to hold. No exchange or custodian ever holds your coins, and the payment is yours whatever happens.</p>
             </div>
-            <figure id="film" className="ld-hero-film">
-              <HeroFilm />
-              <figcaption className="body-small ld-muted">Astrid sells a call on her Bitcoin, Marcus buys it, and the contract settles on Bitcoin.</figcaption>
-            </figure>
+            <img className="ld-hero-seal" src="/site/seal.svg" alt="" aria-hidden="true" />
           </div>
+        </section>
+
+        {/* the film, on its own row */}
+        <section id="film" className="ld-film-row" aria-label="The film">
+          <div className="ld-wrap"><figure className="ld-hero-film"><HeroFilm /></figure></div>
         </section>
 
         {/* benefits */}
@@ -324,7 +320,6 @@ export function Landing() {
                 </article>
               ))}
             </div>
-            <p className="body-small ld-muted" style={{ margin: 0, maxWidth: "90ch" }}>Also on chain: Bitcoin deposits and settlements are proven to the contract through a Bitcoin light client on NEAR, and every certificate can be checked in the browser.</p>
           </div>
         </section>
 
@@ -395,7 +390,7 @@ export function Landing() {
                     <div key={sev + "w"} className="body">{what}</div>,
                   ])}
                 </div>
-                <p className="body-small ld-muted" style={{ margin: "12px 0 0" }}>Paid in USDC on NEAR or in BTC, your choice, within 14 days of the fix shipping. The first valid report of a flaw is the one rewarded. <a href={`${REPO}/blob/HEAD/SECURITY.md`} target="_blank" rel="noreferrer">Full policy</a>.</p>
+                <p className="body-small ld-muted" style={{ margin: "12px 0 0" }}>Paid in USDC on NEAR or in BTC, your choice, within 14 days of the fix shipping. The first valid report of a flaw is the one rewarded, and every reward is at our discretion. <a href={`${REPO}/blob/HEAD/SECURITY.md`} target="_blank" rel="noreferrer">Full policy</a>.</p>
               </div>
               <div className="ld-row" style={{ borderTop: "1px solid var(--rule-strong)", paddingTop: 24, gap: "16px 24px" }}>
                 <a className="ld-btn ld-btn--primary" href={`mailto:${SECURITY}?subject=Vulnerability%20report`}>Report a vulnerability</a>

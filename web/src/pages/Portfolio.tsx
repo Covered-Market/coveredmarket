@@ -3,7 +3,7 @@ import { C, dateUtc, usd } from "../ds";
 import { describe, who } from "../lib/activity";
 import { call, CFG, view, type Wallet } from "../lib/near";
 import type { Offer, Params } from "../lib/verify";
-import { ContractLine } from "./AllContracts";
+import { ContractLine, EmptyBox } from "./AllContracts";
 import { useParams } from "./hooks";
 
 /** Something only you can do next, with where to do it. */
@@ -97,27 +97,42 @@ export function Portfolio({ wallet, data, onConnect }: { wallet: Wallet | null; 
   );
 
   if (!wallet || !data.me) {
-    const parts: [string, string][] = [
-      ["What needs you", "A deposit to make, an exercise window open on a call you bought, USDC to claim."],
-      ["Calls you sell", "Each offer from deposit to settlement, and where your coins are right now."],
-      ["Calls you bought", "What you hold, when each expires, and what you would pay to exercise."],
-    ];
+    // Empty state: the page's own structure with nothing in it yet (what a new account sees), plus the one thing to do.
+    const Empty = ({ title, text }: { title: string; text: string }) => (
+      <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <h2 className="display-2" style={{ margin: 0, fontSize: 28, lineHeight: 1.1 }}>{title}</h2>
+        <EmptyBox title={`No calls ${title === "Selling" ? "sold" : "bought"} yet`} text={text} />
+      </section>
+    );
+    const Tile = ({ label, note }: { label: string; note: string }) => (
+      <div className="cv-stat" style={{ border: "1px solid var(--rule)", background: "var(--paper-raised)", padding: "16px 18px", minWidth: 200, display: "flex", flexDirection: "column", gap: 6 }}>
+        <span className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>{label}</span>
+        <span className="cv-mono" style={{ fontSize: 32, lineHeight: "40px", color: "var(--ink-muted)" }}>—</span>
+        <span className="body-small" style={{ color: "var(--ink-muted)" }}>{note}</span>
+      </div>
+    );
     return (
-      <div className="cv-pad" style={{ padding: "32px 48px 48px", display: "flex", flexDirection: "column", gap: 28 }}>
-        {head("Your side of the market: the calls you sell and the calls you buy. Connect a NEAR wallet to see yours.")}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(240px, 100%), 1fr))", border: "1px solid var(--rule)", background: "var(--paper-raised)" }}>
-          {parts.map(([t, d], i) => (
-            <div key={t} style={{ padding: "16px 18px", borderLeft: i ? "1px solid var(--rule)" : "none" }}>
-              <div className="body" style={{ fontWeight: 600, marginBottom: 4 }}>{t}</div>
-              <div className="body-small" style={{ color: "var(--ink-muted)" }}>{d}</div>
+      <div className="cv-pad" style={{ padding: "32px 48px 48px", display: "flex", flexDirection: "column", gap: 32 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 24, flexWrap: "wrap" }}>
+          {head("The calls you sell and the calls you buy.")}
+          <div className="cv-tiles" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <Tile label="Coins at rest" note="in your live contracts" />
+            <Tile label="Claimable USDC" note="premiums and strikes owed to you" />
+          </div>
+        </div>
+        <section aria-labelledby="todo-h" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <h2 id="todo-h" className="display-2" style={{ margin: 0, fontSize: 28, lineHeight: 1.1 }}>Needs you</h2>
+          <div style={{ border: "1px solid var(--gilt)", background: "var(--paper-raised)" }}>
+            <div className="cv-todo">
+              <div className="body" style={{ fontWeight: 600 }}>Connect a wallet to see your calls</div>
+              <Button variant="primary" size="sm" onClick={onConnect}>Connect wallet</Button>
             </div>
-          ))}
+          </div>
+        </section>
+        <div className="cv-split" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 32, alignItems: "start" }}>
+          <Empty title="Selling" text="Calls you sell appear here, from deposit to settlement." />
+          <Empty title="Bought" text="Calls you buy appear here, with when each expires." />
         </div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <Button variant="primary" onClick={onConnect}>Connect wallet</Button>
-          <a href="#/market" className="body" style={{ color: "var(--intaglio)" }}>Browse the market without one</a>
-        </div>
-        <p className="body-small" style={{ margin: 0, color: "var(--ink-muted)", maxWidth: 560 }}>A NEAR account identifies you as seller or buyer. Your Bitcoin stays in your own Bitcoin wallet; this account only signs instructions. No NEAR wallet yet? <a href="https://meteorwallet.app" target="_blank" rel="noreferrer">Meteor</a> is a browser extension that works on testnet.</p>
       </div>
     );
   }
@@ -129,7 +144,6 @@ export function Portfolio({ wallet, data, onConnect }: { wallet: Wallet | null; 
   const owed = Number(data.claimable) / 1e6;
   const claim = async () => { setBusy(true); try { await call(wallet, CFG.contract, "claim", {}, 0n, 60); data.reload(); } catch (e) { alert((e as Error).message); } finally { setBusy(false); } };
   const todos = data.todos;
-  const nothing = selling.length === 0 && bought.length === 0;
 
   return (
     <div className="cv-pad" style={{ padding: "32px 48px 48px", display: "flex", flexDirection: "column", gap: 32 }}>
@@ -144,7 +158,7 @@ export function Portfolio({ wallet, data, onConnect }: { wallet: Wallet | null; 
       <section data-cv="needs-you" aria-labelledby="todo-h" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <h2 id="todo-h" className="display-2" style={{ margin: 0, fontSize: 28, lineHeight: 1.1 }}>Needs you <span className="cv-mono" style={{ fontSize: 18, color: "var(--ink-muted)" }}>{todos.length + (owed > 0 ? 1 : 0)}</span></h2>
         {todos.length === 0 && owed === 0
-          ? <div className="body-small" style={{ color: "var(--ink-muted)" }}>Nothing right now. Deposits, exercise windows and USDC to claim show up here.</div>
+          ? <EmptyBox title="Nothing needs you" text="Deposits to make, exercise windows and USDC to claim show up here." />
           : <div style={{ display: "flex", flexDirection: "column", border: "1px solid var(--gilt)", background: "var(--paper-raised)" }}>
               {owed > 0 && (
                 <div className="cv-todo">
@@ -161,13 +175,10 @@ export function Portfolio({ wallet, data, onConnect }: { wallet: Wallet | null; 
             </div>}
       </section>
 
-      {nothing ? (
-        <div className="body" style={{ color: "var(--ink-muted)" }}>No contracts yet. <a href="#/sell" style={{ color: "var(--intaglio)" }}>Sell a call</a> or <a href="#/market" style={{ color: "var(--intaglio)" }}>buy one on the market</a>.</div>
-      ) : (
         <div className="cv-split" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 32, alignItems: "start" }}>
           <section aria-labelledby="sell-h" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <h2 id="sell-h" className="display-2" style={{ margin: 0, fontSize: 28, lineHeight: 1.1 }}>Selling</h2>
-            {selling.length === 0 ? <div className="body-small" style={{ color: "var(--ink-muted)" }}>You have not sold a call. <a href="#/sell" style={{ color: "var(--intaglio)" }}>Sell one</a>: you keep your coins on Bitcoin and earn the premium.</div> : <>
+            {selling.length === 0 ? <EmptyBox title="No calls sold yet" text="Keep your coins on Bitcoin and earn a premium for the rise above a price you choose." action="Sell a call" href="#/sell" /> : <>
               <List title="Awaiting deposit" items={selling.filter((o) => o.state === "Created")} me={me} now={now} />
               <List title="For sale" items={selling.filter((o) => o.state === "Funded")} me={me} now={now} />
               <List title="Sold, live" note="coins locked until expiry" items={selling.filter((o) => !final.includes(o.state) && !["Created", "Funded"].includes(o.state))} me={me} now={now} />
@@ -176,13 +187,12 @@ export function Portfolio({ wallet, data, onConnect }: { wallet: Wallet | null; 
           </section>
           <section aria-labelledby="bought-h" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <h2 id="bought-h" className="display-2" style={{ margin: 0, fontSize: 28, lineHeight: 1.1 }}>Bought</h2>
-            {bought.length === 0 ? <div className="body-small" style={{ color: "var(--ink-muted)" }}>You have not bought a call. <a href="#/market" style={{ color: "var(--intaglio)" }}>See what is for sale</a>: you pay the premium now and the strike only if you exercise.</div> : <>
+            {bought.length === 0 ? <EmptyBox title="No calls bought yet" text="Pay the premium now, and the strike only if you exercise." action="See what is for sale" href="#/market" /> : <>
               <List title="Live" items={bought.filter((o) => !final.includes(o.state))} me={me} now={now} />
               <List title="Settled" items={bought.filter((o) => final.includes(o.state))} me={me} now={now} />
             </>}
           </section>
         </div>
-      )}
     </div>
   );
 }
