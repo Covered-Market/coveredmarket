@@ -229,3 +229,15 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
    which keeps the sticky header working). --seal is its diameter. */
 .ld { position: relative; isolation: isolate; }
 .ld-seal { --seal: clamp(560px, 92vw, 1560px); position: absolute; width: var(--seal); right: calc(var(--seal) * -0.56); top: calc(var(--seal) * -0.56); opacity: .1; z-index: -1; pointer-events: none; }
+
+/* Terms and privacy (pages/Legal.tsx) */
+.lg { max-width: 760px; padding-top: 56px; padding-bottom: 72px; }
+.lg-sec { border-top: 1px solid var(--rule); padding: 24px 0 8px; }
+.lg-h2 { font: 500 24px/1.2 var(--font-display); font-variation-settings: "opsz" 48; margin: 0 0 12px; display: flex; gap: 14px; align-items: baseline; }
+.lg-h2 .ld-mono { font-size: 13px; font-weight: 400; }
+.lg p, .lg li { font: 400 16px/1.6 var(--font-sans); margin: 0 0 12px; max-width: 68ch; }
+.lg ul { margin: 0 0 12px; padding-left: 20px; }
+.lg a { color: var(--intaglio); }
+.lg-links { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; font-size: 14px; }
+.lg-links a { color: var(--ink); }
+@media (max-width: 599px) { .lg { padding-top: 32px; } }

@@ -10,6 +10,7 @@ import { Market } from "./pages/Market";
 import { Sell } from "./pages/Sell";
 import { Portfolio, usePortfolio } from "./pages/Portfolio";
 import { Landing } from "./pages/Landing";
+import { Legal, LegalLinks } from "./pages/Legal";
 import { NetworkBand, NotLive } from "./Network";
 import { ChainClock } from "./ChainClock";
 
@@ -28,7 +29,8 @@ export function App() {
 
 /** The network-neutral website: only the landing page. Old app links (`/#/c/3`) go on to the testnet app. */
 function Website() {
-  const { path } = useRoute();
+  const { path, parts } = useRoute();
+  if (parts[0] === "terms" || parts[0] === "privacy") return <Legal doc={parts[0]} />;
   if (path && CFG.testnetUrl) { location.replace(`${CFG.testnetUrl}/${location.hash}`); return null; }
   return <Landing />;
 }
@@ -87,6 +89,7 @@ function AppShell() {
   const page = parts[0] ?? "market";
   // With a separate website the app's own `/` is the market; on the local stack `/` is still the landing page.
   if (page === "home" && !CFG.siteUrl) return <Landing />;
+  if (page === "terms" || page === "privacy") return <Legal doc={page} />;
   const content = CFG.disabled ? <NotLive /> : (() => {
     switch (page) {
       case "market": return <Market />;
@@ -129,7 +132,7 @@ function AppShell() {
       )}
       {content}
       <div style={{ padding: "16px 48px 24px", borderTop: "1px solid var(--rule)", marginTop: 48 }} className="body-small cv-pad">
-        <ChainClock />
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 24px", justifyContent: "space-between", alignItems: "center" }}><ChainClock /><LegalLinks inline /></div>
         {CFG.mode !== "testnet" && <Notice>CoveredMarket is unaudited software.{CFG.disabled ? null : <> Only the contract <a href={`${CFG.explorerNear}/address/${CFG.contract}`} target="_blank" rel="noreferrer"><code>{CFG.contract}</code></a> can ask NEAR's signing network to spend a deposit address; CoveredMarket the company cannot. If the signing network stopped, settlement would stop with it.</>}</Notice>}
       </div>
     </div>
