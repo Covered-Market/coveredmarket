@@ -229,6 +229,24 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
    which keeps the sticky header working). --seal is its diameter. */
 .ld { position: relative; isolation: isolate; }
 .ld-seal { --seal: clamp(560px, 92vw, 1560px); position: absolute; width: var(--seal); right: calc(var(--seal) * -0.56); top: calc(var(--seal) * -0.56); opacity: .1; z-index: -1; pointer-events: none; }
+/* Footer base line: the disclaimer, and the social icons on the right. */
+.ld-foot-base { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-top: 1px solid var(--rule); padding-top: 16px; }
+.ld-social { display: flex; gap: 8px; }
+.ld-social a { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--rule-strong); border-radius: 999px; color: var(--ink); transition: background .15s ease, color .15s ease; }
+.ld-social a:hover { background: var(--intaglio); border-color: var(--intaglio); color: var(--on-intaglio); }
+.ld-social svg { width: 18px; height: 18px; display: block; }
+/* The same icons in the header, a size down so the button stays the loudest thing there. */
+.ld-social--head { gap: 6px; }
+.ld-social--head a { width: 36px; height: 36px; }
+.ld-social--head svg { width: 16px; height: 16px; }
+@media (max-width: 599px) {
+  .ld-social--head { gap: 4px; }
+  .ld-social--head a { width: 32px; height: 32px; }
+  .ld-social--head svg { width: 14px; height: 14px; }
+}
+/* Narrow phones: keep the wordmark readable. GitHub leaves the header first, then the row; the footer keeps all three. */
+@media (max-width: 439px) { .ld-social--head a:nth-child(3) { display: none; } }
+@media (max-width: 359px) { .ld-social--head { display: none; } }
 
 /* Terms and privacy (pages/Legal.tsx) */
 .lg { max-width: 760px; padding-top: 56px; padding-bottom: 72px; }
@@ -256,3 +274,26 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 .up-entry { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 0 24px; }
 .up-date { margin: 6px 0 8px !important; font-size: 13px !important; }
 @media (max-width: 599px) { .up-entry { grid-template-columns: minmax(0, 1fr); } }
+
+/* patterns-v1 start: engraved patterns down the page (patterns.tsx). Delete this block to roll back. */
+.pt-host { position: relative; overflow: hidden; isolation: isolate; }
+.pt-host > .ld-wrap { position: relative; z-index: 1; }
+/* 1. echo of the hero rosette, entering from the lower left */
+.pt-echo { position: absolute; z-index: 0; width: clamp(420px, 52vw, 820px); height: auto; left: calc(clamp(420px, 52vw, 820px) * -0.5); bottom: calc(clamp(420px, 52vw, 820px) * -0.5); color: var(--ink); opacity: .1; pointer-events: none; }
+/* 2. gilt rosette on the vault band, half off the right edge */
+.pt-gilt { position: absolute; z-index: 0; width: clamp(420px, 46vw, 760px); height: auto; right: calc(clamp(420px, 46vw, 760px) * -0.68); top: 50%; transform: translateY(-50%); color: var(--gilt); opacity: .22; pointer-events: none; }
+/* 3. seam medallions on section edges */
+.pt-seamed { position: relative; }
+.pt-seam { position: absolute; z-index: 2; left: 50%; top: 0; width: 64px; height: 64px; transform: translate(-50%, -50%); border-radius: 50%; background: var(--paper); border: 1px solid var(--rule-strong); display: grid; place-items: center; color: var(--ink); }
+.pt-seam-ros { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); opacity: .45; }
+.pt-seam-n { position: relative; font: 500 12px/1 var(--font-mono); letter-spacing: .04em; background: var(--paper); padding: 2px 3px; }
+/* 4. one rosette per contract, on the step numbers */
+.pt-serial { display: flex; align-items: center; gap: 12px; color: var(--gilt-ink); }
+.pt-serial svg { opacity: .8; }
+/* 5. lathe waves around the security notice */
+.pt-lathe { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; color: var(--ink); opacity: .14; pointer-events: none; }
+@media (max-width: 599px) {
+  .pt-seam { width: 52px; height: 52px; }
+  .pt-gilt { opacity: .16; }
+}
+/* patterns-v1 end */

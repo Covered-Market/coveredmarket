@@ -9,9 +9,24 @@ import { CFG } from "../lib/near";
 import { useSpot } from "./hooks";
 import { Waitlist } from "./Waitlist";
 import "../landing.css";
+import { Lathe, Rosette, Seam, SerialRosette } from "../patterns"; // patterns-v1
 
 const SECURITY = "security@covered.market";
 const REPO = "https://github.com/Covered-Market/coveredmarket";
+/** CoveredMarket on X. */
+const X_URL = "https://x.com/covered_market";
+/** The CoveredMarket Discord server (invite link). */
+const DISCORD_URL = "https://discord.gg/ruAg7vQrz";
+/** Footer icons: the X, Discord and GitHub marks, drawn in the footer's ink. */
+const SOCIAL: [string, string, string][] = [
+  ["X", X_URL, "M17.75 3h3.07l-6.71 7.67L22 21h-6.18l-4.84-6.33L5.44 21H2.37l7.18-8.2L2 3h6.33l4.38 5.79L17.75 3zm-1.08 16.17h1.7L7.4 4.73H5.58l11.09 14.44z"],
+  ["Discord", DISCORD_URL, "M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.028C.533 9.046-.32 13.58.099 18.058a.082.082 0 0 0 .031.056 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .078-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.029zM8.02 15.331c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"],
+  ["GitHub", REPO, "M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.56 9.56 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"],
+];
+/** The social icons, in the header and again in the footer. */
+function Social({ className }: { className: string }) {
+  return <div className={className}>{SOCIAL.map(([name, href, d]) => <a key={name} href={href} target="_blank" rel="noreferrer" aria-label={`CoveredMarket on ${name}`} title={name}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={d} fill="currentColor" /></svg></a>)}</div>;
+}
 /** The film for the hero: a YouTube embed link, e.g. https://www.youtube-nocookie.com/embed/<id>. Empty until it is
  *  out. The site config's `filmUrl` overrides it. */
 const FILM_URL = "";
@@ -218,6 +233,7 @@ export function Landing() {
         <div className="ld-wrap">
           <a href="/" aria-label="CoveredMarket home" className="ld-logo-link"><img className="ld-logo" src="/site/lockup-32.svg" alt="CoveredMarket" /></a>
           <div className="ld-head-right">
+            <Social className="ld-social ld-social--head" />
             <a className="ld-btn ld-btn--primary" style={{ minHeight: 44, padding: "10px 16px", fontSize: 15 }} href={app("market")}>Open the app</a>
           </div>
         </div>
@@ -241,7 +257,8 @@ export function Landing() {
         </section>
 
         {/* benefits */}
-        <section id="why" className="ld-sec ld-vault" data-theme="vault" aria-labelledby="why-h">
+        <section id="why" className="ld-sec ld-vault pt-host" data-theme="vault" aria-labelledby="why-h">
+          <Rosette className="pt-gilt" sw={1} />{/* patterns-v1 */}
           <div className="ld-wrap ld-stack" style={{ gap: 40 }}>
             <div><Kicker n="01">Why CoveredMarket</Kicker><h2 id="why-h" className="ld-h2">Everything an exchange offers, except the exchange.</h2></div>
             <div className="ld-4">
@@ -253,7 +270,8 @@ export function Landing() {
         </section>
 
         {/* story */}
-        <section className="ld-sec" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="story-h">
+        <section className="ld-sec pt-seamed" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="story-h">
+          <Seam n="02" />{/* patterns-v1 */}
           <div className="ld-wrap">
             <div className="ld-2" style={{ alignItems: "center" }}>
               <div className="ld-stack" style={{ gap: 16, maxWidth: "60ch" }}>
@@ -290,7 +308,7 @@ export function Landing() {
             {STEPS.map((s) => (
               <div className="ld-step" key={s.n}>
                 <div className="ld-stack" style={{ gap: 12 }}>
-                  <div className="ld-mono" style={{ color: "var(--gilt-ink)" }}>{s.n}</div>
+                  <div className="ld-mono pt-serial"><SerialRosette serial={`step-${s.n}`} size={44} />{s.n}</div>{/* patterns-v1 */}
                   <h3 className="heading" style={{ margin: 0 }}>{s.title}</h3>
                   <p className="body ld-muted" style={{ margin: 0 }}>{s.text}</p>
                   <div className="ld-label" style={{ color: "var(--intaglio)" }}>{s.tech}</div>
@@ -302,7 +320,8 @@ export function Landing() {
         </section>
 
         {/* built with */}
-        <section id="stack" className="ld-sec ld-raised" style={{ borderTop: "1px solid var(--rule)", position: "relative", overflow: "hidden" }} aria-labelledby="stack-h">
+        <section id="stack" className="ld-sec ld-raised" style={{ borderTop: "1px solid var(--rule)", position: "relative", overflow: "visible" }} aria-labelledby="stack-h">
+          <Seam n="05" />{/* patterns-v1: overflow was "hidden"; visible lets the seal sit on the seam */}
           <div className="ld-wrap ld-stack" style={{ gap: 32, position: "relative" }}>
             <div className="ld-2" style={{ alignItems: "end", gap: "24px 48px" }}>
               <div><Kicker n="05">Built with</Kicker><h2 id="stack-h" className="ld-h2" style={{ maxWidth: "16ch" }}>Built on NEAR. Settled on Bitcoin.</h2></div>
@@ -325,7 +344,8 @@ export function Landing() {
         </section>
 
         {/* compare */}
-        <section id="compare" className="ld-sec" aria-labelledby="compare-h">
+        <section id="compare" className="ld-sec pt-seamed" aria-labelledby="compare-h">
+          <Seam n="06" />{/* patterns-v1 */}
           <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
             <div><Kicker n="06">Compared</Kicker><h2 id="compare-h" className="ld-h2">Other ways to earn on Bitcoin, side by side.</h2></div>
             <div className="ld-cmp-desk" role="table" aria-label="CoveredMarket compared with other ways to earn on Bitcoin">
@@ -362,7 +382,8 @@ export function Landing() {
         </section>
 
         {/* faq */}
-        <section id="faq" className="ld-sec" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="faq-h">
+        <section id="faq" className="ld-sec pt-host" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="faq-h">
+          <Rosette className="pt-echo" />{/* patterns-v1 */}
           <div className="ld-wrap ld-2">
             <div><Kicker n="08">Questions</Kicker><h2 id="faq-h" className="ld-h2">What people ask first.</h2></div>
             <div className="ld-faq">{FAQ.map(([q, a]) => <details key={q}><summary>{q}</summary><p className="body">{a}</p></details>)}</div>
@@ -370,7 +391,8 @@ export function Landing() {
         </section>
 
         {/* security */}
-        <section id="security" className="ld-sunk" style={{ borderTop: "1px solid var(--rule)", padding: "96px 0" }} aria-labelledby="security-h">
+        <section id="security" className="ld-sunk pt-host" style={{ borderTop: "1px solid var(--rule)", padding: "96px 0" }} aria-labelledby="security-h">
+          <Lathe />{/* patterns-v1 */}
           <div className="ld-wrap">
             <div className="ld-notice">
               <img className="ld-bandimg" src="/site/band.svg" alt="" aria-hidden="true" style={{ top: 12 }} />
@@ -422,7 +444,10 @@ export function Landing() {
             <nav aria-label="Trust"><span className="ld-label ld-muted">Trust</span><A to="trust">Who can sign</A><A to="security">Report a vulnerability</A><A to="compare">Compared</A></nav>
             <nav aria-label="Build"><span className="ld-label ld-muted">Build</span><A to="stack">Built with</A><a href={REPO} target="_blank" rel="noreferrer">Source code</a><a href={`${REPO}/blob/HEAD/docs/SECURITY-MODEL.md`} target="_blank" rel="noreferrer">Security model</a><a href={`mailto:${SECURITY}`}>{SECURITY}</a></nav>
           </div>
-          <p className="body-small ld-muted" style={{ margin: 0, borderTop: "1px solid var(--rule)", paddingTop: 16 }}>CoveredMarket is unaudited software and runs on test coins only. Built on NEAR. <span className="lg-links" style={{ display: "inline-flex", marginLeft: 12 }}><a href="#/terms">Terms</a><a href="#/privacy">Privacy</a></span></p>
+          <div className="ld-foot-base">
+            <p className="body-small ld-muted" style={{ margin: 0 }}>CoveredMarket is unaudited software and runs on test coins only. Built on NEAR. <span className="lg-links" style={{ display: "inline-flex", marginLeft: 12 }}><a href="#/terms">Terms</a><a href="#/privacy">Privacy</a></span></p>
+            <Social className="ld-social" />
+          </div>
         </div>
       </footer>
     </div>
