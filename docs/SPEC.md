@@ -63,10 +63,10 @@ Each requirement has an id so tests (section 13) can cite it. MUST items are nee
 
 | Id | Requirement | Level |
 | --- | --- | --- |
-| F1 | A seller can create an offer `(size_sats, strike_usdc_units, expiry_unix, premium_usdc_units, refund_btc_script)` and receive a unique P2WPKH deposit address derived by the contract | MUST |
+| F1 | A seller can create an offer `create_offer({terms: {size_sats, strike_units, premium_units, expiry_s, refund_address, rescue_pubkey}})` and receive a unique deposit address derived by the contract (P2WSH, see F15) | MUST |
 | F2 | The contract accepts a deposit only with a valid inclusion proof for a transaction with one output paying exactly `size_sats` to the derived script, at ≥ `min_conf` confirmations on the light client; the collateral outpoint is recorded | MUST |
 | F3 | A funded, unsold offer can be withdrawn by the seller; the contract commits and signs a return transaction to the refund script | MUST |
-| F4 | A buyer purchases by `usdc.ft_transfer_call(coveredmarket.near, premium, msg{serial, btc_script})` from their own NEAR account; in that receipt the contract records `buyer = sender`, credits the premium to the seller’s claimable balance and refunds any excess. The sale is final when the receipt succeeds | MUST |
+| F4 | A buyer purchases by `usdc.ft_transfer_call(coveredmarket.near, premium, msg{serial, btc_address})` from their own NEAR account; in that receipt the contract records `buyer = sender`, credits the premium to the seller’s claimable balance and refunds any excess. The sale is final when the receipt succeeds | MUST |
 | F5 | Inside `[expiry, expiry + grace)` by block timestamp, the buyer exercises by `ft_transfer_call` of `strike_total` from the buyer account with `msg{serial, exercise}`; the contract re-verifies collateral depth, escrows the strike, commits and signs delivery to the buyer’s script | MUST |
 | F6 | At or after `expiry + grace`, anyone can call `settle(serial)`; if not exercised the contract commits and signs the return transaction to the seller | MUST |
 | F7 | Every spend the contract authorises is committed to state (recipient script, unsigned tx, sighash) before the first signature request, and only that sighash is ever requested for that outpoint | MUST |
@@ -267,7 +267,7 @@ If the operator disappears: the frontend keeps working from any static host; any
 | `Created` | `recover(serial, proof)` by seller | proof of a tx paying the stored script any other amount; offer not funded | `Created` (unchanged) + a `Recovery` record | a separate commitment for that outpoint to the refund script; signed; the offer itself stays `Created` |
 | `Created` | `cancel(serial)` by seller | no collateral recorded | `Cancelled` | storage refunded; later deposits to the address are recoverable via `recover` on the cancelled serial |
 | `Funded` | `withdraw(serial)` by seller | — | `Committed{to: seller, reason: Withdraw}` | commitment built and stored; signature requested |
-| `Funded` | `ft_on_transfer(sender, amount, msg{serial, btc_script})` from USDC | `amount ≥ premium`; `now < expiry − buy_cutoff`; `btc_script` is P2WPKH or P2WSH for this network | `Sold` | `buyer = sender`, `buyer_script` stored, `claimable[seller] += premium`, excess returned. Final in this receipt |
+| `Funded` | `ft_on_transfer(sender, amount, msg{serial, btc_address})` from USDC | `amount ≥ premium`; `now < expiry − buy_cutoff`; `btc_address` is a v0 witness address (P2WPKH or P2WSH) for this network | `Sold` | `buyer = sender`, `buyer_script` stored, `claimable[seller] += premium`, excess returned. Final in this receipt |
 | `Sold` | `ft_on_transfer(sender, amount, msg{serial, exercise})` from USDC | `sender == buyer`; `amount ≥ strike_total`; `expiry ≤ now < expiry + grace`; no settlement committed | `ExercisePending` | `escrow[serial] = strike_total`, excess returned; a promise re-checks collateral depth on the light client |
 | `ExercisePending` | depth callback (`#[private]`) | depth ≥ `min_conf` | `Committed{to: buyer, reason: Exercise}` | commitment built; the signature is requested by anyone via `request_signature` in its own transaction (a `sign` call does not fit inside the token's call chain) |
 | `ExercisePending` | depth callback | depth < `min_conf` or unavailable | `Sold` | escrow moved to `claimable[buyer]` (refund); event `exercise_refused` |
@@ -374,7 +374,7 @@ Money reaches the contract in exactly one way: a NEP-141 `ft_transfer_call` of U
 ### Premium
 
 1. The buyer has USDC in their own NEAR account. If it is on Solana or Base, the frontend offers 1Click with `destinationAsset = nep141:<usdc>`, `recipientType = DESTINATION_CHAIN`, `recipient = <buyer NEAR account>`; this is a swap into the buyer’s wallet and the contract never sees it ([1Click API](https://docs.near-intents.org/near-intents/1click-api)).
-2. The buyer calls `usdc.ft_transfer_call(coveredmarket.near, premium, msg = {"serial":37,"btc_script":"0014…"})` from that account (through the relayer as a meta-transaction if they hold no NEAR).
+2. The buyer calls `usdc.ft_transfer_call(coveredmarket.near, premium, msg = {"serial":37,"btc_address":"bc1q…"})` from that account (through the relayer as a meta-transaction if they hold no NEAR).
 3. `coveredmarket.near.ft_on_transfer` runs inside the token contract’s receipt: checks `predecessor == params.usdc`, serial is `Funded`, `amount ≥ premium`, `now < expiry − buy_cutoff`; writes `buyer = sender_id`, `buyer_script`, `claimable[seller] += premium`; returns `amount − premium` so the token contract refunds any excess. No promise is created. The purchase is final when this receipt succeeds.
 4. The seller calls `claim()` whenever they like; the contract zeroes the balance, calls `usdc.ft_transfer(seller, amount)`, and restores the balance in a `#[private]` callback if the transfer failed (for example, missing storage deposit on the token).
 

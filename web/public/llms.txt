@@ -1,0 +1,37 @@
+# CoveredMarket
+
+> Covered calls on native Bitcoin. A seller locks BTC at an address that only a NEAR smart contract can sign for (through NEAR's MPC network), and is paid a USDC premium up front. At expiry the buyer may pay the strike inside a short window and receive the coins; otherwise the coins go back to the seller. No price feed decides the outcome. No custodian, bridge or wrapped token. Unaudited. Testnet is live; mainnet is not.
+
+The app on testnet is https://testnet.covered.market. It uses test coins and test USDC with no value. Everything below works there.
+
+## For agents: start here
+
+- [Agent toolkit](https://github.com/Covered-Market/coveredmarket/blob/development/agent/README.md): an MCP server, a JSON CLI and a TypeScript SDK that create a testnet wallet, sell, buy, exercise and claim. One line to install the MCP server: `claude mcp add coveredmarket -- <repo>/bin/coveredmarket mcp`
+- Read API, no key needed, JSON:
+  - `GET https://testnet.covered.market/api/params`: size limits, the expiry grid, the next valid expiries, the exercise window
+  - `GET https://testnet.covered.market/api/offers?status=for_sale`: live offers (`for_sale`, `awaiting_deposit`, `sold`, `settling`)
+  - `GET https://testnet.covered.market/api/offers/CV-7`: one offer in any state
+  - `GET https://testnet.covered.market/api/accounts/<near-account>`: an account's offers and the USDC it can claim
+  - `GET https://testnet.covered.market/config.json`: contract, token and RPC ids
+- Each offer comes back with `summary` (one sentence) and `next_actions`: who acts next (`seller`, `buyer`, `anyone`, or `relayer` for steps that happen automatically), from when, and the exact NEAR call to make.
+- Browser agents: open `https://testnet.covered.market/?testwallet=seller#/sell` or `?testwallet=buyer#/market`. The tab gets its own funded test wallet with no extension needed. `?testwallet=reset` forgets the keys.
+
+## The life of a contract
+
+1. Sell: `create_offer({terms: {size_sats, strike_units, premium_units, expiry_s, refund_address, rescue_pubkey}})` with 0.1 NEAR attached for storage. `strike_units` is USDC (6 decimals) per whole BTC. `expiry_s` must be on the deployment's expiry grid. `rescue_pubkey` is a key the seller holds: their Bitcoin-only exit after `unlock_s`.
+2. Deposit: send exactly `size_sats` to the offer's address in one output. The relayer proves it on NEAR, and the offer becomes `Funded`, for sale. On testnet, `POST /api/btc-faucet {"serial": N}` pays small deposits.
+3. Buy: `usdc.ft_transfer_call({receiver_id: <contract>, amount: premium_units, msg: "{\"serial\":N,\"btc_address\":\"tb1q…\"}"})` with 1 yoctoNEAR. Final in that receipt. The premium is credited to the seller.
+4. Exercise (optional): inside `[expiry, expiry + window)`, the buyer sends `strike_total_units` with `msg: "{\"serial\":N,\"exercise\":true}"`. The contract signs the coins over to `btc_address`.
+5. Settle: if not exercised, the coins go back to the seller after the window. The relayer does this; anyone may call `settle`.
+6. Claim: `claim()` pays out the USDC the contract owes the caller.
+
+States: Created → Funded → Sold → (ExercisePending) → Committed → Signed → Kept | Exercised. Also Withdrawn (unsold, seller took the coins back), Cancelled (no deposit) and Rescued (the seller's rescue key swept the deposit).
+
+Gas: every call can go through the relayer as a NEP-366 meta-transaction: `POST /api/relay {"signedDelegate": "<base64 borsh>"}`. Users need no NEAR for gas.
+
+## Docs
+
+- [README](https://github.com/Covered-Market/coveredmarket/blob/development/README.md): what it is, the testnet walkthrough, running the whole stack locally with one command
+- [Specification](https://github.com/Covered-Market/coveredmarket/blob/development/docs/SPEC.md): state machine, methods, parameters, Bitcoin transactions
+- [Security model](https://github.com/Covered-Market/coveredmarket/blob/development/docs/SECURITY-MODEL.md): what you trust and what is guaranteed
+- [Contract source](https://github.com/Covered-Market/coveredmarket/blob/development/contracts/coveredmarket/src/lib.rs)

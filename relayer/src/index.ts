@@ -6,7 +6,8 @@ import { esplora, type Esplora } from "./btc/proof.js";
 import { checkDelegate, defaultRelayLimits, RelayLimits } from "./metatx.js";
 import { decodeSignedDelegate, relayResult, viewOf } from "./near/delegate.js";
 import { nearClient } from "./near/client.js";
-import { tick, type Services } from "./run.js";
+import { describeAccount, describeOffer, describeParams, statusOf, type RawOffer, type RawParams } from "./agentapi.js";
+import { tick, viewAll, type Services } from "./run.js";
 import { spotUsd } from "./spot.js";
 
 const env = (k: string, d?: string) => process.env[k] ?? d ?? (() => { throw new Error(`missing env ${k}`); })();
@@ -36,6 +37,51 @@ app.get("/api/spot", async (_req, res) => {
   if (Date.now() - spot.at > 60_000) { try { spot = { ...(await spotUsd()), at: Date.now() }; } catch {} }
   res.json(spot);
 });
+// Read API for agents and scripts (see agentapi.ts): the contract's views in plain units, with next actions.
+{
+  const ctx = { contract: cfg.coveredmarket, usdc: cfg.usdc };
+  const cache = new Map<string, { at: number; v: Promise<unknown> }>();
+  /** Views shared across requests for a few seconds: agents poll, the RPC should not feel it. */
+  const cached = <T>(key: string, f: () => Promise<T>, ms = 5000): Promise<T> => {
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.at < ms) return hit.v as Promise<T>;
+    const v = f(); cache.set(key, { at: Date.now(), v }); v.catch(() => cache.delete(key));
+    if (cache.size > 500) for (const [k, e] of cache) if (Date.now() - e.at > ms) cache.delete(k);
+    return v;
+  };
+  const params = () => cached("params", () => near.view<RawParams>("get_params"), 60_000);
+  const now = () => cached("now", () => near.chainNow(), 2000);
+  const nearSvc = { near: { view: near.view, call: near.call } } as Pick<Services, "near">;
+  const json = (f: (req: express.Request) => Promise<unknown>) => async (req: express.Request, res: express.Response) => {
+    try { const v = await f(req); if (v === undefined) return res.status(404).json({ error: "not found" }); res.set("Cache-Control", "no-store").json(v); }
+    catch (e) { res.status((e as any).status ?? 502).json({ error: (e as Error).message }); }
+  };
+  const bad = (msg: string) => Object.assign(new Error(msg), { status: 400 });
+  const STATUSES = ["awaiting_deposit", "for_sale", "sold", "settling"];
+
+  app.get("/api/params", json(async () => describeParams(await params(), await now(), ctx)));
+  app.get("/api/offers", json(async (req) => {
+    const status = req.query.status ? String(req.query.status) : undefined;
+    if (status && !STATUSES.includes(status)) throw bad(`status is one of ${STATUSES.join(", ")}`);
+    const [p, t, created, open] = await Promise.all([params(), now(), cached("created", () => viewAll(nearSvc, "get_created") as Promise<any>), cached("open", () => viewAll(nearSvc, "get_offers") as Promise<any>)]);
+    const all = [...(created as RawOffer[]), ...(open as RawOffer[])].sort((a, b) => a.serial - b.serial).map((o) => describeOffer(o, p, t, ctx));
+    const offers = all.filter((d) => (status ? statusOf(d, t) === status : statusOf(d, t) !== null));
+    return { now_s: t, count: offers.length, offers };
+  }));
+  app.get("/api/offers/:serial", json(async (req) => {
+    const s = req.params.serial.replace(/^CV-/i, "");
+    if (!/^\d{1,12}$/.test(s)) throw bad("serial is a number, e.g. 7 or CV-7");
+    const [p, t, o] = await Promise.all([params(), now(), cached(`offer:${s}`, () => near.view<RawOffer | null>("get_offer", { serial: Number(s) }), 3000)]);
+    return o ? describeOffer(o, p, t, ctx) : undefined;
+  }));
+  app.get("/api/accounts/:id", json(async (req) => {
+    const id = req.params.id;
+    if (!/^[a-z0-9._-]{2,64}$/.test(id)) throw bad("not a NEAR account id");
+    const [p, t, offers, claimable] = await Promise.all([params(), now(), cached(`acct:${id}`, () => near.view<RawOffer[]>("get_account_offers", { account: id })), cached(`claim:${id}`, () => near.view<string>("get_claimable", { account: id }))]);
+    return describeAccount(id, String(claimable), offers.map((o) => describeOffer(o, p, t, ctx)), ctx);
+  }));
+}
+
 /** The client's address as Caddy reports it (it overwrites X-Forwarded-For with the real peer). */
 const clientIp = (req: express.Request) => String(req.headers["x-forwarded-for"] ?? req.socket.remoteAddress ?? "").split(",")[0].trim();
 const relayLimits = new RelayLimits({

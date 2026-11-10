@@ -157,6 +157,38 @@ const STEPS = [
   { n: "04", title: "At expiry, the contract signs", text: "After expiry the buyer has a short exercise window to pay the strike. If they do, the contract signs the coins to them; if not, it signs them back to your address.", tech: "Chain Signatures", path: "covered · /c/1", img: "/site/shots/step-cert.webp", alt: "The certificate of CV-1: 0.0010 BTC, strike $150,000, expires 6 Nov 2026, 11:07 UTC" },
 ];
 
+/** Agent friendly: the ways software uses CoveredMarket (agent/README.md). Testnet and the local stack only. */
+const AGENT_WAYS = [
+  { name: "MCP server", what: "Tools to sell, buy, exercise and claim for Claude, Cursor or any MCP client. Its wallet is made and funded on first use.", code: "claude mcp add coveredmarket -- bin/coveredmarket mcp", d: "M9 2v5 M15 2v5 M6 7h12v4a6 6 0 0 1-12 0z M12 17v5" },
+  { name: "Command line", what: "Every move as one command, with JSON out. For scripts, scheduled jobs and quick tests.", code: "bin/coveredmarket agent offers --status for_sale", d: "M3 5h18v14H3z M7 10l3 2-3 2 M12 15h5" },
+  { name: "Read API", what: "Offers, rules and accounts over plain HTTP, in BTC and USD and in exact units. No key needed.", code: "GET /api/offers?status=for_sale", d: "M8 4c-2 0-3 1-3 3v3l-2 2 2 2v3c0 2 1 3 3 3 M16 4c2 0 3 1 3 3v3l2 2-2 2v3c0 2-1 3-3 3" },
+  { name: "llms.txt", what: "One page that tells a model what CoveredMarket is, how a contract runs and where to start.", code: "covered.market/llms.txt", d: "M6 3h9l3 3v15H6z M9 10h6 M9 14h6 M9 18h4" },
+];
+const AGENT_POINTS = [
+  ["Every offer says what happens next", "Who moves, from when, and the exact call to make. Steps the relayer takes by itself are marked as such."],
+  ["Keys stay with the agent", "They are kept in files on its own machine. The seller's rescue kit is saved before the offer exists."],
+  ["No gas, no sign-up", "The relayer pays gas. On testnet a new wallet gets test NEAR and USDC automatically."],
+];
+/** What an agent reads: an offer from the read API, shortened. */
+const AGENT_SAMPLE = `{
+  "id": "CV-7",
+  "state": "Funded",
+  "summary": "Deposited and for sale.",
+  "size":    { "btc": 0.001 },
+  "strike":  { "usd_per_btc": 150000 },
+  "premium": { "usd": 5 },
+  "expiry":  { "utc": "2026-11-12T08:00:00Z" },
+  "next_actions": [
+    { "action": "buy", "who": "buyer",
+      "call": { "method": "ft_transfer_call" } },
+    { "action": "withdraw", "who": "seller" }
+  ]
+}`;
+/** The sample with its keys in the accent ink. */
+function JsonSample({ text }: { text: string }) {
+  return <pre className="ld-code" tabIndex={0} aria-label="An offer as the read API returns it">{text.split(/("[a-z_]+")(?=:)/g).map((part, i) => (i % 2 ? <span key={i} className="k">{part}</span> : part))}</pre>;
+}
+
 const FAQ = [
   ["What is a covered call?", "You sell someone the right to buy your coins at a price you set, on a date you set. They pay you for that right now. You keep the payment whatever happens."],
   ["Where are my coins during the contract?", "On Bitcoin, at an address derived for your contract alone. You can look it up on any explorer. Only the contract can ask for a signature for it."],
@@ -165,6 +197,7 @@ const FAQ = [
   ["Do I need NEAR?", "A little. Creating an offer attaches 0.1 NEAR for storage, and most of it comes back. If your wallet supports gasless signing, a relayer pays the gas; otherwise you pay it. On testnet, connecting a wallet sends you test NEAR."],
   ["What if NEAR stops working?", "Your coins are not stuck. Their address also accepts a rescue key that only you hold, saved in the rescue kit you download when you sell. After a fixed delay past expiry, it moves the coins back to you with Bitcoin alone."],
   ["What does CoveredMarket charge?", "Nothing. It runs on test coins only."],
+  ["Can an AI agent use CoveredMarket?", "Yes. On testnet there is an MCP server, a command line and a read API, and an agent gets its own funded test wallet the first time it acts. Browser agents can add ?testwallet=seller to the app’s address instead of connecting a wallet."],
   ["Has the contract been audited?", "Not yet, which is one reason it runs on test coins only."],
 ];
 
@@ -378,11 +411,44 @@ export function Landing() {
           </div>
         </section>
 
+        {/* agent friendly */}
+        <section id="agents" className="ld-sec ld-vault" data-theme="vault" aria-labelledby="agents-h">
+          <div className="ld-wrap ld-stack" style={{ gap: 48 }}>
+            <div className="ld-2">
+              <div className="ld-stack" style={{ gap: 24 }}>
+                <div><Kicker n="08">Agent friendly</Kicker><h2 id="agents-h" className="ld-h2">Built for agents as well as people.</h2></div>
+                <p className="ld-lede" style={{ maxWidth: "44ch" }}>Anything you can do here, an AI agent or a script can do too: read the market, sell a call, buy one, exercise it and claim. On testnet it gets its own funded wallet the first time it acts.</p>
+                <ul className="ld-agent-points">
+                  {AGENT_POINTS.map(([t, d]) => <li key={t}><span className="heading">{t}</span><span className="body ld-muted">{d}</span></li>)}
+                </ul>
+                <div className="ld-row">
+                  <a className="ld-btn ld-btn--primary" href={`${REPO}/blob/HEAD/agent/README.md`} target="_blank" rel="noreferrer">Read the agent guide</a>
+                  <a className="ld-btn ld-btn--quiet" href="/llms.txt">Open llms.txt</a>
+                </div>
+              </div>
+              <div className="ld-frame" data-theme="paper">
+                <div className="ld-frame-bar"><i /><i /><span>GET /api/offers/CV-7</span></div>
+                <JsonSample text={AGENT_SAMPLE} />
+              </div>
+            </div>
+            <div className="ld-3 ld-built">
+              {AGENT_WAYS.map((w) => (
+                <article className="ld-tech" key={w.name}>
+                  <span className="ld-disc" style={{ width: 48, height: 48 }}><Icon d={w.d} /></span>
+                  <h3 className="heading" style={{ margin: 0 }}>{w.name}</h3>
+                  <p className="body-small ld-muted" style={{ margin: 0 }}>{w.what}</p>
+                  <div className="ld-tech-id">{w.code}</div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* faq */}
         <section id="faq" className="ld-sec pt-host" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="faq-h">
           <Rosette className="pt-echo" />{/* patterns-v1 */}
           <div className="ld-wrap ld-2">
-            <div><Kicker n="08">Questions</Kicker><h2 id="faq-h" className="ld-h2">What people ask first.</h2></div>
+            <div><Kicker n="09">Questions</Kicker><h2 id="faq-h" className="ld-h2">Frequently Asked Questions</h2></div>
             <div className="ld-faq">{FAQ.map(([q, a]) => <details key={q}><summary>{q}</summary><p className="body">{a}</p></details>)}</div>
           </div>
         </section>
@@ -396,7 +462,7 @@ export function Landing() {
               <img className="ld-bandimg" src="/site/band.svg" alt="" aria-hidden="true" style={{ bottom: 12 }} />
               <div style={{ display: "flex", justifyContent: "space-between", gap: 24, borderBottom: "1px solid var(--rule-strong)", paddingBottom: 24 }}>
                 <div className="ld-stack" style={{ gap: 16 }}>
-                  <p className="ld-kicker" style={{ color: "var(--intaglio)", margin: 0 }}>Art. 09 · Security notice</p>
+                  <p className="ld-kicker" style={{ color: "var(--intaglio)", margin: 0 }}>Art. 10 · Security notice</p>
                   <h2 id="security-h" className="ld-h2" style={{ maxWidth: "16ch" }}>Found a flaw? Tell us before anyone else.</h2>
                   <p className="ld-lede" style={{ maxWidth: "46ch" }}>CoveredMarket keeps people’s Bitcoin behind a contract. If you find a way to move, freeze or misprice those coins, we want to hear it first, and we pay for it.</p>
                 </div>
@@ -424,7 +490,7 @@ export function Landing() {
         <section id="waitlist" className="ld-sec" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="waitlist-h">
           <div className="ld-wrap ld-2">
             <div className="ld-stack" style={{ gap: 16 }}>
-              <div><Kicker n="10">Mainnet</Kicker><h2 id="waitlist-h" className="ld-h2">Hear when real bitcoin can earn.</h2></div>
+              <div><Kicker n="11">Mainnet</Kicker><h2 id="waitlist-h" className="ld-h2">Hear when real bitcoin can earn.</h2></div>
               <p className="ld-lede" style={{ maxWidth: "46ch" }}>CoveredMarket runs on test coins only for now. Leave your email and we will write once, when mainnet opens.</p>
               <p className="body-small ld-muted" style={{ margin: 0 }}>Until then, follow along in <a href="#/updates">Updates</a>.</p>
             </div>
@@ -439,7 +505,7 @@ export function Landing() {
             <div className="ld-stack" style={{ gap: 12 }}><img src="/site/lockup-32.svg" alt="CoveredMarket" style={{ height: 32, alignSelf: "flex-start" }} /><p className="ld-lede" style={{ fontSize: 18 }}>Earn on Bitcoin you still hold.</p></div>
             <nav aria-label="Product"><span className="ld-label ld-muted">Product</span><a href={app("market")}>Market</a><a href={app("sell")}>Sell a call</a><A to="faq">FAQ</A><A to="waitlist">Mainnet waitlist</A><a href="#/updates">Updates</a></nav>
             <nav aria-label="Trust"><span className="ld-label ld-muted">Trust</span><A to="trust">Who can sign</A><A to="security">Report a vulnerability</A><A to="compare">Compared</A></nav>
-            <nav aria-label="Build"><span className="ld-label ld-muted">Build</span><A to="stack">Built with</A><a href={REPO} target="_blank" rel="noreferrer">Source code</a><a href={`${REPO}/blob/HEAD/docs/SECURITY-MODEL.md`} target="_blank" rel="noreferrer">Security model</a><a href={`mailto:${SECURITY}`}>{SECURITY}</a></nav>
+            <nav aria-label="Build"><span className="ld-label ld-muted">Build</span><A to="stack">Built with</A><A to="agents">For agents</A><a href={REPO} target="_blank" rel="noreferrer">Source code</a><a href={`${REPO}/blob/HEAD/docs/SECURITY-MODEL.md`} target="_blank" rel="noreferrer">Security model</a><a href={`mailto:${SECURITY}`}>{SECURITY}</a></nav>
           </div>
           <div className="ld-foot-base">
             <p className="body-small ld-muted" style={{ margin: 0 }}>CoveredMarket is unaudited software and runs on test coins only. Built on NEAR. <span className="lg-links" style={{ display: "inline-flex", marginLeft: 12 }}><a href="#/terms">Terms</a><a href="#/privacy">Privacy</a></span></p>
