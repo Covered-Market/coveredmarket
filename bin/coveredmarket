@@ -62,6 +62,13 @@ case "$cmd" in
     for i in $(seq 1 60); do "${SSH[@]}" 'test -f /var/lib/covered-ready && docker info >/dev/null 2>&1' 2>/dev/null && break; sleep 10
       [ "$i" = 60 ] && { echo "VM not ready"; exit 1; }; done
     git archive --format=tar HEAD | "${SSH[@]}" 'cd /opt/covered && find . -mindepth 1 -maxdepth 1 ! -name .env -exec rm -rf {} + && tar -x'
+    # Waitlist inbox login, when the deployer has it (CI: repository secret WAITLIST_IMAP_PASS): written into the VM's
+    # .env over stdin, so the password is never on a command line, and base64-encoded, so no character in it can trip
+    # compose's .env parsing ($, #, quotes). Without it the VM keeps whatever .env already has.
+    if [ -n "${IMAP_PASS:-}" ]; then
+      printf 'IMAP_HOST=%s\nIMAP_USER=%s\nIMAP_PASS_B64=%s\nWAITLIST_TO=%s\n' "${IMAP_HOST:-imap.webhuset.no}" "${IMAP_USER:-contact@covered.market}" "$(printf %s "$IMAP_PASS" | base64 | tr -d '\n')" "${WAITLIST_TO:-contact@covered.market}" \
+        | "${SSH[@]}" 'cd /opt/covered && touch .env && grep -vE "^(IMAP_HOST|IMAP_USER|IMAP_PASS|IMAP_PASS_B64|WAITLIST_TO)=" .env > .env.new; cat >> .env.new && chmod 600 .env.new && mv .env.new .env'
+    fi
     # The website on $site, the two apps on testnet.$site and mainnet.$site, www.$site redirecting to $site.
     mainnet=${MAINNET_SITE:-${site:+mainnet.$site}}; testnet=${TESTNET_SITE:-${site:+testnet.$site}}; www=${site:+www.$site}
     "${SSH[@]}" "cd /opt/covered && { [ -z '$site' ] || { sed -i '/^DOMAIN=/d; /^MAINNET_DOMAIN=/d; /^TESTNET_DOMAIN=/d; /^WWW_DOMAIN=/d' .env; printf 'DOMAIN=%s\nTESTNET_DOMAIN=%s\nMAINNET_DOMAIN=%s\nWWW_DOMAIN=%s\n' '$site' '$testnet' '$mainnet' '$www' >> .env; }; } && { [ -z '${RESET_CONTRACT:-}' ] || sed -i '/^COVERED_ID=/d' .env; } && bin/coveredmarket serve"

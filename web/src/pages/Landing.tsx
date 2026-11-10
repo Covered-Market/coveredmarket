@@ -7,6 +7,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { CFG } from "../lib/near";
 import { useSpot } from "./hooks";
+import { Waitlist } from "./Waitlist";
 import "../landing.css";
 
 const SECURITY = "security@covered.market";
@@ -399,17 +400,29 @@ export function Landing() {
             </div>
           </div>
         </section>
+
+        {/* mainnet waitlist */}
+        <section id="waitlist" className="ld-sec" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="waitlist-h">
+          <div className="ld-wrap ld-2">
+            <div className="ld-stack" style={{ gap: 16 }}>
+              <div><Kicker n="10">Mainnet</Kicker><h2 id="waitlist-h" className="ld-h2">Hear when real bitcoin can earn.</h2></div>
+              <p className="ld-lede" style={{ maxWidth: "46ch" }}>CoveredMarket runs on test coins only for now. Leave your email and we will write once, when mainnet opens.</p>
+              <p className="body-small ld-muted" style={{ margin: 0 }}>Until then, follow along in <a href="#/updates">Updates</a>.</p>
+            </div>
+            <Waitlist source="landing" />
+          </div>
+        </section>
       </main>
 
       <footer className="ld-foot">
         <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
           <div className="ld-foot-grid">
             <div className="ld-stack" style={{ gap: 12 }}><img src="/site/lockup-32.svg" alt="CoveredMarket" style={{ height: 32, alignSelf: "flex-start" }} /><p className="ld-lede" style={{ fontSize: 18 }}>Earn on Bitcoin you still hold.</p></div>
-            <nav aria-label="Product"><span className="ld-label ld-muted">Product</span><a href={app("market")}>Market</a><a href={app("sell")}>Sell a call</a><A to="faq">FAQ</A></nav>
+            <nav aria-label="Product"><span className="ld-label ld-muted">Product</span><a href={app("market")}>Market</a><a href={app("sell")}>Sell a call</a><A to="faq">FAQ</A><A to="waitlist">Mainnet waitlist</A><a href="#/updates">Updates</a></nav>
             <nav aria-label="Trust"><span className="ld-label ld-muted">Trust</span><A to="trust">Who can sign</A><A to="security">Report a vulnerability</A><A to="compare">Compared</A></nav>
             <nav aria-label="Build"><span className="ld-label ld-muted">Build</span><A to="stack">Built with</A><a href={REPO} target="_blank" rel="noreferrer">Source code</a><a href={`${REPO}/blob/HEAD/docs/SECURITY-MODEL.md`} target="_blank" rel="noreferrer">Security model</a><a href={`mailto:${SECURITY}`}>{SECURITY}</a></nav>
           </div>
-          <p className="body-small ld-muted" style={{ margin: 0, borderTop: "1px solid var(--rule)", paddingTop: 16 }}>CoveredMarket is unaudited software and runs on test coins only. Built on NEAR.</p>
+          <p className="body-small ld-muted" style={{ margin: 0, borderTop: "1px solid var(--rule)", paddingTop: 16 }}>CoveredMarket is unaudited software and runs on test coins only. Built on NEAR. <span className="lg-links" style={{ display: "inline-flex", marginLeft: 12 }}><a href="#/terms">Terms</a><a href="#/privacy">Privacy</a></span></p>
         </div>
       </footer>
     </div>

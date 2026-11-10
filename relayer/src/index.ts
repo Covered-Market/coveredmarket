@@ -61,6 +61,30 @@ app.post("/api/relay", async (req, res) => {
   } catch (e) { console.error(new Date().toISOString(), "relay error", (e as Error).message); res.status(500).json({ error: (e as Error).message }); }
 });
 
+// The mainnet waitlist form on the website. Stored on the data volume; also put in the WAITLIST_TO inbox over IMAP
+// when IMAP_HOST, IMAP_USER and IMAP_PASS are set (see waitlist.ts for why not SMTP).
+{
+  const { imapNotifier, normalizeEmail, Waitlist, WaitlistLimits } = await import("./waitlist.js");
+  const notify = await imapNotifier(process.env);
+  const waitlist = new Waitlist(env("WAITLIST_FILE", "/data/waitlist.jsonl"), notify);
+  console.log(new Date().toISOString(), `waitlist: ${waitlist.size} signed up; inbox delivery ${notify ? "on" : "off (no IMAP_HOST/IMAP_USER/IMAP_PASS)"}`);
+  const limits = new WaitlistLimits(Number(env("WAITLIST_PER_IP_PER_HOUR", "5")), Number(env("WAITLIST_PER_DAY", "500")));
+  app.post("/api/waitlist", (req, res) => {
+    // A hidden field people never see: a bot that fills it is told it worked, and nothing is kept.
+    if (req.body?.company) return res.json({ ok: true });
+    const email = normalizeEmail(req.body?.email);
+    if (!email) return res.status(400).json({ error: "that does not look like an email address" });
+    const limited = limits.take(clientIp(req));
+    if (limited) return res.status(429).json({ error: limited });
+    const source = ["landing", "updates"].includes(req.body?.source) ? req.body.source : "site";
+    try {
+      // The same answer for a new address and one already on the list, so the endpoint does not reveal who signed up.
+      if (waitlist.add(email, source) === "added") console.log(new Date().toISOString(), `waitlist +1 (${waitlist.size} total)`);
+      res.json({ ok: true });
+    } catch (e) { console.error(new Date().toISOString(), "waitlist", (e as Error).message); res.status(500).json({ error: "could not save that; please try again" }); }
+  });
+}
+
 // Local stack only: create and fund NEAR accounts (the testnet helper's role) and mint mock USDC.
 if (process.env.DEV_ROOT_ID && process.env.DEV_ROOT_KEY) {
   const { devAccountCreator } = await import("./near/dev.js");
