@@ -38,6 +38,8 @@ describe("verify checks", () => {
     expect((await runChecks(clients(), { ...good, signed_tx: "deadbeef" }, params, 0))[5].status).toBe("failed");
     const otherRoot = clients(); otherRoot.near.signerRootKey = async () => "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"; // a valid key, not the contract's
     expect((await runChecks(otherRoot, good, params, 0))[1].status, "a root key that is not the signer's own").toBe("failed");
+    const mockSpelling = clients(); mockSpelling.near.signerRootKey = async () => "secp256k1-hex:" + vectors.root_key_hex; // how the local mock signer reports it
+    expect((await runChecks(mockSpelling, good, params, 0))[1].status, "the mock signer's spelling of the same key").toBe("verified");
     const noSigner = clients(); noSigner.near.signerRootKey = async () => { throw new Error("signer unreachable"); };
     expect((await runChecks(noSigner, good, params, 0))[1].status, "never green without reading the signer").toBe("unavailable");
     const rescued = clients(); rescued.btc.outspend = async () => ({ spent: true, txid: "sweep" });

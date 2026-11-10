@@ -27,9 +27,9 @@ export function derivePubkey(rootKeyHex: string, prefix: string, predecessor: st
   return root.add(secp.ProjectivePoint.BASE.multiply(eps)).toRawBytes(true);
 }
 
-/** Accepts hex (33/65 bytes) or the signer's `secp256k1:<base58 of 64-byte x||y>` form. */
+/** Accepts hex (33/65 bytes), the signer's `secp256k1:<base58 of 64-byte x||y>` form, or the local mock signer's `secp256k1-hex:<hex>`. */
 export function parseRootKey(k: string): string {
-  const body = k.replace(/^secp256k1:/, "");
+  const body = k.replace(/^secp256k1(-hex)?:/, "");
   if (/^[0-9a-fA-F]+$/.test(body) && (body.length === 66 || body.length === 130)) return body;
   const b = base58.decode(body);
   return (b.length === 64 ? "04" : "") + hex.to(b);
