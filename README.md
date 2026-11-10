@@ -31,15 +31,6 @@ You have held Bitcoin for years and it has earned nothing. The usual way to make
 - **You are paid up front.** The buyer pays the premium in USDC the moment they buy. It is yours whatever happens next.
 - **Every step is checkable.** Each contract is a public certificate with a **Verify** button: seven checks run in your browser against Bitcoin and NEAR, with nothing from our servers.
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/readme/shot-certificate-vault.png">
-    <img alt="Certificate CV-1 on the testnet site: a call on 0.0010 BTC at a $150,000 strike, with all seven Verify checks passed" src="docs/readme/shot-certificate-paper.png" width="100%">
-  </picture>
-  <br>
-  <sub>Certificate CV-1 on the live testnet site, Verify 7 of 7. Captured 6 Nov 2026, 10:47 UTC.</sub>
-</p>
-
 ## How it works
 
 1. **Lock.** You choose a size, a strike and an expiry. The contract derives a fresh Bitcoin address that only it can sign for, and you send your coins there. NEAR's Bitcoin light client proves the deposit on chain.
@@ -70,19 +61,6 @@ On 6 Nov 2026 one full contract ran on Bitcoin testnet3 and NEAR testnet, throug
 | 11:10:54 | **Exercised**: spend proven on NEAR, seller claimed 155 USDC |
 
 Contract: [`covered-app-mw4qlyb3.testnet`](https://testnet.nearblocks.io/address/covered-app-mw4qlyb3.testnet), no access keys, code hash `1eaqCfvarE7A88k6m4toGJdbUYydF2mhdwftoQuyXeJ`.
-
-## See it
-
-<table>
-  <tr>
-    <td width="50%"><img alt="Sell a call: size, strike, expiry and premium, with both outcomes worked out" src="docs/readme/shot-sell.png"></td>
-    <td width="50%"><img alt="Try it: a five-step guide to selling a call on testnet Bitcoin, and what is live where" src="docs/readme/shot-try.png"></td>
-  </tr>
-  <tr>
-    <td><sub><b>Sell a call.</b> Set the terms and see both endings before you commit.</sub></td>
-    <td><sub><b>Try it.</b> The whole life of a contract on testnet, in one sitting.</sub></td>
-  </tr>
-</table>
 
 ## Try it in five minutes
 
