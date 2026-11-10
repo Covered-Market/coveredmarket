@@ -162,7 +162,7 @@ If NEAR or its signing network ever stopped, you would not be stuck: every depos
 
 [NEAR Chain Signatures](https://docs.near.org/chain-abstraction/chain-signatures) (`v1.signer`) to sign Bitcoin transactions from a contract · NEAR's Bitcoin light client to prove deposits and spends · NEP-366 meta-transactions, so users need no NEAR for gas · USDC on NEAR for premiums and strikes. Rust (`near-sdk`, `rust-bitcoin`) for the contract, TypeScript for the relayer and the app.
 
-## Libraries, templates and AI-written code
+## Libraries and AI-written code
 
 **AI-written code.** Most of the code, tests, infrastructure and docs were written by Claude (Anthropic), working in Claude Code and claude.ai sessions directed and reviewed by the author. Commits made from Claude Code have Claude as the author or carry a `Co-Authored-By: Claude` trailer. The two initial commits on 5 Nov import code Claude wrote in claude.ai sessions on 4–5 Nov. Design decisions, the specification, testing on live testnet and review are the author's.
 

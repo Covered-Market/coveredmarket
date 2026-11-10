@@ -409,7 +409,7 @@ export function Landing() {
             <nav aria-label="Trust"><span className="ld-label ld-muted">Trust</span><A to="trust">Who can sign</A><A to="security">Report a vulnerability</A><A to="compare">Compared</A></nav>
             <nav aria-label="Build"><span className="ld-label ld-muted">Build</span><A to="stack">Built with</A><a href={REPO} target="_blank" rel="noreferrer">Source code</a><a href={`${REPO}/blob/HEAD/docs/SECURITY-MODEL.md`} target="_blank" rel="noreferrer">Security model</a><a href={`mailto:${SECURITY}`}>{SECURITY}</a></nav>
           </div>
-          <p className="body-small ld-muted" style={{ margin: 0, borderTop: "1px solid var(--rule)", paddingTop: 16 }}>CoveredMarket is unaudited software and runs on test coins only. Built on NEAR.</p>
+          <p className="body-small ld-muted" style={{ margin: 0, borderTop: "1px solid var(--rule)", paddingTop: 16 }}>CoveredMarket is unaudited software and runs on test coins only. Built on NEAR. <span className="lg-links" style={{ display: "inline-flex", marginLeft: 12 }}><a href="#/terms">Terms</a><a href="#/privacy">Privacy</a></span></p>
         </div>
       </footer>
     </div>
