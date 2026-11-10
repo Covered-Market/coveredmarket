@@ -10,7 +10,7 @@ import { Market } from "./pages/Market";
 import { Sell } from "./pages/Sell";
 import { Portfolio, usePortfolio } from "./pages/Portfolio";
 import { Landing } from "./pages/Landing";
-import { NetworkBand, NetworkSwitch, NotLive } from "./Network";
+import { NetworkBand, NotLive } from "./Network";
 import { ChainClock } from "./ChainClock";
 
 export function useRoute() {
@@ -76,11 +76,12 @@ function AppShell() {
     if (!confirm(wallet?.via ? `Disconnect ${wallet.viaName ?? "this wallet"}?` : "Forget this sandbox account on this device? Its key is only stored here.")) return;
     if (wallet?.via) await disconnectWallet(); clearWallet(); setWallet(null);
   };
-  // Two places, Market (public) and Portfolio (yours); selling is an action, a button beside them.
+  // Market: what is out there (buying starts from its offers). Sell: write a call. Portfolio: what is yours.
   const portfolio = usePortfolio(wallet);
   const waiting = portfolio.todos.length + (portfolio.claimable !== "0" ? 1 : 0);
   const nav = (on: string) => [
     { label: "Market", href: "#/market", on: on === "market" || on === "buy" },
+    { label: "Sell", href: "#/sell", on: on === "sell" || on === "deposit" },
     { label: waiting ? `Portfolio · ${waiting}` : "Portfolio", href: "#/portfolio", on: on === "portfolio" || on === "contracts" },
   ];
   const page = parts[0] ?? "market";
@@ -102,8 +103,6 @@ function AppShell() {
     <div className="cv-root" style={{ minHeight: "100vh", background: "var(--paper)", color: "var(--ink)", fontFamily: "var(--font-sans)" }}>
       <NetworkBand />
       <TopBar items={CFG.disabled ? [] : nav(page)} href={CFG.siteUrl || "/"}>
-        <NetworkSwitch />
-        {!CFG.disabled && <Button size="sm" variant="quiet" href="#/sell" aria-current={page === "sell" ? "page" : undefined}>Sell a call</Button>}
         {CFG.disabled ? null : wallet ? (
           <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
             {wallet.testRole && <span title="Hidden test wallet for automated testing: key in this browser, testnet only" style={{ padding: "3px 8px", fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", background: "var(--gilt)", color: "var(--on-gilt)" }}>Test wallet · {wallet.testRole}</span>}

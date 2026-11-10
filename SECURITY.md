@@ -42,6 +42,8 @@ Paid in USDC on NEAR or in BTC, your choice, to the address in your report. Amou
 
 The first valid report of an issue gets the reward. Several reports with one root cause are one issue. Final severity is our call, and we will explain it.
 
+**Rewards are entirely at our discretion.** Whether a report is rewarded at all, which severity it gets, and how much is paid are decided by us alone, case by case. The amounts above are upper limits, not promises, and this policy is not an offer or a contract. We may decline to pay any report for any reason, including when it breaks the safe-harbour rules below, was disclosed before we fixed it, or when paying would break the law (for example, sanctions). We may change or end the programme at any time.
+
 ### In scope
 
 - The contract: `contracts/coveredmarket` (Rust), and any deployed copy we link from this repository.

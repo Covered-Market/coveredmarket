@@ -1,6 +1,6 @@
 /**
- * Which network you are on, impossible to miss: a band on every page and the network's name in the header.
- * CoveredMarket runs on testnet only for now, so there is no switch to another network. On a network without
+ * Which network you are on, impossible to miss: a band at the top of every page. CoveredMarket runs on testnet
+ * only for now, so there is no switch to another network. On a network without
  * a contract the app shows `NotLive` instead.
  */
 import { CFG } from "./lib/near";
@@ -18,11 +18,6 @@ export function NetworkBand() {
       <span><strong style={{ textTransform: "uppercase", letterSpacing: 1 }}>{LABEL[CFG.mode]}</strong> · {text.split(" — ")[1]}</span>
     </div>
   );
-}
-
-/** The network's name in the header. Testnet only for now: no switch to another network. */
-export function NetworkSwitch() {
-  return <span className="label" style={{ color: "var(--ink-muted)", marginRight: 12 }}>{LABEL[CFG.mode]}</span>;
 }
 
 export function NotLive() {
