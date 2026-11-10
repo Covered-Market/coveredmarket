@@ -441,7 +441,6 @@ export function Landing() {
                 </article>
               ))}
             </div>
-            <p className="body-small ld-muted" style={{ margin: 0 }}>Testnet only, like the rest of CoveredMarket. The toolkit keeps keys in files and will not run on mainnet.</p>
           </div>
         </section>
 
