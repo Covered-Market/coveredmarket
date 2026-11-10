@@ -1,7 +1,7 @@
 /**
- * Which network you are on, impossible to miss: a band on every page outside mainnet, and a two-way switch
- * in the header that jumps to the other network's app (testnet.<domain> and mainnet.<domain>: separate origins,
- * contracts, relayers and keys, so the two never mix in one session). On a network without a contract the app shows `NotLive` instead.
+ * Which network you are on, impossible to miss: a band on every page and the network's name in the header.
+ * CoveredMarket runs on testnet only for now, so there is no switch to another network. On a network without
+ * a contract the app shows `NotLive` instead.
  */
 import { CFG } from "./lib/near";
 
@@ -16,22 +16,13 @@ export function NetworkBand() {
   return (
     <div role="status" style={{ background: "var(--gilt)", color: "var(--on-gilt)", padding: "6px clamp(16px, 4vw, 48px)", display: "flex", flexWrap: "wrap", gap: "4px 16px", alignItems: "center", justifyContent: "space-between", fontSize: 13, letterSpacing: 0.2 }}>
       <span><strong style={{ textTransform: "uppercase", letterSpacing: 1 }}>{LABEL[CFG.mode]}</strong> · {text.split(" — ")[1]}</span>
-      {CFG.switchUrl && <a href={CFG.switchUrl} style={{ color: "inherit", fontWeight: 600 }}>Go to mainnet →</a>}
     </div>
   );
 }
 
+/** The network's name in the header. Testnet only for now: no switch to another network. */
 export function NetworkSwitch() {
-  if (!CFG.switchUrl && CFG.mode !== "mainnet") return <span className="label" style={{ color: "var(--ink-muted)" }}>{LABEL[CFG.mode]}</span>;
-  const here = CFG.mode === "mainnet" ? "mainnet" : "testnet";
-  const seg = (net: "testnet" | "mainnet") => {
-    const on = net === here;
-    const style = { padding: "4px 10px", fontSize: 12, textDecoration: "none", border: "1px solid var(--rule-strong)", background: on ? (net === "mainnet" ? "var(--intaglio)" : "var(--gilt)") : "transparent", color: on ? (net === "mainnet" ? "var(--on-intaglio)" : "var(--on-gilt)") : "var(--ink-muted)", fontWeight: on ? 600 : 400 } as const;
-    return on || !CFG.switchUrl
-      ? <span aria-current={on ? "true" : undefined} style={style}>{LABEL[net]}</span>
-      : <a href={CFG.switchUrl} title={`Switch to ${LABEL[net]} (a separate site)`} style={style}>{LABEL[net]}</a>;
-  };
-  return <span role="group" aria-label="Network" style={{ display: "inline-flex", marginRight: 12 }}>{seg("testnet")}{seg("mainnet")}</span>;
+  return <span className="label" style={{ color: "var(--ink-muted)", marginRight: 12 }}>{LABEL[CFG.mode]}</span>;
 }
 
 export function NotLive() {

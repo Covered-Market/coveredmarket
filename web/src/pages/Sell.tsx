@@ -7,7 +7,8 @@ import { annualised, useSpot, useParams } from "./hooks";
 import { expiryChoices } from "../lib/expiry";
 
 
-export function Sell({ wallet }: { wallet: Wallet }) {
+/** Step 1: the terms. Anyone can fill them in and see what happens in each outcome; a wallet is needed only to continue. */
+export function Sell({ wallet, onConnect }: { wallet: Wallet | null; onConnect: () => void }) {
   const { Field, Button, OfferCard, Notice, Stamp } = C();
   const spot = useSpot()?.price ?? 0;
   const params = useParams();
@@ -26,6 +27,7 @@ export function Sell({ wallet }: { wallet: Wallet }) {
   const net = params?.network ?? "Testnet4";
   const hrp = net === "Mainnet" ? "bc1" : net === "Regtest" ? "bcrt1" : "tb1";
   const submit = async () => {
+    if (!wallet) { onConnect(); return; }
     // Keep the private half before the offer exists: a reload or wallet redirect must not lose it.
     if (!storePendingKey(rescue.priv) && !confirm("This browser will not store your rescue key. If anything interrupts this step, the key is gone and the offer has no rescue exit. Continue anyway?")) return;
     setBusy(true);
@@ -38,7 +40,7 @@ export function Sell({ wallet }: { wallet: Wallet }) {
         for (let i = 0; i < 10 && !made; i++) { try { const o: any = await view("get_offer", { serial: id }); if (o) { const kit = makeKit(o, rescue.priv); storeKit(kit); downloadKit(kit); made = true; break; } } catch {} await new Promise((r) => setTimeout(r, 1000)); }
         if (!made) alert(`CV-${id} was created, but its rescue kit could not be made yet. The deposit page will make it from the key kept in this browser: save the kit there before you deposit.`);
       }
-      location.hash = id ? `#/deposit/${id}` : "#/contracts";
+      location.hash = id ? `#/deposit/${id}` : "#/portfolio";
     } catch (e) { alert((e as Error).message); } finally { setBusy(false); }
   };
   return (
@@ -67,13 +69,15 @@ export function Sell({ wallet }: { wallet: Wallet }) {
           </div>
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <Button variant="primary" size="lg" disabled={busy || !s || !k || !pr || !refund || strikeBad} onClick={submit}>{busy ? "Creating…" : "Continue to deposit"}</Button>
-          <span className="body-small" style={{ color: "var(--ink-muted)" }}>Nothing is deposited yet. Step 2 shows the address.</span>
+          {wallet
+            ? <Button variant="primary" size="lg" disabled={busy || !s || !k || !pr || !refund || strikeBad} onClick={submit}>{busy ? "Creating…" : "Continue to deposit"}</Button>
+            : <Button variant="primary" size="lg" onClick={onConnect}>Connect a wallet to continue</Button>}
+          <span className="body-small" style={{ color: "var(--ink-muted)" }}>{wallet ? "Nothing is deposited yet. Step 2 shows the address." : "Try the terms first: nothing is sent until you connect and continue."}</span>
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 44 }}>
         <div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>What you are offering</div>
-        <div style={{ maxWidth: 400 }}><OfferCard offer={{ strike: k, expiry: new Date(expiry * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }), premium: pr, annualised: Math.round(ann * 10) / 10, size: s, spot, vault: "to be derived", seller: wallet.accountId, status: "pending" }} action="Preview as a buyer" /></div>
+        <div style={{ maxWidth: 400 }}><OfferCard offer={{ strike: k, expiry: new Date(expiry * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }), premium: pr, annualised: Math.round(ann * 10) / 10, size: s, spot, vault: "to be derived", seller: wallet?.accountId ?? "you", status: "pending" }} action="Preview as a buyer" /></div>
         <div data-cv="outcomes" style={{ border: "1px solid var(--rule)", background: "var(--paper-raised)", padding: 20, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, maxWidth: 520 }}>
           <div><div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)", marginBottom: 6 }}>If the buyer does not pay</div><div className="body">You keep the <b>{s.toFixed(8)} BTC</b> (less the {params?.fee_sats ?? 1000}-sat network fee) and the <b>{usd(pr * 1e6)}</b>.</div><div style={{ marginTop: 8 }}><Stamp status="kept" flat /></div></div>
           <div><div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)", marginBottom: 6 }}>If the buyer pays {usd(s * k * 1e6)}</div><div className="body">Your coins are delivered to the buyer; you receive the strike plus the <b>{usd(pr * 1e6)}</b> you already have.</div><div style={{ marginTop: 8 }}><Stamp status="exercised" flat /></div></div>
