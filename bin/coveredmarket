@@ -32,7 +32,7 @@ case "$cmd" in
       cli)  docker compose "${LOCAL[@]}" exec bitcoind bitcoin-cli -regtest -rpcuser=coveredmarket -rpcpassword=coveredmarket "$@" ;;
       *) echo "btc send <addr> <btc> | btc mine [n] | btc cli <args>"; exit 1 ;;
     esac ;;
-  test)      cargo test -p coveredmarket && (cd relayer && npm test) && (cd web && npm test) ;;
+  test)      cargo test -p coveredmarket && (cd relayer && npm test) && (cd web && npm test) && (cd agent && npm test) ;;
   build)     set -e; for c in coveredmarket mock-signer mock-btc-client mock-usdc; do cargo near build non-reproducible-wasm --manifest-path contracts/$c/Cargo.toml; done ;;
   e2e)       "$0" build && cargo test -p integration -- --test-threads=1 ;;
   serve)     # on the cloud VM: first start on testnet creates its own contracts, then the two-container stack
@@ -44,6 +44,12 @@ case "$cmd" in
     docker compose --env-file .env -f infra/compose.yaml "${PROFILES[@]}" up -d --build --remove-orphans && docker image prune -f >/dev/null
     for i in $(seq 1 90); do curl -fsS localhost/api/health >/dev/null 2>&1 && break; sleep 2; done
     curl -fsS localhost/api/health; echo ;;
+  agent)     # CoveredMarket for agents and scripts, JSON out (agent/README.md): bin/coveredmarket agent offers --status for_sale
+    [ -d agent/node_modules ] || (cd agent && npm ci --silent >&2)
+    cd "$COVEREDMARKET_CALLER_PWD" && exec "$ROOT/agent/node_modules/.bin/tsx" "$ROOT/agent/src/cli.ts" "$@" ;;
+  mcp)       # the same as an MCP server on stdio: claude mcp add coveredmarket -- <repo>/bin/coveredmarket mcp
+    [ -d agent/node_modules ] || (cd agent && npm ci --silent >&2)
+    exec "$ROOT/agent/node_modules/.bin/tsx" "$ROOT/agent/src/mcp.ts" ;;
   rescue)    # the seller's exit, with only Bitcoin: bin/coveredmarket rescue <kit.json> <your-btc-address> [--fee-rate N] [--esplora URL] [--broadcast]
     kit=${1:?usage: bin/coveredmarket rescue <kit.json> <your-btc-address> [--broadcast]}; shift
     case "$kit" in /*) ;; *) kit="${COVEREDMARKET_CALLER_PWD:-$PWD}/$kit" ;; esac
@@ -90,6 +96,9 @@ coveredmarket — one entry point
     build              wasm for the contracts (needs rustup wasm32 target + cargo-near)
     e2e                L1: sandbox integration tests
     e2e-stack          against a running `up`: both contract lifecycles through relayer, bitcoind and UI, then Verify
+  agents (testnet and local only; agent/README.md)
+    agent <cmd> …      JSON CLI: params, offers, offer N, me, sell, faucet-deposit, buy, exercise, claim, wait …
+    mcp                MCP server on stdio with the same operations
   rescue <kit.json> <address> [--broadcast]   sweep a deposit with the seller's rescue kit after its unlock (no NEAR needed)
 
   cloud (DigitalOcean, one VM, Caddy TLS on your domain or <ip>.sslip.io)

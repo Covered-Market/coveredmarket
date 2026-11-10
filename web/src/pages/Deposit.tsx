@@ -6,7 +6,8 @@ import { BlockWait } from "../ChainClock";
 import { downloadKit, kitFor } from "../lib/rescue";
 import { useEffect, useMemo, useState } from "react";
 import { encode } from "uqr";
-import { btc8, C } from "../ds";
+import { btc8, C, usd } from "../ds";
+import { SELL_STEPS, SellSteps } from "./SellSteps";
 import { CFG, type Wallet } from "../lib/near";
 import { useOffer, useParams } from "./hooks";
 
@@ -35,14 +36,18 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
     { title: `${minConf} confirmation${minConf > 1 ? "s" : ""}`, detail: seen ? `${seen.depth} so far` : "", state: seen && seen.depth >= minConf ? ("done" as const) : seen ? ("now" as const) : ("todo" as const) },
     { title: "Proven on NEAR", detail: offer.state === "Created" ? "the relayer submits the proof; anyone can" : "funded", state: offer.state !== "Created" ? ("done" as const) : seen && seen.depth >= minConf ? ("now" as const) : ("todo" as const) },
   ];
+  const exp = Number(offer.expiry_s), addr = offer.refund_address ?? "";
+  const done = [`${Number(offer.size_sats) / 1e8} BTC`, usd(offer.strike_units).replace(/\.00$/, ""), new Date(exp * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }), usd(offer.premium_units), addr.length > 16 ? `${addr.slice(0, 7)}…${addr.slice(-4)}` : addr, `CV-${serial}`];
   return (
-    <div className="cv-split cv-pad" style={{ padding: "32px 48px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 56 }}>
+    <div className="cv-pad cv-flowpage">
+      <div>
+        <h1 className="display-2" style={{ margin: "0 0 8px", fontSize: 48, lineHeight: 1.02 }}>Deposit {btc8(offer.size_sats)}</h1>
+        <p className="lede" style={{ margin: 0, color: "var(--ink-muted)" }}>CV-{serial} goes on sale once the coins arrive at its own Bitcoin address, which only the contract can sign for. Nobody holds a key.</p>
+      </div>
+      <SellSteps current={7} items={SELL_STEPS.map((label, i) => ({ label, value: done[i] }))} />
+    <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <div>
-          <div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)", marginBottom: 8 }}>Step 2 of 3 · Deposit · CV-{serial}</div>
-          <h1 className="display-2" style={{ margin: "0 0 8px", fontSize: 44, lineHeight: 1.02 }}>Deposit {btc8(offer.size_sats)}</h1>
-          <p className="body" style={{ margin: 0, color: "var(--ink-muted)" }}>This address was derived for CV-{serial} by the CoveredMarket contract on NEAR. Only the contract can sign from it, through Chain Signatures. Nobody holds a key.</p>
-        </div>
+        <p className="body" style={{ margin: 0, color: "var(--ink-muted)" }}>This address was derived for CV-{serial} by the CoveredMarket contract on NEAR. Only the contract can sign from it, through Chain Signatures.</p>
         <div data-cv="address" style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap", padding: 20, background: "var(--paper-sunk)", border: "1px solid var(--rule-strong)" }}>
           <Qr text={`bitcoin:${offer.address}?amount=${(Number(offer.size_sats) / 1e8).toFixed(8)}`} />
           <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
@@ -69,7 +74,7 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
         {offer.state === "Created" && <PayHelpers serial={serial} address={offer.address} sats={Number(offer.size_sats)} wallets={detectBtcWallets()} />}
         <Notice>Send from a wallet you control, in one output, the exact amount. Any other amount does not fund the offer; the contract can still return it to {offer.refund_address} through its recover method, with a Bitcoin inclusion proof.</Notice>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 44 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>Watching Bitcoin</div>
         <div style={{ border: "1px solid var(--rule)", background: "var(--paper-raised)", padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
           <Coin amount={Number(offer.size_sats) / 1e8} size="lg" />
@@ -81,6 +86,7 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
           {wallet?.accountId !== offer.seller && <span className="body-small" style={{ color: "var(--ink-muted)" }}>You are viewing another seller's deposit page.</span>}
         </div>
       </div>
+    </div>
     </div>
   );
 }

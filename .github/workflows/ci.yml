@@ -34,6 +34,13 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: relayer/package-lock.json }
       - run: cd relayer && npm ci && npm test && npm run build
+  agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: "relayer/package-lock.json\nagent/package-lock.json" }
+      - run: cd relayer && npm ci && cd ../agent && npm ci && npm test && npm run typecheck
   web:
     runs-on: ubuntu-latest
     steps:

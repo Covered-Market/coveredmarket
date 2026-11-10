@@ -38,7 +38,7 @@ function Website() {
 }
 
 function AppShell() {
-  const { parts } = useRoute();
+  const { parts, q } = useRoute();
   const [role] = useState(() => (CFG.disabled ? null : initTestWallet()));
   const [wallet, setWallet] = useState<Wallet | null>(role ? null : loadWallet());
   const [preparing, setPreparing] = useState<string | null>(null);
@@ -96,7 +96,7 @@ function AppShell() {
   const content = CFG.disabled ? <NotLive /> : (() => {
     switch (page) {
       case "market": return <Market />;
-      case "sell": return <Sell wallet={wallet} onConnect={getWallet} />;
+      case "sell": return <Sell wallet={wallet} onConnect={getWallet} step={Number(q.get("step") ?? 1) || 1} />;
       case "deposit": return <Deposit serial={Number(parts[1])} wallet={wallet} />;
       case "portfolio":
       case "contracts": return <Portfolio wallet={wallet} data={portfolio} onConnect={getWallet} />;

@@ -1,0 +1,35 @@
+{
+  "name": "coveredmarket-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CoveredMarket for agents and scripts: a TypeScript SDK, a JSON CLI and an MCP server. Testnet and the local stack only.",
+  "type": "module",
+  "bin": {
+    "coveredmarket-agent": "src/cli.ts",
+    "coveredmarket-mcp": "src/mcp.ts"
+  },
+  "scripts": {
+    "cli": "tsx src/cli.ts",
+    "mcp": "tsx src/mcp.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@near-js/accounts": "^2.5.1",
+    "@near-js/crypto": "^2.5.1",
+    "@near-js/providers": "^2.5.1",
+    "@near-js/signers": "^2.5.1",
+    "@near-js/transactions": "^2.5.1",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^1.8.0",
+    "@scure/base": "^1.2.6",
+    "tsx": "^4.23.15",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}

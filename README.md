@@ -74,6 +74,17 @@ The [testnet site](https://testnet.covered.market/) uses test coins and test USD
 
 **Testing without a wallet extension (automated and AI testing).** Add `?testwallet=seller` or `?testwallet=buyer` to the testnet URL, for example `/?testwallet=seller#/sell`. That tab then uses a key generated in the browser, for an implicit account the relayer creates and funds. Each role has its own key, so two tabs can play seller and buyer. A *Test wallet* badge shows in the header; `?testwallet=reset` deletes the keys. It works only on testnet and is never shown otherwise.
 
+## For agents
+
+CoveredMarket is built to be used by software as well as people. On testnet:
+
+- **MCP server**: `claude mcp add coveredmarket -- <repo>/bin/coveredmarket mcp` gives an agent tools to sell, buy, exercise and claim. Its wallet is made and funded on first use.
+- **CLI**: `bin/coveredmarket agent offers --status for_sale`, `agent sell --size 0.001 --strike 150000 --premium 5`, … JSON on stdout.
+- **Read API**: `GET /api/offers`, `/api/offers/CV-7`, `/api/params`, `/api/accounts/<id>`. Each offer comes with a one-line `summary` and `next_actions`: who moves next, from when, and the exact NEAR call.
+- **[llms.txt](web/public/llms.txt)** on every site, and the `?testwallet=` flag above for browser agents.
+
+Details in [agent/README.md](agent/README.md).
+
 ## Run it yourself
 
 To run the app you need **Docker 24+ with Compose v2**, an internet connection for the first build, and ports **80**, **3030** and **18443** free. Nothing else is installed on your machine and no accounts or keys are needed.
@@ -156,6 +167,7 @@ If NEAR or its signing network ever stopped, you would not be stuck: every depos
 - `@hot-labs/near-connect` 0.12: wallet connection in the web app
 - `@noble/curves`, `@noble/secp256k1`, `@noble/hashes`, `@scure/base`, `@scure/btc-signer`, `borsh`: cryptography, encodings and Bitcoin transactions in TypeScript
 - `express` 4: relayer HTTP API
+- `@modelcontextprotocol/sdk` 1.x and `zod` 4: the agent toolkit's MCP server ([`agent/package.json`](agent/package.json))
 - `react` 18 and `vite` 5 (with `@vitejs/plugin-react`): web app
 - Development: `typescript`, `tsx`, `vitest`, `playwright` (end-to-end tests)
 
