@@ -70,12 +70,14 @@
 .ld-hero-film { position: relative; margin: 0; min-width: 0; }
 .ld-hero-film > figcaption { position: absolute; top: 100%; left: 0; right: 0; margin-top: 12px; }
 
-/* Built with: five cards, all the same size, as 3 + 2 with the second row centred (2 + 2 + 1 on tablets, the last
-   centred; one column on phones). Rows share one height. */
-/* Built with: four cards, one row when there is room, then 2 × 2, then one column. */
+/* Built with: four cards in one row when there is room, then 2 × 2, then one column.
+   ld-built--5 (the NEAR/Bitcoin stack): 3 + 2 filling the width; on tablets 2 + 2 with the fifth card full width. */
 .ld-3.ld-built { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-@media (max-width: 1023px) { .ld-3.ld-built { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 599px) { .ld-3.ld-built { grid-template-columns: minmax(0, 1fr); } }
+.ld-3.ld-built.ld-built--5 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.ld-built--5 > * { grid-column: span 2; }
+.ld-built--5 > :nth-child(n+4) { grid-column: span 3; }
+@media (max-width: 1023px) { .ld-3.ld-built, .ld-3.ld-built.ld-built--5 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ld-built--5 > *, .ld-built--5 > :nth-child(n+4) { grid-column: auto; } .ld-built--5 > :last-child:nth-child(odd) { grid-column: 1 / -1; } }
+@media (max-width: 599px) { .ld-3.ld-built, .ld-3.ld-built.ld-built--5 { grid-template-columns: minmax(0, 1fr); } }
 
 /* film: the hero's player (HeroFilm). The poster is brand/assets/Social/video-poster-plain; the play button sits
    where the full poster's rosette has its eye (POSTER_EYE in gen_assets.py), so both versions share one layout. */
