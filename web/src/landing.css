@@ -22,9 +22,6 @@
 .ld-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: start; }
 .ld-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .ld-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; }
-.ld-4.ld-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-@media (max-width: 1199px) { .ld-4.ld-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ld-4.ld-5 > :last-child:nth-child(odd) { grid-column: 1 / -1; } }
-@media (max-width: 599px) { .ld-4.ld-5 { grid-template-columns: minmax(0, 1fr); } }
 
 .ld-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 12px 22px; border-radius: 2px; font: 600 16px/1 var(--font-sans); text-decoration: none; border: 1px solid transparent; cursor: pointer; transition: background-color 120ms linear, color 120ms linear; }
 .ld-btn--primary { background: var(--intaglio); color: var(--on-intaglio) !important; }
@@ -71,13 +68,17 @@
 .ld-hero-film > figcaption { position: absolute; top: 100%; left: 0; right: 0; margin-top: 12px; }
 
 /* Built with: four cards in one row when there is room, then 2 × 2, then one column.
-   ld-built--5 (the NEAR/Bitcoin stack): 3 + 2 filling the width; on tablets 2 + 2 with the fifth card full width. */
+   ld-built--5 (the NEAR/Bitcoin stack): always one row. All five side by side from 1024px; narrower, the row
+   scrolls sideways instead of wrapping. */
 .ld-3.ld-built { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.ld-3.ld-built.ld-built--5 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.ld-built--5 > * { grid-column: span 2; }
-.ld-built--5 > :nth-child(n+4) { grid-column: span 3; }
-@media (max-width: 1023px) { .ld-3.ld-built, .ld-3.ld-built.ld-built--5 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ld-built--5 > *, .ld-built--5 > :nth-child(n+4) { grid-column: auto; } .ld-built--5 > :last-child:nth-child(odd) { grid-column: 1 / -1; } }
-@media (max-width: 599px) { .ld-3.ld-built, .ld-3.ld-built.ld-built--5 { grid-template-columns: minmax(0, 1fr); } }
+.ld-3.ld-built.ld-built--5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 1023px) {
+  .ld-3.ld-built { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ld-3.ld-built.ld-built--5 { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 2px; }
+  .ld-built--5::-webkit-scrollbar { display: none; }
+  .ld-built--5 > * { flex: 0 0 min(280px, 78%); scroll-snap-align: start; }
+}
+@media (max-width: 599px) { .ld-3.ld-built { grid-template-columns: minmax(0, 1fr); } }
 
 /* film: the hero's player (HeroFilm). The poster is brand/assets/Social/video-poster-plain; the play button sits
    where the full poster's rosette has its eye (POSTER_EYE in gen_assets.py), so both versions share one layout. */
@@ -155,10 +156,6 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 .ld-cmp-phone { display: none; }
 
 /* trust */
-.ld-trust { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 4fr) minmax(0, 4fr); border-top: 1px solid var(--rule-strong); }
-.ld-trust > div { padding: 20px 16px; border-bottom: 1px solid var(--rule); }
-.ld-trust > div:nth-child(3n+1) { padding-left: 0; }
-.ld-trust .ph { display: none; }
 
 /* security notice */
 .ld-notice { position: relative; background: var(--paper-raised); border: 3px double var(--intaglio); padding: 72px 48px 72px; display: flex; flex-direction: column; gap: 32px; overflow: hidden; }
@@ -220,12 +217,6 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
   .ld-big { font-size: 30px; }
   .ld-cmp-desk { display: none; }
   .ld-cmp-phone { display: flex; }
-  .ld-trust { grid-template-columns: minmax(0, 1fr); }
-  .ld-trust > div { padding: 4px 0; border-bottom: none; }
-  .ld-trust > div:nth-child(3n+1) { padding-top: 20px; font-size: 18px; }
-  .ld-trust > div:nth-child(3n) { padding-bottom: 20px; border-bottom: 1px solid var(--rule); }
-  .ld-trust .ph { display: block; }
-  .ld-trust .hd { display: none; }
   .ld-notice { padding: 56px 16px; }
   .ld-bounty { grid-template-columns: minmax(0, 1fr); }
   .ld-bounty > div { border-bottom: none; padding: 4px 0; }
@@ -323,7 +314,7 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 .ld-chart text { font: 500 11px var(--font-mono); fill: var(--ink-muted); }
 .ld-car { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 2px; margin: -2px; }
 .ld-car::-webkit-scrollbar { display: none; }
-.ld a.ld-note { flex: 0 0 min(320px, 82%); scroll-snap-align: start; background: var(--paper-raised); border: 1px solid var(--rule-strong); box-shadow: inset 0 0 0 5px var(--paper-raised), inset 0 0 0 6px var(--rule); padding: 26px; display: flex; flex-direction: column; gap: 16px; color: var(--ink); text-decoration: none; }
+.ld .ld-note { flex: 0 0 min(320px, 82%); scroll-snap-align: start; background: var(--paper-raised); border: 1px solid var(--rule-strong); box-shadow: inset 0 0 0 5px var(--paper-raised), inset 0 0 0 6px var(--rule); padding: 26px; display: flex; flex-direction: column; gap: 16px; color: var(--ink); text-decoration: none; }
 .ld a.ld-note:hover { background: var(--paper); }
 .ld-note-kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 14px; border-top: 1px solid var(--rule); padding-top: 14px; }
 .ld-note-kv b { justify-self: end; font: 500 14px/20px var(--font-mono); }
@@ -338,4 +329,39 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
   .ld a.ld-tick-item { padding: 10px 20px 12px; }
 }
 @media (prefers-reduced-motion: reduce) { .ld-tick-track { animation: none; } .ld-tick-view { overflow-x: auto; } }
+
+/* Live data: the badge on everything read from the contract or the price feed, the grey stand-ins that hold each
+   part's place while the first read is under way, and the fade the data arrives with. */
+.ld-tick { display: flex; align-items: stretch; }
+.ld-tick-view { flex: 1 1 auto; min-width: 0; }
+.ld-tick-live { flex: none; display: flex; align-items: center; padding: 0 20px; border-right: 1px solid var(--rule-strong); background: var(--paper-raised); position: relative; z-index: 1; }
+.ld-tick-track--still { animation: none; }
+.ld .ld-tick-ph { display: inline-flex; align-items: center; gap: 10px; padding: 14px 28px; border-right: 1px solid var(--rule); white-space: nowrap; font-size: 14px; line-height: 20px; height: 46px; box-sizing: border-box; }
+.ld-live { display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px 3px 9px; border: 1px solid currentColor; border-radius: 999px; color: var(--intaglio); font: 700 11px/16px var(--font-sans); letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; transition: color .3s; }
+.ld-live > i { position: relative; width: 7px; height: 7px; border-radius: 999px; background: currentColor; flex: none; }
+.ld-live > i::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: currentColor; animation: ld-live-ping 2s ease-out infinite; }
+.ld-live[data-state="loading"], .ld-live[data-state="failed"] { color: var(--ink-muted); }
+.ld-live[data-state="loading"] > i::after, .ld-live[data-state="failed"] > i::after { animation: none; }
+.ld-live[data-state="failed"] > i { background: transparent; border: 1.5px solid currentColor; }
+@keyframes ld-live-ping { from { transform: scale(1); opacity: .55; } to { transform: scale(2.8); opacity: 0; } }
+.ld-skel { display: inline-block; flex: none; border-radius: 2px; background: linear-gradient(90deg, var(--rule) 0%, var(--paper-sunk) 50%, var(--rule) 100%); background-size: 200% 100%; animation: ld-shimmer 1.6s ease-in-out infinite; opacity: .8; }
+@keyframes ld-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.ld-fade { animation: ld-fade-in .6s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes ld-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.ld .ld-note--ph { pointer-events: none; }
+.ld-note--ph .ld-note-kv { grid-auto-rows: 20px; align-items: center; }
+.ld-chart-ph { position: relative; height: 320px; display: flex; flex-direction: column; justify-content: space-between; padding: 16px 0 32px 64px; overflow: hidden; }
+.ld-chart-ph > i { display: block; height: 1px; background: var(--rule); }
+.ld-chart-ph::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 0%, var(--paper-sunk) 50%, transparent 100%); background-size: 50% 100%; background-repeat: no-repeat; animation: ld-sweep 1.8s ease-in-out infinite; opacity: .7; }
+@keyframes ld-sweep { from { background-position: -100% 0; } to { background-position: 200% 0; } }
+.ld-chart-ph-cap { display: flex; flex-wrap: wrap; gap: 9px 24px; min-height: 20px; align-items: center; align-content: flex-start; padding-top: 3px; }
+.ld-sec-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; }
+@media (max-width: 599px) {
+  .ld-tick-live { padding: 0 12px; }
+  .ld-tick-live .ld-live-x { display: none; }
+  .ld .ld-tick-ph { padding: 10px 20px 12px; height: 40px; }
+  .ld-chart-ph { height: 260px; padding-left: 52px; }
+  .ld-chart-ph-cap { min-height: 66px; }
+}
+@media (prefers-reduced-motion: reduce) { .ld-live > i::after, .ld-skel, .ld-chart-ph::after, .ld-fade { animation: none; } }
 /* live market end */

@@ -21,7 +21,18 @@ const sizeOf = (o: O) => Number(o.size_sats) / 1e8, strikeOf = (o: O) => Number(
 const lastOf = (o: O) => Math.max(Number(o.created_s ?? 0), Number(o.committed_at_s ?? 0), Number(o.signed_at_s ?? 0));
 const INK: Record<Stamp, string> = { open: "var(--intaglio)", kept: "var(--intaglio)", exercised: "var(--copper-ink)", settled: "var(--ink-muted)", pending: "var(--gilt-ink)", refused: "var(--oxblood)" };
 
-export interface MarketData { /** null while the first read is under way. */ offers: O[] | null; failed: boolean; history: [number, number][] | null }
+export interface MarketData { /** null while the first read is under way. */ offers: O[] | null; failed: boolean; history: [number, number][] | null; historyFailed: boolean }
+
+/** Marks what the page reads from the contract or the price feed, so nobody takes it for sample data. "loading" is
+ *  the badge while the first read is under way; "failed" when it could not be read. */
+export function Live({ state = "live", label = "Live data", title }: { state?: "live" | "loading" | "failed"; label?: string; title?: string }) {
+  const tip = title ?? (state === "failed" ? "Could not be read just now" : state === "loading" ? "Reading…" : "Read from the contract on NEAR testnet, refreshed every minute");
+  const [first, ...rest] = label.split(" ");
+  return <span className="ld-live" data-state={state} title={tip}><i aria-hidden="true" /><span>{first}{rest.length > 0 && <span className="ld-live-x"> {rest.join(" ")}</span>}</span><span className="ld-sr"> · {tip}</span></span>;
+}
+
+/** A grey bar in the shape of text that is still loading. */
+export const Skel = ({ w, h = 14, style }: { w: number | string; h?: number; style?: React.CSSProperties }) => <span className="ld-skel" aria-hidden="true" style={{ width: w, height: h, ...style }} />;
 
 /** The latest contracts (newest first) and a week of hourly prices. Contracts refresh every minute while the tab is
  *  in view. The relayer reads them once for every visitor (/api/market/latest): a browser reading them itself makes
@@ -31,6 +42,7 @@ export function useMarket(): MarketData {
   const [offers, setOffers] = useState<O[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [history, setHistory] = useState<[number, number][] | null>(null);
+  const [historyFailed, setHistoryFailed] = useState(false);
   const known = useRef(0);
   useEffect(() => {
     let alive = true;
@@ -60,22 +72,33 @@ export function useMarket(): MarketData {
       try { const j = await (await fetch("/api/spot/history")).json(); if (ok(j?.points)) { if (alive) setHistory(j.points); return; } } catch {}
       // Dev server only: a relayer without the history endpoint yet. A public feed stands in, so the chart can be looked at.
       if (import.meta.env.DEV) {
-        try { const k: [number, string, string, string, string][] = await (await fetch("https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=168")).json(); if (alive) setHistory(k.map((c) => [c[0] / 1000, Number(c[4])])); } catch {}
+        try { const k: [number, string, string, string, string][] = await (await fetch("https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=168")).json(); if (alive) setHistory(k.map((c) => [c[0] / 1000, Number(c[4])])); return; } catch {}
       }
+      if (alive) setHistoryFailed(true);
     })();
     return () => { alive = false; };
   }, []);
-  return { offers, failed, history };
+  return { offers, failed, history, historyFailed };
 }
 
 /** The latest contracts as a moving strip. It stops under the pointer, and stays still (and scrolls by hand) for
- *  people who ask for less motion. Nothing is drawn until there is something to show. */
-export function Ticker({ offers, href }: { offers: O[] | null; href: (route: string) => string }) {
+ *  people who ask for less motion. While the first read is under way it holds its place with grey stand-ins; if
+ *  the read fails, or there is nothing to show, it is not drawn. */
+export function Ticker({ offers, failed, href }: { offers: O[] | null; failed?: boolean; href: (route: string) => string }) {
   const rows = useMemo(() => { const now = Date.now() / 1000; return [...(offers ?? [])].sort((a, b) => lastOf(b) - lastOf(a) || b.serial - a.serial).slice(0, 14).map((o) => describe(o, now)); }, [offers]);
-  if (!rows.length) return null;
+  const loading = offers === null && !failed;
+  if (!loading && !rows.length) return null;
   return (
-    <div className="ld-tick" role="region" aria-label="Latest contracts">
-      <div className="ld-tick-view">
+    <div className="ld-tick" role="region" aria-label="Latest contracts" aria-busy={loading || undefined}>
+      <div className="ld-tick-live"><Live state={loading ? "loading" : "live"} /></div>
+      {loading ? (
+        <div className="ld-tick-view">
+          <div className="ld-tick-track ld-tick-track--still">
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => <span key={i} className="ld-tick-item ld-tick-ph"><Skel w={46} /><Skel w={52} h={11} /><Skel w={132} /><Skel w={92} /></span>)}
+          </div>
+        </div>
+      ) : (
+      <div className="ld-tick-view ld-fade">
         <div className="ld-tick-track" style={{ animationDuration: `${rows.length * 6}s` }}>
           {[0, 1].map((k) => rows.map((r) => (
             <a key={k + "-" + r.serial} className="ld-tick-item" href={href(`c/${r.serial}`)} aria-hidden={k === 1 || undefined} tabIndex={k === 1 ? -1 : undefined}>
@@ -87,14 +110,15 @@ export function Ticker({ offers, href }: { offers: O[] | null; href: (route: str
           )))}
         </div>
       </div>
+      )}
     </div>
   );
 }
 
 /** The latest calls that found a buyer, as small certificates in a row that scrolls sideways. Each opens its
- *  public page in the app. */
-export function SoldCalls({ offers, href }: { offers: O[]; href: (route: string) => string }) {
-  const sold = useMemo(() => offers.filter((o) => o.buyer).sort((a, b) => b.serial - a.serial).slice(0, 10), [offers]);
+ *  public page in the app. While the first read is under way, grey certificates hold their place. */
+export function SoldCalls({ offers, failed, href }: { offers: O[] | null; failed?: boolean; href: (route: string) => string }) {
+  const sold = useMemo(() => (offers ?? []).filter((o) => o.buyer).sort((a, b) => b.serial - a.serial).slice(0, 10), [offers]);
   const row = useRef<HTMLDivElement>(null);
   const [edge, setEdge] = useState({ start: true, end: false });
   const measure = () => { const el = row.current; if (el) setEdge({ start: el.scrollLeft < 8, end: el.scrollLeft + el.clientWidth > el.scrollWidth - 8 }); };
@@ -103,7 +127,7 @@ export function SoldCalls({ offers, href }: { offers: O[]; href: (route: string)
   const now = Date.now() / 1000;
   return (
     <div className="ld-stack" style={{ gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, minHeight: 44 }}>
         <h3 className="heading" style={{ margin: 0 }}>Latest sold calls</h3>
         {sold.length > 1 && (
           <div className="ld-car-nav">
@@ -112,8 +136,20 @@ export function SoldCalls({ offers, href }: { offers: O[]; href: (route: string)
           </div>
         )}
       </div>
-      {sold.length ? (
-        <div className="ld-car" ref={row} onScroll={measure} tabIndex={0} role="region" aria-label="Latest sold calls">
+      {offers === null ? (failed
+        ? <p className="body ld-muted" style={{ margin: 0, padding: "24px 0", borderTop: "1px solid var(--rule)", borderBottom: "1px solid var(--rule)" }}>The market could not be read just now.</p>
+        : <div className="ld-car" aria-busy="true" aria-label="Reading the latest sold calls">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="ld-note ld-note--ph" aria-hidden="true">
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}><Skel w={44} h={44} style={{ borderRadius: 999 }} /><Skel w={64} h={16} /><Skel w={78} h={20} style={{ marginLeft: "auto" }} /></div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}><Skel w={110} h={12} style={{ margin: "2px 0" }} /><Skel w={150} h={36} /></div>
+              <div className="ld-note-kv">{[0, 1, 2].map((k) => [<Skel key={k} w={70} />, <Skel key={k + "v"} w={84} style={{ justifySelf: "end" }} />])}</div>
+              <Skel w={120} style={{ margin: "3px 0" }} />
+            </div>
+          ))}
+        </div>
+      ) : sold.length ? (
+        <div className="ld-car ld-fade" ref={row} onScroll={measure} tabIndex={0} role="region" aria-label="Latest sold calls">
           {sold.map((o) => { const r = describe(o, now); return (
             <a key={o.serial} className="ld-note" href={href(`c/${o.serial}`)}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, color: "var(--gilt-ink)" }}>
@@ -132,6 +168,16 @@ export function SoldCalls({ offers, href }: { offers: O[]; href: (route: string)
         </div>
       ) : <p className="body ld-muted" style={{ margin: 0, padding: "24px 0", borderTop: "1px solid var(--rule)", borderBottom: "1px solid var(--rule)" }}>No call has sold yet.</p>}
     </div>
+  );
+}
+
+/** The chart's place while its data is read: the same height, a faint grid and a grey band where the line goes. */
+export function PriceAndStrikesLoading() {
+  return (
+    <figure style={{ margin: 0 }} className="ld-stack" aria-busy="true" aria-label="Reading Bitcoin’s price and the strikes on offer">
+      <div className="ld-chart-ph" aria-hidden="true">{[0, 1, 2, 3, 4].map((i) => <i key={i} />)}</div>
+      <div className="ld-chart-ph-cap" aria-hidden="true"><Skel w={150} /><Skel w={290} /></div>
+    </figure>
   );
 }
 
@@ -159,7 +205,7 @@ export function PriceAndStrikes({ history, spot, offers }: { history: [number, n
   const days: number[] = []; for (let d = Math.ceil(t0 / 86400) * 86400; d <= t1; d += 86400 * (narrow ? 2 : 1)) days.push(d);
   const total = [...bands.values()].reduce((s, v) => s + v, 0);
   return (
-    <figure style={{ margin: 0 }} className="ld-stack">
+    <figure style={{ margin: 0 }} className="ld-stack ld-fade">
       <div ref={box} style={{ minWidth: 0 }}>
         <svg className="ld-chart" width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" style={{ display: "block", maxWidth: "100%" }}
           aria-label={`Bitcoin’s price over the last week, now ${usd0(spot)}. ${bands.size ? `Calls are for sale at strikes from ${usd0(Math.min(...bands.keys()))} to ${usd0(Math.max(...bands.keys()))}, on ${btc(total)} BTC in all.` : "No calls are for sale right now."}`}>

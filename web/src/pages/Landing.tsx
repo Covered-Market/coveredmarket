@@ -6,9 +6,9 @@
  */
 import { useEffect, useState, type ReactNode } from "react";
 import { CFG } from "../lib/near";
-import { useSpot } from "./hooks";
+import { useSpotStatus } from "./hooks";
 import { Waitlist } from "./Waitlist";
-import { PriceAndStrikes, SoldCalls, Ticker, useMarket } from "./LiveMarket";
+import { Live, PriceAndStrikes, PriceAndStrikesLoading, Skel, SoldCalls, Ticker, useMarket } from "./LiveMarket";
 import "../landing.css";
 import { Lathe, Rosette, Seam } from "../patterns"; // patterns-v1
 
@@ -134,11 +134,10 @@ function ComparePhone() {
 }
 
 const BENEFITS = [
-  ["key", "Custody-free", "Your coins never leave Bitcoin. Only the contract can sign for their address, and a rescue key only you hold is your way out: no exchange, no bridge, no wrapped token, no owner key."],
-  ["kept", "No margin, no liquidation", "Your coins cover the call in full, so a price spike cannot close you out. The premium is yours whatever happens."],
-  ["wallet", "No sign-up form", "A NEAR wallet is your account: no form, no ID check, no account with us."],
-  ["verify", "Fully verifiable", "Seven checks run in your browser against NEAR and Bitcoin directly. None of them ask us."],
-  ["oracle", "No oracle", "No price feed decides how your call ends, so nobody can feed in a bad price to settle it. The buyer either pays the strike in the window after expiry, or the contract returns your coins when it closes."],
+  ["key", "No custody", "Your coins stay on Bitcoin, at an address only the contract can sign for. A rescue key only you hold is your way out."],
+  ["kept", "No defaults", "Every call is backed in full by locked coins, so the seller cannot fail to deliver. The buyer pays up front."],
+  ["wallet", "No sign-up form", "Your NEAR wallet is your account. No form, no ID check."],
+  ["oracle", "No oracle", "No price feed decides how your call ends. The buyer pays the strike just after expiry, or your coins come back."],
 ];
 
 const built = (): { status: "Live" | "Partly" | "Next"; name: string; what: string; id: string; d: string }[] => [
@@ -227,31 +226,36 @@ function Payoff() {
 }
 
 function Calculator() {
-  const spot = useSpot();
-  const S = spot?.price ?? 76078;
+  const { spot, failed } = useSpotStatus();
+  const S = spot?.price ?? 76078, loading = !spot && !failed;
   const [size, setSize] = useState(1), [prem, setPrem] = useState(1500), [days, setDays] = useState(30);
   const term = (prem / (size * S)) * 100, ann = (term * 365) / days;
   const pct = (v: number) => v.toFixed(v < 10 ? 2 : 1) + "%";
   return (
     <div className="ld-calc">
-      <p className="ld-label ld-muted" style={{ margin: 0 }}>Work out a call</p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <p className="ld-label ld-muted" style={{ margin: 0 }}>Work out a call</p>
+        {!failed && <Live state={loading ? "loading" : "live"} label="Live BTC price" title={spot ? `Median of ${spot.sources} exchange tickers, refreshed every minute` : "Reading…"} />}
+      </div>
       <label style={{ display: "flex", flexDirection: "column", gap: 6 }}><span style={{ display: "flex", justifyContent: "space-between" }}><span className="ld-label ld-muted">Coins</span><span className="ld-mono" style={{ color: "var(--copper-ink)" }}>{size.toFixed(1)} BTC</span></span><input className="ld-range" style={{ accentColor: "var(--gilt)" }} type="range" min={0.1} max={5} step={0.1} value={size} onChange={(e) => setSize(Number(e.target.value))} aria-valuetext={`${size.toFixed(1)} BTC`} /></label>
       <label style={{ display: "flex", flexDirection: "column", gap: 6 }}><span style={{ display: "flex", justifyContent: "space-between" }}><span className="ld-label ld-muted">Premium you ask</span><span className="ld-mono" style={{ color: "var(--gilt-ink)" }}>${prem.toLocaleString("en-US")}</span></span><input className="ld-range" style={{ accentColor: "var(--gilt)" }} type="range" min={50} max={10000} step={50} value={prem} onChange={(e) => setPrem(Number(e.target.value))} aria-valuetext={`$${prem}`} /></label>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}><span className="ld-label ld-muted">Expiry</span>
         <div role="group" aria-label="Days to expiry" className="ld-row" style={{ gap: 8 }}>{[7, 14, 30, 56].map((n) => <button key={n} type="button" className="ld-chip" aria-pressed={n === days} onClick={() => setDays(n)}>{n} days</button>)}</div>
       </div>
       <div style={{ borderTop: "1px solid var(--rule-strong)", paddingTop: 20, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16 }}>
-        <div><div className="ld-label ld-muted">For the term</div><div className="ld-big" style={{ color: "var(--gilt-ink)" }}>{pct(term)}</div></div>
-        <div><div className="ld-label ld-muted">Annualised</div><div className="ld-big">{pct(ann)}</div></div>
+        <div><div className="ld-label ld-muted">For the term</div><div className="ld-big" style={{ color: "var(--gilt-ink)" }}>{loading ? <Skel w="5ch" h={28} /> : <span key="v" className="ld-fade" style={{ display: "inline-block" }}>{pct(term)}</span>}</div></div>
+        <div><div className="ld-label ld-muted">Annualised</div><div className="ld-big">{loading ? <Skel w="5ch" h={28} /> : <span key="v" className="ld-fade" style={{ display: "inline-block" }}>{pct(ann)}</span>}</div></div>
       </div>
-      <p className="body-small ld-muted" style={{ margin: 0 }}>At a Bitcoin price of <span className="ld-mono">${Math.round(S).toLocaleString("en-US")}</span>{spot ? " (live reference, median of " + spot.sources + " tickers)" : " (reference, 6 Nov 2026)"}. Annualised assumes you sell a call like this every time one ends, which is not guaranteed.</p>
+      <p className="body-small ld-muted" style={{ margin: 0 }}>At a Bitcoin price of {loading ? <Skel w="7ch" h={12} /> : <span className="ld-mono ld-fade" style={{ display: "inline-block" }}>${Math.round(S).toLocaleString("en-US")}</span>}{spot ? <> (live reference, median of {spot.sources} tickers)</> : loading ? <> (live reference, median of <Skel w="1ch" h={12} /> tickers)</> : " (reference, 6 Nov 2026)"}. Annualised assumes you sell a call like this every time one ends, which is not guaranteed.</p>
     </div>
   );
 }
 
 export function Landing() {
   const { app } = links();
-  const market = useMarket(), spot = useSpot();
+  const market = useMarket(), { spot, failed: spotFailed } = useSpotStatus();
+  // The chart needs all three reads: a week of prices, today's price and the offers.
+  const chartState = market.history && spot && market.offers ? "ready" : market.historyFailed || market.failed || (spotFailed && !spot) ? "failed" : "loading";
   useEffect(() => { document.title = "CoveredMarket — earn on Bitcoin you still hold"; const id = location.hash.slice(1); if (id && !id.startsWith("/")) setTimeout(() => document.getElementById(id)?.scrollIntoView(), 50); }, []);
   return (
     <div className="ld">
@@ -278,7 +282,7 @@ export function Landing() {
           </div>
         </section>
 
-        <Ticker offers={market.offers} href={app} />
+        <Ticker offers={market.offers} failed={market.failed} href={app} />
 
         {/* the film, on its own row */}
         <section id="film" className="ld-film-row" aria-label="The film">
@@ -290,7 +294,7 @@ export function Landing() {
           <Rosette className="pt-gilt" sw={1} />{/* patterns-v1 */}
           <div className="ld-wrap ld-stack" style={{ gap: 40 }}>
             <div><Kicker n="01">Why CoveredMarket</Kicker><h2 id="why-h" className="ld-h2">Everything an exchange offers, except the exchange.</h2></div>
-            <div className="ld-4 ld-5">
+            <div className="ld-4">
               {BENEFITS.map(([icon, t, x]) => (
                 <div className="ld-benefit" key={t}><span className="ld-disc"><span className="ld-glyph" aria-hidden="true" style={{ ["--glyph" as string]: `url(/site/icons/${icon}.svg)` }} /></span><h3 className="heading" style={{ margin: 0 }}>{t}</h3><p className="body-small ld-muted" style={{ margin: 0 }}>{x}</p></div>
               ))}
@@ -334,10 +338,10 @@ export function Landing() {
         <section id="market" className="ld-sec pt-seamed" aria-labelledby="market-h">
           <Seam n="04" />{/* patterns-v1 */}
           <div className="ld-wrap ld-stack" style={{ gap: 40 }}>
-            <div><Kicker n="04">The market</Kicker><h2 id="market-h" className="ld-h2">Where sellers are setting their strikes.</h2></div>
-            {market.history && spot && market.offers && <PriceAndStrikes history={market.history} spot={spot.price} offers={market.offers} />}
-            {market.offers ? <SoldCalls offers={market.offers} href={app} />
-              : <p className="body ld-muted" style={{ margin: 0 }}>{market.failed ? "The market could not be read just now." : "Reading the market…"}</p>}
+            <div className="ld-sec-head"><div><Kicker n="04">The market</Kicker><h2 id="market-h" className="ld-h2">Where sellers are setting their strikes.</h2></div><Live state={market.offers ? "live" : market.failed ? "failed" : "loading"} /></div>
+            {chartState === "ready" && market.history && spot && market.offers ? <PriceAndStrikes history={market.history} spot={spot.price} offers={market.offers} />
+              : chartState === "loading" ? <PriceAndStrikesLoading /> : null}
+            <SoldCalls offers={market.offers} failed={market.failed} href={app} />
             <div><a className="ld-btn ld-btn--quiet" href={app("market")}>See every call for sale</a></div>
           </div>
         </section>
@@ -384,29 +388,13 @@ export function Landing() {
           </div>
         </section>
 
-        {/* trust */}
-        <section id="trust" className="ld-sec pt-seamed" aria-labelledby="trust-h">
-          <Seam n="07" />{/* patterns-v1 */}
-          <div className="ld-wrap ld-stack" style={{ gap: 32 }}>
-            <div><Kicker n="07">What you are trusting</Kicker><h2 id="trust-h" className="ld-h2" style={{ maxWidth: "16ch" }}>No custodian. Here is who can sign.</h2></div>
-            <div className="ld-trust" role="table" aria-label="Who can and cannot act on your coins">
-              <div className="ld-label ld-muted hd">Party</div><div className="ld-label hd" style={{ color: "var(--intaglio)" }}>Can</div><div className="ld-label hd" style={{ color: "var(--oxblood)" }}>Cannot</div>
-              {[["The contract", "Sign your coins after expiry, only to the address its terms name.", "Be upgraded. It has no owner key after deployment."], ["NEAR’s MPC network", "Produce the signatures the contract asks for.", "Sign on its own. No single node holds the key."], ["The CoveredMarket team", "Run the relayer that pays gas and this site.", "Move your coins or change a contract’s terms."], ["You, the seller", "Withdraw before the call sells; claim your premium any time; reclaim the coins with your rescue key if NEAR ever stops.", "Withdraw coins during the term. They return or are sold at expiry."]].map(([w, c, n]) => [
-                <div key={w} className="heading">{w}</div>,
-                <div key={w + "c"} className="body"><span className="ld-label ph" style={{ color: "var(--intaglio)" }}>Can</span>{c}</div>,
-                <div key={w + "n"} className="body"><span className="ld-label ph" style={{ color: "var(--oxblood)" }}>Cannot</span>{n}</div>,
-              ])}
-            </div>
-          </div>
-        </section>
-
         {/* agent friendly */}
         <section id="agents" className="ld-sec ld-vault pt-seamed" data-theme="vault" aria-labelledby="agents-h">
-          <Seam n="08" />{/* patterns-v1 */}
+          <Seam n="07" />{/* patterns-v1 */}
           <div className="ld-wrap ld-stack" style={{ gap: 48 }}>
             <div className="ld-2">
               <div className="ld-stack" style={{ gap: 24 }}>
-                <div><Kicker n="08">Agent friendly</Kicker><h2 id="agents-h" className="ld-h2">Built for agents as well as people.</h2></div>
+                <div><Kicker n="07">Agent friendly</Kicker><h2 id="agents-h" className="ld-h2">Built for agents as well as people.</h2></div>
                 <p className="ld-lede" style={{ maxWidth: "44ch" }}>Anything you can do here, an AI agent or a script can do too: read the market, sell a call, buy one, exercise it and claim. On testnet it gets its own funded wallet the first time it acts.</p>
                 <ul className="ld-agent-points">
                   {AGENT_POINTS.map(([t, d]) => <li key={t}><span className="heading">{t}</span><span className="body ld-muted">{d}</span></li>)}
@@ -435,17 +423,17 @@ export function Landing() {
         </section>
 
         {/* faq: the section clips its rosette, so its seal sits in a zero-height holder above it */}
-        <div className="pt-seamed" aria-hidden="true"><Seam n="09" /></div>{/* patterns-v1 */}
+        <div className="pt-seamed" aria-hidden="true"><Seam n="08" /></div>{/* patterns-v1 */}
         <section id="faq" className="ld-sec pt-host" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="faq-h">
           <Rosette className="pt-echo" />{/* patterns-v1 */}
           <div className="ld-wrap ld-2">
-            <div><Kicker n="09">Questions</Kicker><h2 id="faq-h" className="ld-h2">Frequently Asked Questions</h2></div>
+            <div><Kicker n="08">Questions</Kicker><h2 id="faq-h" className="ld-h2">Frequently Asked Questions</h2></div>
             <div className="ld-faq">{FAQ.map(([q, a]) => <details key={q}><summary>{q}</summary><p className="body">{a}</p></details>)}</div>
           </div>
         </section>
 
         {/* security: clips its lathe waves, so its seal sits above it too */}
-        <div className="pt-seamed" aria-hidden="true"><Seam n="10" /></div>{/* patterns-v1 */}
+        <div className="pt-seamed" aria-hidden="true"><Seam n="09" /></div>{/* patterns-v1 */}
         <section id="security" className="ld-sunk pt-host" style={{ borderTop: "1px solid var(--rule)", padding: "96px 0" }} aria-labelledby="security-h">
           <Lathe />{/* patterns-v1 */}
           <div className="ld-wrap">
@@ -454,7 +442,7 @@ export function Landing() {
               <img className="ld-bandimg" src="/site/band.svg" alt="" aria-hidden="true" style={{ bottom: 12 }} />
               <div style={{ display: "flex", justifyContent: "space-between", gap: 24, borderBottom: "1px solid var(--rule-strong)", paddingBottom: 24 }}>
                 <div className="ld-stack" style={{ gap: 16 }}>
-                  <p className="ld-kicker" style={{ color: "var(--intaglio)", margin: 0 }}>Art. 10 · Security notice</p>
+                  <p className="ld-kicker" style={{ color: "var(--intaglio)", margin: 0 }}>Art. 09 · Security notice</p>
                   <h2 id="security-h" className="ld-h2" style={{ maxWidth: "16ch" }}>Found a flaw? Tell us before anyone else.</h2>
                   <p className="ld-lede" style={{ maxWidth: "46ch" }}>CoveredMarket keeps people’s Bitcoin behind a contract. If you find a way to move, freeze or misprice those coins, we want to hear it first.</p>
                   <p className="body" style={{ margin: 0, maxWidth: "52ch" }}><span className="ld-stamp" style={{ color: "var(--oxblood)", display: "inline-block", transform: "none", marginRight: 10 }}>Not yet live</span>Our bug bounty opens after our upcoming audits, and not before January 2027.</p>
@@ -481,10 +469,10 @@ export function Landing() {
 
         {/* mainnet waitlist */}
         <section id="waitlist" className="ld-sec pt-seamed" style={{ borderTop: "1px solid var(--rule)" }} aria-labelledby="waitlist-h">
-          <Seam n="11" />{/* patterns-v1 */}
+          <Seam n="10" />{/* patterns-v1 */}
           <div className="ld-wrap ld-2">
             <div className="ld-stack" style={{ gap: 16 }}>
-              <div><Kicker n="11">Mainnet</Kicker><h2 id="waitlist-h" className="ld-h2">Hear when real bitcoin can earn.</h2></div>
+              <div><Kicker n="10">Mainnet</Kicker><h2 id="waitlist-h" className="ld-h2">Hear when real bitcoin can earn.</h2></div>
               <p className="ld-lede" style={{ maxWidth: "46ch" }}>CoveredMarket runs on test coins only for now. Leave your email and we will write once, when mainnet opens.</p>
               <p className="body-small ld-muted" style={{ margin: 0 }}>Until then, follow along in <a href="#/updates">Updates</a>.</p>
             </div>
@@ -498,7 +486,7 @@ export function Landing() {
           <div className="ld-foot-grid">
             <div className="ld-stack" style={{ gap: 12 }}><img src="/site/lockup-32.svg" alt="CoveredMarket" style={{ height: 32, alignSelf: "flex-start" }} /><p className="ld-lede" style={{ fontSize: 18 }}>Earn on Bitcoin you still hold.</p></div>
             <nav aria-label="Product"><span className="ld-label ld-muted">Product</span><a href={app("market")}>Market</a><a href={app("sell")}>Sell a call</a><A to="faq">FAQ</A><A to="waitlist">Mainnet waitlist</A><a href="#/updates">Updates</a></nav>
-            <nav aria-label="Trust"><span className="ld-label ld-muted">Trust</span><A to="trust">Who can sign</A><A to="security">Report a vulnerability</A><A to="compare">Compared</A></nav>
+            <nav aria-label="Trust"><span className="ld-label ld-muted">Trust</span><A to="security">Report a vulnerability</A><A to="compare">Compared</A></nav>
             <nav aria-label="Build"><span className="ld-label ld-muted">Build</span><A to="stack">Built with</A><A to="agents">For agents</A><a href={REPO} target="_blank" rel="noreferrer">Source code</a><a href={`${REPO}/blob/HEAD/docs/SECURITY-MODEL.md`} target="_blank" rel="noreferrer">Security model</a><a href={`mailto:${SECURITY}`}>{SECURITY}</a></nav>
           </div>
           <div className="ld-foot-base">
