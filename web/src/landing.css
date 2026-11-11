@@ -53,7 +53,7 @@
 
 /* hero */
 /* The hero fills the first screen below the sticky header (73px), within sensible bounds, with its content centred. */
-.ld-hero { padding: 120px 0 128px; }
+.ld-hero { padding: 192px 0 200px; }
 .ld-hero > .ld-wrap { width: 100%; }
 .ld-hero .ld-stack { gap: 32px; }
 .ld-hero .ld-h1 { font-size: clamp(56px, 6.6vw, 88px); }
@@ -117,8 +117,6 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 .ld-frame-bar i { width: 8px; height: 8px; border-radius: 999px; border: 1px solid var(--rule-strong); flex-shrink: 0; }
 
 /* how it works: four steps side by side */
-.ld-steps { row-gap: 32px; }
-.ld-step { border-top: 1px solid var(--rule); padding-top: 32px; }
 .ld-label { font: 600 12px/16px var(--font-sans); letter-spacing: .12em; text-transform: uppercase; }
 
 /* built with */
@@ -184,7 +182,7 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
   .ld-menu { display: inline-flex; }
   .ld-hero-grid, .ld-2 { grid-template-columns: minmax(0, 1fr); }
   .ld-hero-grid { gap: 40px; }
-  .ld-hero { padding: 88px 0 48px; }
+  .ld-hero { padding: 149px 0 109px; }
   .ld-hero-seal { display: none; }
   .ld-film-row { padding-bottom: 80px; }
   .ld-hero .ld-h1 { font-size: clamp(46px, 10vw, 84px); }
@@ -196,7 +194,7 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 @media (max-width: 599px) {
   .ld-wrap { padding: 0 16px; }
   .ld-sec { padding: 56px 0; }
-  .ld-hero { padding: 56px 0 36px; }
+  .ld-hero { padding: 103px 0 83px; }
   .ld-film-row { padding-bottom: 56px; }
   .ld-hero .ld-stack { gap: 24px; }
   .ld-hide-phone { display: none !important; }
@@ -304,3 +302,35 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
   .pt-gilt { opacity: .16; }
 }
 /* patterns-v1 end */
+
+/* live market start: the ticker under the hero and the market section (pages/LiveMarket.tsx). */
+.ld-tick { border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule-strong); background: var(--paper-raised); }
+.ld-tick-view { overflow: hidden; }
+.ld-tick-track { display: flex; width: max-content; animation: ld-tick-run 80s linear infinite; }
+.ld-tick:hover .ld-tick-track, .ld-tick:focus-within .ld-tick-track { animation-play-state: paused; }
+.ld a.ld-tick-item { display: inline-flex; align-items: baseline; gap: 10px; padding: 14px 28px; border-right: 1px solid var(--rule); white-space: nowrap; color: var(--ink); text-decoration: none; font-size: 14px; }
+.ld a.ld-tick-item:hover { background: var(--paper-sunk); }
+.ld-tick-word { font: 700 11px/16px var(--font-sans); letter-spacing: .14em; text-transform: uppercase; }
+@keyframes ld-tick-run { to { transform: translateX(-50%); } }
+/* The ticker sits in the middle of the gap between the hero and the film. */
+.ld-hero:has(+ .ld-tick) { padding-bottom: 144px; }
+.ld-tick + .ld-film-row { padding-top: 72px; }
+.ld-chart text { font: 500 11px var(--font-mono); fill: var(--ink-muted); }
+.ld-car { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 2px; margin: -2px; }
+.ld-car::-webkit-scrollbar { display: none; }
+.ld a.ld-note { flex: 0 0 min(320px, 82%); scroll-snap-align: start; background: var(--paper-raised); border: 1px solid var(--rule-strong); box-shadow: inset 0 0 0 5px var(--paper-raised), inset 0 0 0 6px var(--rule); padding: 26px; display: flex; flex-direction: column; gap: 16px; color: var(--ink); text-decoration: none; }
+.ld a.ld-note:hover { background: var(--paper); }
+.ld-note-kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 14px; border-top: 1px solid var(--rule); padding-top: 14px; }
+.ld-note-kv b { justify-self: end; font: 500 14px/20px var(--font-mono); }
+.ld-car-nav { display: flex; gap: 8px; }
+.ld-car-nav button { width: 44px; height: 44px; border: 1px solid var(--rule-strong); border-radius: 2px; background: transparent; color: var(--ink); cursor: pointer; display: grid; place-items: center; }
+.ld-car-nav button:hover:not(:disabled) { background: var(--paper-sunk); }
+.ld-car-nav button:disabled { opacity: .35; cursor: default; }
+.ld-car-nav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 1023px) { .ld-hero:has(+ .ld-tick) { padding-bottom: 109px; } .ld-tick + .ld-film-row { padding-top: 48px; } }
+@media (max-width: 599px) {
+  .ld-hero:has(+ .ld-tick) { padding-bottom: 83px; } .ld-tick + .ld-film-row { padding-top: 36px; }
+  .ld a.ld-tick-item { padding: 10px 20px 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .ld-tick-track { animation: none; } .ld-tick-view { overflow-x: auto; } }
+/* live market end */
