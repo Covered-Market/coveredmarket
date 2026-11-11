@@ -138,6 +138,7 @@ const BENEFITS = [
   ["kept", "No margin, no liquidation", "Your coins cover the call in full, so a price spike cannot close you out. The premium is yours whatever happens."],
   ["wallet", "No sign-up form", "A NEAR wallet is your account: no form, no ID check, no account with us."],
   ["verify", "Fully verifiable", "Seven checks run in your browser against NEAR and Bitcoin directly. None of them ask us."],
+  ["oracle", "No oracle", "No price feed decides how your call ends, so nobody can feed in a bad price to settle it. The buyer either pays the strike in the window after expiry, or the contract returns your coins when it closes."],
 ];
 
 const built = (): { status: "Live" | "Partly" | "Next"; name: string; what: string; id: string; d: string }[] => [
@@ -288,7 +289,7 @@ export function Landing() {
           <Rosette className="pt-gilt" sw={1} />{/* patterns-v1 */}
           <div className="ld-wrap ld-stack" style={{ gap: 40 }}>
             <div><Kicker n="01">Why CoveredMarket</Kicker><h2 id="why-h" className="ld-h2">Everything an exchange offers, except the exchange.</h2></div>
-            <div className="ld-4">
+            <div className="ld-4 ld-5">
               {BENEFITS.map(([icon, t, x]) => (
                 <div className="ld-benefit" key={t}><span className="ld-disc"><span className="ld-glyph" aria-hidden="true" style={{ ["--glyph" as string]: `url(/site/icons/${icon}.svg)` }} /></span><h3 className="heading" style={{ margin: 0 }}>{t}</h3><p className="body-small ld-muted" style={{ margin: 0 }}>{x}</p></div>
               ))}

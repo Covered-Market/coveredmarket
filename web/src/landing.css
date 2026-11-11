@@ -22,6 +22,9 @@
 .ld-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: start; }
 .ld-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .ld-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; }
+.ld-4.ld-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 1199px) { .ld-4.ld-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ld-4.ld-5 > :last-child:nth-child(odd) { grid-column: 1 / -1; } }
+@media (max-width: 599px) { .ld-4.ld-5 { grid-template-columns: minmax(0, 1fr); } }
 
 .ld-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 12px 22px; border-radius: 2px; font: 600 16px/1 var(--font-sans); text-decoration: none; border: 1px solid transparent; cursor: pointer; transition: background-color 120ms linear, color 120ms linear; }
 .ld-btn--primary { background: var(--intaglio); color: var(--on-intaglio) !important; }
