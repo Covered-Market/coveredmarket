@@ -2,7 +2,7 @@ blank_issues_enabled: true
 contact_links:
   - name: Report a security vulnerability
     url: https://github.com/Covered-Market/coveredmarket/security/advisories/new
-    about: Privately, so it can be fixed before anyone else knows. Bounties up to $2,000; see SECURITY.md.
+    about: Privately, so it can be fixed before anyone else knows. The bug bounty opens after our upcoming audits, not before January 2027; see SECURITY.md.
   - name: Try it on testnet
     url: https://178-62-225-161.sslip.io/#/market
     about: The live testnet app, with test coins and test USDC.

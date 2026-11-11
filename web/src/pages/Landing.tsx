@@ -460,23 +460,24 @@ export function Landing() {
                 <div className="ld-stack" style={{ gap: 16 }}>
                   <p className="ld-kicker" style={{ color: "var(--intaglio)", margin: 0 }}>Art. 10 · Security notice</p>
                   <h2 id="security-h" className="ld-h2" style={{ maxWidth: "16ch" }}>Found a flaw? Tell us before anyone else.</h2>
-                  <p className="ld-lede" style={{ maxWidth: "46ch" }}>CoveredMarket keeps people’s Bitcoin behind a contract. If you find a way to move, freeze or misprice those coins, we want to hear it first, and we pay for it.</p>
+                  <p className="ld-lede" style={{ maxWidth: "46ch" }}>CoveredMarket keeps people’s Bitcoin behind a contract. If you find a way to move, freeze or misprice those coins, we want to hear it first.</p>
+                  <p className="body" style={{ margin: 0, maxWidth: "52ch" }}><span className="ld-stamp" style={{ color: "var(--oxblood)", display: "inline-block", transform: "none", marginRight: 10 }}>Not yet live</span>Our bug bounty opens after our upcoming audits, and not before January 2027.</p>
                 </div>
                 <img className="ld-hide-phone" src="/site/seal.svg" alt="CoveredMarket seal" style={{ width: 132, height: 132, flexShrink: 0, opacity: 0.9 }} />
               </div>
               <div>
-                <p className="ld-label ld-muted" style={{ margin: "0 0 8px" }}>Rewards, by what the flaw could do</p>
+                <p className="ld-label ld-muted" style={{ margin: "0 0 8px" }}>Planned rewards once the bounty opens, by what the flaw could do</p>
                 <div className="ld-bounty">
                   {[["Critical", "var(--oxblood)", "up to $2,000", "A valid signature for a deposit address to anyone but the committed recipient, a spend to the buyer without the strike paid, code or keys changed after deploy, or USDC paid to someone not owed it."], ["High", "var(--copper-ink)", "up to $750", "Coins or USDC locked with no way out, the same coins sold twice, a fake deposit proof accepted, or a settlement forced before expiry and the exercise window."], ["Medium", "var(--gilt-ink)", "up to $250", "Verify showing verified for something false, the app or relayer showing a wrong deposit address, or griefing that costs others more than the attacker."]].map(([sev, col, amt, what]) => [
                     <div key={sev} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}><span className="ld-stamp" style={{ color: col, display: "inline-block", transform: "none" }}>{sev}</span><span className="ld-mono" style={{ fontSize: 13 }}>{amt}</span></div>,
                     <div key={sev + "w"} className="body">{what}</div>,
                   ])}
                 </div>
-                <p className="body-small ld-muted" style={{ margin: "12px 0 0" }}>Paid in USDC on NEAR or in BTC, your choice, within 14 days of the fix shipping. The first valid report of a flaw is the one rewarded, and every reward is at our discretion. <a href={`${REPO}/blob/HEAD/SECURITY.md`} target="_blank" rel="noreferrer">Full policy</a>.</p>
               </div>
               <div className="ld-row" style={{ borderTop: "1px solid var(--rule-strong)", paddingTop: 24, gap: "16px 24px" }}>
                 <a className="ld-btn ld-btn--primary" href={`mailto:${SECURITY}?subject=Vulnerability%20report`}>Report a vulnerability</a>
                 <span className="ld-mono ld-muted" style={{ fontSize: 13 }}>{SECURITY}</span>
+                <a className="body-small" href={`${REPO}/blob/HEAD/SECURITY.md`} target="_blank" rel="noreferrer">Full policy</a>
               </div>
             </div>
           </div>
