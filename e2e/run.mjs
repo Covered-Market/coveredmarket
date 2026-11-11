@@ -7,6 +7,8 @@
 //      contracts and both certificates in Chromium; press Verify on each and require 7/7 verified.
 //   4. THE SELLER'S EXIT: a funded offer swept with its rescue kit by the rescue tool, on the real bitcoind:
 //      refused before the unlock time, accepted after it. Screenshots go to e2e/artifacts/.
+//   5. THE AGENT TOOLKIT (agent.mjs): `bin/coveredmarket agent` and `bin/coveredmarket mcp` as an agent runs them:
+//      reads, one offer sold from the CLI, bought over MCP, and the premium claimed.
 import { Account } from "@near-js/accounts";
 import { KeyPairEd25519, KeyPair } from "@near-js/crypto";
 import { JsonRpcProvider } from "@near-js/providers";
@@ -17,6 +19,7 @@ import { spawnSync } from "node:child_process";
 import * as secp from "@noble/secp256k1";
 import { sha256 } from "@noble/hashes/sha256";
 import { base58 } from "@scure/base";
+import { agentRun } from "./agent.mjs";
 
 const WEB = process.env.WEB ?? "http://localhost";
 const RPC = process.env.RPC ?? "http://localhost:3030";
@@ -217,4 +220,7 @@ await browser.close();
   log(`CV-${r.serial} exit after unlock: rescue tool swept ${o.size_sats} sats (less fee) to ${dest} in ${txid}, confirmed`);
 }
 if (errors.length) { console.log("page errors:", errors); throw new Error("UI raised errors"); }
+
+// ── 5. The agent toolkit: CLI and MCP server
+await agentRun(WEB, log);
 log("E2E PASSED");

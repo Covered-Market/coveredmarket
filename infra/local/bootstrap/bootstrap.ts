@@ -53,7 +53,8 @@ for (const u of ["astrid", "marcus"]) { const a = await create(u, 20n); await ro
 // Regtest: a funded mining wallet so `coveredmarket btc send` works immediately.
 const btc = async (m: string, p: unknown[] = [], wallet = "") => { const r = await fetch(`${process.env.BITCOIN_RPC ?? "http://bitcoind:18443"}${wallet ? "/wallet/" + wallet : ""}`, { method: "POST", headers: { authorization: "Basic " + Buffer.from("coveredmarket:coveredmarket").toString("base64") }, body: JSON.stringify({ method: m, params: p }) }); const j = await r.json(); if (j.error) throw new Error(j.error.message); return j.result; };
 try { await btc("createwallet", ["coveredmarket", true, true, "", false, true]); } catch {}
-try { await btc("createwallet", ["miner"]); } catch { await btc("loadwallet", ["miner"]).catch(() => {}); }
+// load_on_startup, so `btc send`, mining and the demo faucet still work after bitcoind restarts
+try { await btc("createwallet", ["miner", false, false, "", false, true, true]); } catch { await btc("loadwallet", ["miner", true]).catch(() => {}); }
 const mineTo = await btc("getnewaddress", [], "miner");
 await btc("generatetoaddress", [101, mineTo]);
 

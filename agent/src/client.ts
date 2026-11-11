@@ -83,7 +83,9 @@ export class CoveredMarket {
   }
 
   get hrp() { return this.config.mode === "local" ? "bcrt" : "tb"; }
-  private api(path: string) { return `${this.site}${this.config.helper || "/api"}${path}`; }
+  // The relayer's API is at /api on every app, as the web app calls it. (config.helper is the account helper's base,
+  // /api/dev on the local stack, not the API's.)
+  private api(path: string) { return `${this.site}/api${path}`; }
   private async post(path: string, body: unknown) {
     const r = await fetch(this.api(path), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(60_000) });
     const j: any = await r.json().catch(() => ({}));
@@ -193,13 +195,22 @@ export class CoveredMarket {
     const kp = KeyPair.fromString(w.nearKey as any);
     const gas = BigInt(gasTgas) * TGAS;
     let relayed: Response | null = null;
-    try {
-      const ak: any = await this.provider.query({ request_type: "view_access_key", account_id: w.accountId, public_key: kp.getPublicKey().toString(), finality: "final" });
-      const block = await this.provider.block({ finality: "final" });
-      const delegate = buildDelegateAction({ senderId: w.accountId, receiverId, actions: [actionCreators.functionCall(method, args, gas, depositYocto)], nonce: BigInt(ak.nonce) + 1n, maxBlockHeight: BigInt(block.header.height) + 100n, publicKey: kp.getPublicKey() });
-      const [, signed] = await new KeyPairSigner(kp).signDelegateAction(delegate);
-      relayed = await fetch(this.api("/relay"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signedDelegate: Buffer.from(encodeSignedDelegate(signed)).toString("base64") }), signal: AbortSignal.timeout(120_000) });
-    } catch { relayed = null; }
+    for (let attempt = 0; ; attempt++) {
+      try {
+        // The nonce at "optimistic": the previous call has just executed, and "final" can still show the old nonce.
+        const ak: any = await this.provider.query({ request_type: "view_access_key", account_id: w.accountId, public_key: kp.getPublicKey().toString(), finality: "optimistic" });
+        const block = await this.provider.block({ finality: "final" });
+        const delegate = buildDelegateAction({ senderId: w.accountId, receiverId, actions: [actionCreators.functionCall(method, args, gas, depositYocto)], nonce: BigInt(ak.nonce) + 1n, maxBlockHeight: BigInt(block.header.height) + 100n, publicKey: kp.getPublicKey() });
+        const [, signed] = await new KeyPairSigner(kp).signDelegateAction(delegate);
+        relayed = await fetch(this.api("/relay"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signedDelegate: Buffer.from(encodeSignedDelegate(signed)).toString("base64") }), signal: AbortSignal.timeout(120_000) });
+      } catch { relayed = null; }
+      // A stale nonce means the call was rejected before it ran, so it is safe to sign again with a fresh one.
+      if (relayed?.status === 422 && attempt < 2) {
+        const body = await relayed.clone().text().catch(() => "");
+        if (body.includes("DelegateActionInvalidNonce")) { await sleep(1500); continue; }
+      }
+      break;
+    }
     if (relayed) {
       const j: any = await relayed.json().catch(() => ({}));
       if (relayed.ok) return j.value !== undefined && j.value !== "" ? JSON.parse(j.value) : null;
