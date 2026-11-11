@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { C } from "./ds";
 import { accountHasKey, CFG, clearWallet, createWallet, loadWallet, saveWallet, type Wallet } from "./lib/near";
 import { canConnect, connectWallet, disconnectWallet, restoreConnected } from "./lib/connect";
@@ -15,6 +15,9 @@ import { Updates } from "./pages/Updates";
 import { NetworkBand, NotLive } from "./Network";
 import { ChainClock } from "./ChainClock";
 
+/** Dev server only: ideas for showing the live market on the website, at `/#/ideas`. Never in a production build. */
+const Lab = import.meta.env.DEV ? lazy(() => import("./pages/Lab")) : null;
+
 export function useRoute() {
   // No hash, or an in-page anchor like "#faq", is the landing page; app routes all start with "#/".
   const [h, setH] = useState(location.hash);
@@ -25,6 +28,8 @@ export function useRoute() {
 }
 
 export function App() {
+  const { parts } = useRoute();
+  if (Lab && parts[0] === "ideas") return <Suspense fallback={null}><Lab /></Suspense>;
   return CFG.mode === "site" ? <Website /> : <AppShell />;
 }
 
