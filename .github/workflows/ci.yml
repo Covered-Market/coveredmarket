@@ -54,6 +54,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build relayer && docker build web
+  # The README's and AGENTS.md's test commands exactly as written, on a fresh checkout with only Rust and Node
+  # installed: no npm ci, no wasm build, no cache. The jobs above install first, so they would miss a command that
+  # only works on a machine that has already run them.
+  readme-commands:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: cargo test
+        run: cargo test
+      - name: bin/coveredmarket test
+        run: bin/coveredmarket test
   infra:
     runs-on: ubuntu-latest
     steps:
