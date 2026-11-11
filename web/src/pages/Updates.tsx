@@ -43,7 +43,7 @@ const UPDATES: { date: string; title: string; items: string[] }[] = [
     items: [
       "Every deposit address now has a rescue branch: a key only the seller holds, usable after a fixed delay past expiry, so coins come back even if NEAR stops. The app gives you a rescue kit when you sell.",
       "Settlement transactions can be re-signed with a higher fee if Bitcoin is busy.",
-      "A security policy with private reporting and a bug bounty.",
+      "A security policy with private reporting. A bug bounty follows after the audits, not before January 2027.",
       "Steadier transactions when a NEAR RPC node lags or hands out a stale nonce.",
     ],
   },

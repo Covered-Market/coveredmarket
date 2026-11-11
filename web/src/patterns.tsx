@@ -55,10 +55,11 @@ export function SerialRosette({ serial, size = 56 }: { serial: string; size?: nu
   return <Rosette fams={fams} sw={2.2} style={{ width: size, height: size, display: "block" }} />;
 }
 
-/** Seam medallion: a small seal sitting on the border between two sections, carrying the section's number. */
+/** Seam medallion: a small seal sitting on the border between two sections, carrying the section's number.
+ *  Always drawn on paper, so it reads the same whether the section below is paper or vault. */
 export function Seam({ n }: { n: string }) {
   return (
-    <div className="pt-seam" aria-hidden="true">
+    <div className="pt-seam" data-theme="paper" aria-hidden="true">
       <Rosette fams={[[24, 0.98, 0.3, 0.16]]} sw={2.4} className="pt-seam-ros" />
       <span className="pt-seam-n">{n}</span>
     </div>

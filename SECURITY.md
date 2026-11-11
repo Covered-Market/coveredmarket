@@ -1,6 +1,8 @@
 # Security policy
 
-CoveredMarket holds other people's Bitcoin behind a NEAR contract. If you find a way to move coins, take USDC, or make the contract do something its rules forbid, we want to hear it first, and we pay for it.
+CoveredMarket holds other people's Bitcoin behind a NEAR contract. If you find a way to move coins, take USDC, or make the contract do something its rules forbid, we want to hear it first.
+
+> **The bug bounty is not live yet.** It opens after our upcoming audits, and not before January 2027. Please report what you find now all the same; the rewards below apply once the bounty opens.
 
 **Status:** unaudited. Testnet is live; mainnet is not. Read the [security model](docs/SECURITY-MODEL.md) before you trust it with anything.
 
@@ -17,7 +19,7 @@ A good report has:
 - what an attacker gains (coins moved, USDC taken, a settlement blocked, a forged Verify result, …);
 - the commit or deployed contract (`coveredmarket-app-…testnet`, code hash) you tested against;
 - steps or a test that reproduces it. A failing test against `bin/coveredmarket up` or `cargo test -p coveredmarket` is ideal;
-- your NEAR account or Bitcoin address for the bounty, and the name you want in the thanks list (or "anonymous").
+- the name you want in the thanks list (or "anonymous").
 
 ## What happens next
 
@@ -26,13 +28,15 @@ A good report has:
 | within 72 hours | we confirm we have it and tell you who is handling it |
 | within 7 days | we tell you whether we agree on impact and severity |
 | as fast as we can | fix, test, and redeploy; for a deployed contract this means a new locked contract, because the old one has no key and cannot be patched |
-| within 14 days of the fix shipping | bounty paid, advisory published with your credit (unless you ask us not to) |
+| once the fix has shipped | advisory published with your credit (unless you ask us not to) |
 
 We aim to publish within 90 days of your report. If we go quiet for more than 14 days, you may disclose.
 
-## Bounty
+## Bounty (not live yet)
 
-Paid in USDC on NEAR or in BTC, your choice, to the address in your report. Amounts are set by **impact on the contract's guarantees**, not by how hard the bug was to find. A bug found on testnet is paid as if it had been found on mainnet.
+The bounty opens after our upcoming audits, and not before January 2027. Until then no rewards are paid. The terms below are what we plan to offer once it opens, and may change before then.
+
+Amounts are set by **impact on the contract's guarantees**, not by how hard the bug was to find. Once the bounty is live, a bug found on testnet is rewarded as if it had been found on mainnet.
 
 | Severity | Examples | Reward |
 |---|---|---|
@@ -40,7 +44,7 @@ Paid in USDC on NEAR or in BTC, your choice, to the address in your report. Amou
 | **High** | Coins or USDC locked with no path out · a seller can sell the same coins twice · a fake deposit proof is accepted · a settlement can be forced before expiry + grace | up to **$750** |
 | **Medium** | Verify shows *verified* for something that is false · the relayer or app can be made to show a wrong deposit address · a griefing attack that costs others more than it costs the attacker | up to **$250** |
 
-The first valid report of an issue gets the reward. Several reports with one root cause are one issue. Final severity is our call, and we will explain it.
+Several reports with one root cause are one issue. Final severity is our call, and we will explain it.
 
 **Rewards are entirely at our discretion.** Whether a report is rewarded at all, which severity it gets, and how much is paid are decided by us alone, case by case. The amounts above are upper limits, not promises, and this policy is not an offer or a contract. We may decline to pay any report for any reason, including when it breaks the safe-harbour rules below, was disclosed before we fixed it, or when paying would break the law (for example, sanctions). We may change or end the programme at any time.
 
