@@ -24,7 +24,9 @@ const INK: Record<Stamp, string> = { open: "var(--intaglio)", kept: "var(--intag
 export interface MarketData { /** null while the first read is under way. */ offers: O[] | null; failed: boolean; history: [number, number][] | null }
 
 /** The latest contracts (newest first) and a week of hourly prices. Contracts refresh every minute while the tab is
- *  in view; they are read eight at a time, because a public RPC node turns away a burst of dozens. */
+ *  in view. The relayer reads them once for every visitor (/api/market/latest): a browser reading them itself makes
+ *  dozens of calls to the public RPC node per visit, which turns them away. Only a relayer without that endpoint
+ *  (an older one, behind a dev server) makes the page read the contract directly, eight offers at a time. */
 export function useMarket(): MarketData {
   const [offers, setOffers] = useState<O[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -32,14 +34,20 @@ export function useMarket(): MarketData {
   const known = useRef(0);
   useEffect(() => {
     let alive = true;
+    const direct = async () => {
+      const top = await newestSerial(async (s) => (await view<O | null>("get_offer", { serial: s })) !== null, known.current);
+      known.current = top;
+      const serials = Array.from({ length: Math.min(LATEST, top) }, (_, i) => top - i), got: (O | null)[] = [];
+      for (let i = 0; i < serials.length; i += 8) got.push(...await Promise.all(serials.slice(i, i + 8).map((s) => view<O | null>("get_offer", { serial: s }).catch(() => null))));
+      return got.filter((o): o is O => !!o);
+    };
     const load = async () => {
       if (document.hidden) return;
       try {
-        const top = await newestSerial(async (s) => (await view<O | null>("get_offer", { serial: s })) !== null, known.current);
-        known.current = top;
-        const serials = Array.from({ length: Math.min(LATEST, top) }, (_, i) => top - i), got: (O | null)[] = [];
-        for (let i = 0; i < serials.length; i += 8) got.push(...await Promise.all(serials.slice(i, i + 8).map((s) => view<O | null>("get_offer", { serial: s }).catch(() => null))));
-        if (alive) { setOffers(got.filter((o): o is O => !!o)); setFailed(false); }
+        const r = await fetch("/api/market/latest", { cache: "no-store" });
+        const got: O[] = r.ok ? (await r.json()).offers : r.status === 404 ? await direct() : Promise.reject(new Error(`market ${r.status}`));
+        if (!Array.isArray(got)) throw new Error("market: no offers");
+        if (alive) { setOffers(got); setFailed(false); }
       } catch { if (alive) setFailed(true); }
     };
     load(); const t = setInterval(load, 60_000);
