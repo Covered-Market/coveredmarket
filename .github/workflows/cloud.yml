@@ -4,6 +4,8 @@ name: cloud
 #   DEPLOY_SSH_KEY  private half of a deploy key: ssh-keygen -t ed25519 -f deploy_key -N "" && gh secret set DEPLOY_SSH_KEY < deploy_key
 # Terraform state is carried between runs as the `tfstate` artifact (it holds no secrets: env_file stays empty,
 # the VM writes its own .env). Pushing a tag v* redeploys the current VM.
+# With the repository variable AUTO_DEPLOY=true, every push to development is deployed (code only) once `ci` passes on
+# it, at exactly the commit ci tested. A failed or cancelled ci deploys nothing; the next green push catches up.
 # Optional repository variables (gh variable set NAME --body VALUE), so every run keeps the same site:
 #   DOMAIN               the site's domain; the `domain` input overrides it for one run
 #   DNS_AT_DIGITALOCEAN  false when DNS stays at the registrar (point @, * and www at the VM's IP there)
@@ -21,6 +23,10 @@ on:
         default: ""
   push:
     tags: ["v*"]
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [development]
 concurrency:
   group: cloud
   cancel-in-progress: false
@@ -29,6 +35,12 @@ permissions:
   actions: read
 jobs:
   cloud:
+    # A ci run only deploys when it passed on a push to this repository's development (not a pull request from a fork
+    # whose branch happens to be called development), and only where AUTO_DEPLOY is on.
+    if: >-
+      github.event_name != 'workflow_run' || (vars.AUTO_DEPLOY == 'true'
+      && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+      && github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -39,6 +51,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: hashicorp/setup-terraform@v3
         with: { terraform_wrapper: false }
       - name: secrets present
