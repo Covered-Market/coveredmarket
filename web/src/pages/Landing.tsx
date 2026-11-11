@@ -157,11 +157,6 @@ const AGENT_WAYS = [
   { name: "Read API", what: "Offers, rules and accounts over plain HTTP, in BTC and USD and in exact units. No key needed.", code: "GET /api/offers?status=for_sale", d: "M8 4c-2 0-3 1-3 3v3l-2 2 2 2v3c0 2 1 3 3 3 M16 4c2 0 3 1 3 3v3l2 2-2 2v3c0 2-1 3-3 3" },
   { name: "llms.txt", what: "One page that tells a model what CoveredMarket is, how a contract runs and where to start.", code: "covered.market/llms.txt", d: "M6 3h9l3 3v15H6z M9 10h6 M9 14h6 M9 18h4" },
 ];
-const AGENT_POINTS = [
-  ["Every offer says what happens next", "Who moves, from when, and the exact call to make. Steps the relayer takes by itself are marked as such."],
-  ["Keys stay with the agent", "They are kept in files on its own machine. The seller's rescue kit is saved before the offer exists."],
-  ["No gas, no sign-up", "The relayer pays gas. On testnet a new wallet gets test NEAR and USDC automatically."],
-];
 /** What an agent reads: an offer from the read API, shortened. */
 const AGENT_SAMPLE = `{
   "id": "CV-7",
@@ -397,9 +392,6 @@ export function Landing() {
               <div className="ld-stack" style={{ gap: 24 }}>
                 <div><Kicker n="07">Agent friendly</Kicker><h2 id="agents-h" className="ld-h2">Built for agents as well as people.</h2></div>
                 <p className="ld-lede" style={{ maxWidth: "44ch" }}>Anything you can do here, an AI agent or a script can do too: read the market, sell a call, buy one, exercise it and claim. On testnet it gets its own funded wallet the first time it acts.</p>
-                <ul className="ld-agent-points">
-                  {AGENT_POINTS.map(([t, d]) => <li key={t}><span className="heading">{t}</span><span className="body ld-muted">{d}</span></li>)}
-                </ul>
                 <div className="ld-row">
                   <a className="ld-btn ld-btn--primary" href={`${REPO}/blob/HEAD/agent/README.md`} target="_blank" rel="noreferrer">Read the agent guide</a>
                   <a className="ld-btn ld-btn--quiet" href="/llms.txt">Open llms.txt</a>

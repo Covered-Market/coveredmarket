@@ -102,9 +102,6 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 .ld-big { font: 500 40px/1.1 var(--font-mono); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
 
 /* agent friendly */
-.ld-agent-points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.ld-agent-points li { display: flex; flex-direction: column; gap: 4px; padding: 14px 0; border-top: 1px solid var(--rule); }
-.ld-agent-points li:last-child { border-bottom: 1px solid var(--rule); }
 .ld-code { margin: 0; padding: 20px 22px; font: 400 13px/1.6 var(--font-mono); color: var(--ink); background: var(--paper-raised); overflow-x: auto; white-space: pre; tab-size: 2; }
 .ld-code .k { color: var(--intaglio); }
 .ld-code:focus-visible { outline: 2px solid var(--intaglio); outline-offset: -2px; }
