@@ -5,8 +5,8 @@ on:
   workflow_dispatch:
     inputs:
       site:
-        description: site URL
-        default: https://testnet.covered.market
+        description: the app's URL, e.g. https://testnet.example.com
+        required: true
       mode:
         description: shots (S1–S12 for the website) or audit (every page, full length)
         type: choice

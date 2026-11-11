@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
     inputs:
       site:
-        description: site URL
-        default: https://testnet.covered.market
+        description: the app's URL, e.g. https://testnet.example.com
+        required: true
       script:
         description: live.ts (one full contract), seed.ts (a realistic book) or take.ts (buy + exercise SERIAL)
         type: choice

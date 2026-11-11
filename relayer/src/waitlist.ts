@@ -65,7 +65,7 @@ export function waitlistMessage(e: Entry, to: string, now = new Date()): string 
     `Reply-To: ${e.email}`,
     `Subject: Mainnet waitlist: ${e.email}`,
     `Date: ${now.toUTCString().replace("GMT", "+0000")}`,
-    `Message-ID: <${randomUUID()}@waitlist.covered.market>`,
+    `Message-ID: <${randomUUID()}@${to.split("@")[1] || "localhost"}>`,
     "MIME-Version: 1.0",
     "Content-Type: text/plain; charset=utf-8",
     "Content-Transfer-Encoding: 8bit",
@@ -116,7 +116,7 @@ export async function imapNotifier(env: NodeJS.ProcessEnv): Promise<((e: Entry) 
   const tls = await import("node:tls");
   const host = env.IMAP_HOST, port = Number(env.IMAP_PORT ?? 993);
   const login = { user: env.IMAP_USER, pass, mailbox: env.IMAP_MAILBOX ?? "INBOX" };
-  const to = env.WAITLIST_TO ?? env.IMAP_USER;
+  const to = env.WAITLIST_TO || env.IMAP_USER;
   return async (e) => {
     // Two tries: one dropped connection should not lose the notification (the file has it either way).
     for (let i = 0; ; i++) {

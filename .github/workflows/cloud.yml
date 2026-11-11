@@ -78,6 +78,7 @@ jobs:
           IMAP_PASS: ${{ secrets.WAITLIST_IMAP_PASS }}
           IMAP_USER: ${{ vars.WAITLIST_IMAP_USER }}
           IMAP_HOST: ${{ vars.WAITLIST_IMAP_HOST }}
+          WAITLIST_TO: ${{ vars.WAITLIST_TO }}
         run: bin/coveredmarket deploy
       - name: save terraform state
         if: always()

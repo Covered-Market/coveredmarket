@@ -68,11 +68,15 @@ case "$cmd" in
     for i in $(seq 1 60); do "${SSH[@]}" 'test -f /var/lib/covered-ready && docker info >/dev/null 2>&1' 2>/dev/null && break; sleep 10
       [ "$i" = 60 ] && { echo "VM not ready"; exit 1; }; done
     git archive --format=tar HEAD | "${SSH[@]}" 'cd /opt/covered && find . -mindepth 1 -maxdepth 1 ! -name .env -exec rm -rf {} + && tar -x'
-    # Waitlist inbox login, when the deployer has it (CI: repository secret WAITLIST_IMAP_PASS): written into the VM's
-    # .env over stdin, so the password is never on a command line, and base64-encoded, so no character in it can trip
-    # compose's .env parsing ($, #, quotes). Without it the VM keeps whatever .env already has.
-    if [ -n "${IMAP_PASS:-}" ]; then
-      printf 'IMAP_HOST=%s\nIMAP_USER=%s\nIMAP_PASS_B64=%s\nWAITLIST_TO=%s\n' "${IMAP_HOST:-imap.webhuset.no}" "${IMAP_USER:-contact@covered.market}" "$(printf %s "$IMAP_PASS" | base64 | tr -d '\n')" "${WAITLIST_TO:-contact@covered.market}" \
+    # Waitlist inbox login, when the deployer has all of it (CI: secret WAITLIST_IMAP_PASS, variables WAITLIST_IMAP_HOST
+    # and WAITLIST_IMAP_USER, optional WAITLIST_TO): written into the VM's .env over stdin, so the password is never on a
+    # command line, and base64-encoded, so no character in it can trip compose's .env parsing ($, #, quotes). Without it
+    # the VM keeps whatever .env already has.
+    if [ -n "${IMAP_PASS:-}" ] && { [ -z "${IMAP_HOST:-}" ] || [ -z "${IMAP_USER:-}" ]; }; then
+      echo "warning: IMAP_PASS is set but IMAP_HOST or IMAP_USER is not; the VM keeps its waitlist inbox login"
+    elif [ -n "${IMAP_PASS:-}" ]; then
+      { printf 'IMAP_HOST=%s\nIMAP_USER=%s\nIMAP_PASS_B64=%s\n' "$IMAP_HOST" "$IMAP_USER" "$(printf %s "$IMAP_PASS" | base64 | tr -d '\n')"
+        [ -z "${WAITLIST_TO:-}" ] || printf 'WAITLIST_TO=%s\n' "$WAITLIST_TO"; } \
         | "${SSH[@]}" 'cd /opt/covered && touch .env && grep -vE "^(IMAP_HOST|IMAP_USER|IMAP_PASS|IMAP_PASS_B64|WAITLIST_TO)=" .env > .env.new; cat >> .env.new && chmod 600 .env.new && mv .env.new .env'
     fi
     # The website on $site, the two apps on testnet.$site and mainnet.$site, www.$site redirecting to $site.
