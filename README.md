@@ -48,19 +48,19 @@ No price feed decides the outcome. The only way to get the coins is to pay for t
 
 ## Proven on real Bitcoin
 
-On 6 Nov 2026 one full contract ran on Bitcoin testnet3 and NEAR testnet, through the deployed contract, the real MPC signer and the real light client ([run](https://github.com/Covered-Market/coveredmarket/actions/runs/42196248720)):
+On 10 Nov 2026 one full contract ran on Bitcoin testnet3 and NEAR testnet, through the deployed contract, the real MPC signer and the real light client ([run](https://github.com/Covered-Market/coveredmarket/actions/runs/42827108310)):
 
 | UTC | What happened |
 |---|---|
-| 09:36:21 | CV-1 created: 0.001 BTC, strike $150,000, premium $5 |
-| 09:36:22 | Deposit sent: [`7549bd31…86fb3`](https://mempool.space/testnet/tx/7549bd315f9fd8e638b1f54aa43b7cb28f8a68e598f35852a3b8814f20386fb3) |
-| 09:38:23 | **Funded**: the light client `btc-client-v4.testnet` accepted the proof |
-| 09:38:27 | Sold for 5 USDC |
-| 11:07:16 | Exercised: the buyer paid the 150 USDC strike |
-| 11:07:46 | Signed by `v1.signer-prod.testnet` and broadcast: [`9fada3e1…85d75`](https://mempool.space/testnet/tx/9fada3e1f5617863d65084470a200d23622447236350c16da4c6d809b5b85d75) |
-| 11:10:54 | **Exercised**: spend proven on NEAR, seller claimed 155 USDC |
+| 13:43:45 | CV-1 created: 0.001 BTC, strike $150,000, premium $5 |
+| 13:43:46 | Deposit sent: [`a2a4c3e3…702bf`](https://mempool.space/testnet/tx/a2a4c3e3a4ea761d22749520407ce36e3772b5e73f766ff280266cad006702bf) |
+| 13:46:47 | **Funded**: the light client `btc-client-v4.testnet` accepted the proof |
+| 13:46:51 | Sold for 5 USDC |
+| 14:14:36 | Exercised: the buyer paid the 150 USDC strike |
+| 14:15:06 | Signed by `v1.signer-prod.testnet` and broadcast: [`2c89e8fa…a6281`](https://mempool.space/testnet/tx/2c89e8fae13903d256ef01ede4f04f5e195c709045a4902cc5f2f32ea87a6281) |
+| 14:16:41 | **Exercised**: spend proven on NEAR, seller claimed 155 USDC |
 
-Contract: [`covered-app-mw4qlyb3.testnet`](https://testnet.nearblocks.io/address/covered-app-mw4qlyb3.testnet), no access keys, code hash `1eaqCfvarE7A88k6m4toGJdbUYydF2mhdwftoQuyXeJ`.
+Contract: [`app-mwaqn3wg.coveredmarket-relayer-mwallj7x.testnet`](https://testnet.nearblocks.io/address/app-mwaqn3wg.coveredmarket-relayer-mwallj7x.testnet), no access keys, code hash `GCKrWg7d8YRJrQTJXm5owmw8ZchcUhEN8ZSv9SHpCk3M`. That is the contract code on `development` today; the testnet site has since been redeployed with the same code hash.
 
 ## Try it in five minutes
 
