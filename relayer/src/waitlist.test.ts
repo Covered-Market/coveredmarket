@@ -77,13 +77,13 @@ describe("waitlist inbox delivery", () => {
   const entry = { email: "astrid@example.com", at: "2026-11-10T15:00:00.000Z", source: "landing" };
   it("logs in and appends the message to the mailbox", async () => {
     const srv = await fakeImap({ pass: "s3cret\"x" });
-    await imapAppend(net.connect(srv.port, "127.0.0.1"), { user: "contact@covered.market", pass: "s3cret\"x", mailbox: "INBOX" }, waitlistMessage(entry, "contact@covered.market"));
+    await imapAppend(net.connect(srv.port, "127.0.0.1"), { user: "waitlist@example.com", pass: "s3cret\"x", mailbox: "INBOX" }, waitlistMessage(entry, "waitlist@example.com"));
     srv.close();
-    expect(srv.got.auth).toBe("\0contact@covered.market\0s3cret\"x");
+    expect(srv.got.auth).toBe("\0waitlist@example.com\0s3cret\"x");
     expect(srv.got.mailbox).toBe("INBOX");
     expect(srv.got.message).toContain("Subject: Mainnet waitlist: astrid@example.com\r\n");
     expect(srv.got.message).toContain("Reply-To: astrid@example.com\r\n");
-    expect(srv.got.message).toContain("To: contact@covered.market\r\n");
+    expect(srv.got.message).toContain("To: waitlist@example.com\r\n");
     expect(srv.got.message).toMatch(/\r\n\r\nastrid@example.com joined/);
   });
   it("fails on a wrong password instead of hanging", async () => {
