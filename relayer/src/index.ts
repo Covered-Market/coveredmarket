@@ -8,7 +8,7 @@ import { decodeSignedDelegate, relayResult, viewOf } from "./near/delegate.js";
 import { nearClient } from "./near/client.js";
 import { describeAccount, describeOffer, describeParams, statusOf, type RawOffer, type RawParams } from "./agentapi.js";
 import { tick, viewAll, type Services } from "./run.js";
-import { spotUsd } from "./spot.js";
+import { HISTORY_HOURS, spotHistory, spotUsd } from "./spot.js";
 
 const env = (k: string, d?: string) => process.env[k] ?? d ?? (() => { throw new Error(`missing env ${k}`); })();
 const cfg = {
@@ -36,6 +36,14 @@ let spot = { price: cfg.fixedSpot ?? 0, sources: cfg.fixedSpot ? 1 : 0, at: cfg.
 app.get("/api/spot", async (_req, res) => {
   if (Date.now() - spot.at > 60_000) { try { spot = { ...(await spotUsd()), at: Date.now() }; } catch {} }
   res.json(spot);
+});
+// A week of hourly prices for the website's chart, kept for ten minutes. With a fixed price (the local stack) it is flat.
+let history: { points: [number, number][]; at: number } = { points: [], at: 0 };
+app.get("/api/spot/history", async (_req, res) => {
+  if (cfg.fixedSpot) { const now = Math.floor(Date.now() / 1000); return res.json({ points: [[now - HISTORY_HOURS * 3600, cfg.fixedSpot], [now, cfg.fixedSpot]] }); }
+  if (Date.now() - history.at > 600_000) { try { history = { points: await spotHistory(), at: Date.now() }; } catch {} }
+  if (!history.points.length) return res.status(503).json({ error: "price history unavailable" });
+  res.json({ points: history.points });
 });
 // Read API for agents and scripts (see agentapi.ts): the contract's views in plain units, with next actions.
 {

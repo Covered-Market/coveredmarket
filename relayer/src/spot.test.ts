@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { spotUsd } from "./spot.js";
+import { spotHistory, spotUsd } from "./spot.js";
 
 const stub = (prices: Record<string, unknown>) => (async (u: string) => {
   const host = new URL(u).hostname;
@@ -24,5 +24,24 @@ describe("reference price", () => {
   });
   it("fails when nothing answers", async () => {
     await expect(spotUsd(stub({}))).rejects.toThrow("no price sources");
+  });
+});
+
+describe("price history", () => {
+  const hours = (n: number, at: (i: number) => unknown) => Array.from({ length: n }, (_, i) => at(i));
+  it("returns a week of hourly closes, oldest first, from the first source that answers", async () => {
+    // Coinbase lists candles newest first: [time, low, high, open, close, volume].
+    const r = await spotHistory(stub({ coinbase: hours(300, (i) => [1_700_000_000 - i * 3600, 1, 2, 3, 70_000 + i, 9]) }));
+    expect(r).toHaveLength(168);
+    expect(r[0][0]).toBeLessThan(r[167][0]);
+    expect(r[167]).toEqual([1_700_000_000, 70_000]);
+  });
+  it("falls through to the next source", async () => {
+    const r = await spotHistory(stub({ bitstamp: { data: { ohlc: hours(40, (i) => ({ timestamp: String(1_700_000_000 + i * 3600), close: "71000.5" })) } } }));
+    expect(r).toHaveLength(40);
+    expect(r[39]).toEqual([1_700_000_000 + 39 * 3600, 71000.5]);
+  });
+  it("fails when no source has a day of prices", async () => {
+    await expect(spotHistory(stub({ coinbase: [[1_700_000_000, 1, 2, 3, 70_000, 9]] }))).rejects.toThrow("no price history");
   });
 });
