@@ -220,6 +220,7 @@ Every piece of information has exactly one writer; everything else reads it. The
 | Spend confirmation | Bitcoin chain; proof by relayer | NEAR state via `confirm_spend` | Frontend, `Verify` | event `spend_confirmed` |
 | Settlement price attestation | OutLayer enclave | Passed as call arg to `settle` | `coveredmarket.near` | signature + WASM hash check; stored for display |
 | Spot price on `/market` and `/sell` | Indexer (median of 5 public tickers, 60 s cache) | Indexer DB | Frontend | `GET /api/spot`; display only, never on chain |
+| Latest contracts on the website's live market | `coveredmarket.near` (`get_offer`, the 48 newest serials) | Relayer memory, 30 s cache shared by every visitor | Website | `GET /api/market/latest`; browsers never read the RPC node for it |
 | Mempool status (0-conf) | mempool.space | — | Frontend | WebSocket `track-address` |
 | Relayer queue (proofs pending, broadcasts, retries) | Relayer | Postgres | `/ops` page | internal API |
 

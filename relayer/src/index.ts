@@ -8,6 +8,7 @@ import { decodeSignedDelegate, relayResult, viewOf } from "./near/delegate.js";
 import { nearClient } from "./near/client.js";
 import { describeAccount, describeOffer, describeParams, statusOf, type RawOffer, type RawParams } from "./agentapi.js";
 import { tick, viewAll, type Services } from "./run.js";
+import { latestReader } from "./latest.js";
 import { HISTORY_HOURS, spotHistory, spotUsd } from "./spot.js";
 
 const env = (k: string, d?: string) => process.env[k] ?? d ?? (() => { throw new Error(`missing env ${k}`); })();
@@ -76,6 +77,10 @@ app.get("/api/spot/history", async (_req, res) => {
     const offers = all.filter((d) => (status ? statusOf(d, t) === status : statusOf(d, t) !== null));
     return { now_s: t, count: offers.length, offers };
   }));
+  // The website's live market: the latest contracts in the contract's own shape, newest first. Read for everyone at
+  // most every 30 seconds, so visitors never reach the RPC node themselves.
+  const readLatest = latestReader((serial) => near.view<RawOffer | null>("get_offer", { serial }));
+  app.get("/api/market/latest", json(async () => ({ offers: await cached("latest", readLatest, 30_000) })));
   app.get("/api/offers/:serial", json(async (req) => {
     const s = req.params.serial.replace(/^CV-/i, "");
     if (!/^\d{1,12}$/.test(s)) throw bad("serial is a number, e.g. 7 or CV-7");

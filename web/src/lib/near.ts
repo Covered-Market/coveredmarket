@@ -23,8 +23,11 @@ export async function loadConfig() {
   try { const r = await fetch("/config.json", { cache: "no-store" }); if (r.ok) Object.assign(CFG, await r.json()); } catch {}
 }
 
-export let provider = new JsonRpcProvider({ url: CFG.rpc });
-export function reconnect() { provider = new JsonRpcProvider({ url: CFG.rpc }); }
+// near-js retries a failed call 12 times by default (about two minutes of backoff). When a public RPC node is
+// rate-limiting this browser, that turns every call into a dozen more and keeps the limit in force; give up sooner.
+const rpcRetry = { retries: 3, wait: 1000, backoff: 2 };
+export let provider = new JsonRpcProvider({ url: CFG.rpc }, rpcRetry);
+export function reconnect() { provider = new JsonRpcProvider({ url: CFG.rpc }, rpcRetry); }
 
 export async function view<T>(method: string, args: Record<string, unknown> = {}, contract = CFG.contract): Promise<T> {
   const r: any = await provider.query({ request_type: "call_function", account_id: contract, method_name: method, args_base64: btoa(JSON.stringify(args)), finality: "final" });

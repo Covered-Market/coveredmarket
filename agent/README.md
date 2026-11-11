@@ -126,6 +126,7 @@ Served by each app's relayer. Nothing to install, any language:
 | `GET /api/offers?status=for_sale` | live offers (`for_sale`, `awaiting_deposit`, `sold`, `settling`; omit for all live) |
 | `GET /api/offers/CV-7` | one offer, any state |
 | `GET /api/accounts/<account>` | an account's offers and USDC claimable |
+| `GET /api/market/latest` | the 48 newest offers in any state, newest first, in the contract's raw shape (no `summary`); refreshed at most every 30 s |
 | `GET /api/spot` | the reference BTC price (display only; it never decides anything) |
 
 Writes stay with you: sign the `call` from `next_actions` with your own NEAR key, or use the SDK.

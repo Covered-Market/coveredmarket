@@ -12,6 +12,7 @@ The app on testnet is https://testnet.covered.market. It uses test coins and tes
   - `GET https://testnet.covered.market/api/offers?status=for_sale`: live offers (`for_sale`, `awaiting_deposit`, `sold`, `settling`)
   - `GET https://testnet.covered.market/api/offers/CV-7`: one offer in any state
   - `GET https://testnet.covered.market/api/accounts/<near-account>`: an account's offers and the USDC it can claim
+  - `GET https://testnet.covered.market/api/market/latest`: the 48 newest offers in any state, newest first, as the contract returns them (refreshed at most every 30 seconds)
   - `GET https://testnet.covered.market/config.json`: contract, token and RPC ids
 - Each offer comes back with `summary` (one sentence) and `next_actions`: who acts next (`seller`, `buyer`, `anyone`, or `relayer` for steps that happen automatically), from when, and the exact NEAR call to make.
 - Browser agents: open `https://testnet.covered.market/?testwallet=seller#/sell` or `?testwallet=buyer#/market`. The tab gets its own funded test wallet with no extension needed. `?testwallet=reset` forgets the keys.
