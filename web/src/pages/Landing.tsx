@@ -140,14 +140,15 @@ const BENEFITS = [
   ["oracle", "No oracle", "No price feed decides how your call ends. The buyer pays the strike just after expiry, or your coins come back."],
 ];
 
-const built = (): { status: "Live" | "Partly" | "Next"; name: string; what: string; id: string; d: string }[] => [
+const built = (): { status: "Live" | "Partly" | "Next" | "Mainnet"; name: string; what: string; id: string; d: string }[] => [
   { status: "Live", name: "Chain Signatures", what: "NEAR’s MPC network gives the contract its own Bitcoin key for every offer, derived from the contract, your account and the offer’s serial, and signs only the transaction the contract has committed to.", id: "NEAR MPC · derived keys", d: "M12 3a2 2 0 1 0 0.01 0 M5 17a2 2 0 1 0 0.01 0 M19 17a2 2 0 1 0 0.01 0 M11 6.5l-5 8.5 M13 6.5l5 8.5 M7 19h10" },
   { status: "Live", name: "Bitcoin light client", what: "A NEAR contract that tracks Bitcoin’s block headers. CoveredMarket accepts a deposit, or treats a settlement as done, only with a Merkle proof checked against it, so the contract never takes anyone’s word about Bitcoin.", id: "btc-light-client · Merkle proofs", d: "M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 17l2 2 4-4 M10 7h4 M7 10v4" },
   { status: "Live", name: "A contract nobody controls", what: "NEAR accounts are governed by access keys. CoveredMarket’s contract has none after deployment, so it cannot be upgraded or drained, and Verify checks that from your browser.", id: "0 access keys · no upgrades", d: "M7 11V8a5 5 0 0 1 10 0v3 M5 11h14v10H5z M12 15v2" },
   { status: "Live", name: "Pay and act in one receipt", what: "The buyer’s USDC arrives with its instruction through NEP-141 ft_transfer_call. The premium is credited and the buyer recorded in the same receipt, with no pending state between.", id: "NEP-141 · ft_transfer_call", d: "M4 12h6 M14 12h6 M10 8l4 4-4 4 M4 6v12 M20 6v12" },
   { status: "Live", name: "Meta-transactions", what: "NEAR delegate actions let you sign while a relayer submits the transaction and pays its gas, in wallets that support them. The relayer can never act alone.", id: "NEP-366 delegate actions", d: "M4 12h13 M13 7l5 5-5 5 M4 6v12" },
+  { status: "Mainnet", name: "NEAR Intents", what: "Coming with mainnet. A buyer will be able to pay in other tokens and from other chains, and NEAR Intents solvers deliver the USDC the contract expects.", id: "NEAR Intents · cross-chain", d: "M3 6c5 0 7 6 11 6h7 M3 18c5 0 7-6 11-6 M18 9l3 3-3 3" },
 ];
-const STATUS_COLOR = { Live: "var(--intaglio)", Partly: "var(--gilt-ink)", Next: "var(--ink-muted)" };
+const STATUS_COLOR = { Live: "var(--intaglio)", Partly: "var(--gilt-ink)", Next: "var(--ink-muted)", Mainnet: "var(--gilt-ink)" };
 
 /** Agent friendly: the ways software uses CoveredMarket (agent/README.md). Testnet and the local stack only. */
 const AGENT_WAYS = [
@@ -351,12 +352,12 @@ export function Landing() {
           <Seam n="05" />{/* patterns-v1: overflow was "hidden"; visible lets the seal sit on the seam */}
           <div className="ld-wrap ld-stack" style={{ gap: 32, position: "relative" }}>
             <div><Kicker n="05">Built with</Kicker><h2 id="stack-h" className="ld-h2" style={{ maxWidth: "16ch" }}>Built on NEAR. Settled on Bitcoin.</h2></div>
-            <div className="ld-3 ld-built ld-built--5">
+            <div className="ld-3 ld-built ld-built--row">
               {built().map((t) => (
                 <article className="ld-tech" key={t.name}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                     <span className="ld-disc" style={{ width: 48, height: 48 }}><Icon d={t.d} /></span>
-                    <span className="ld-stamp" style={{ color: STATUS_COLOR[t.status], borderStyle: t.status === "Next" ? "dashed" : "solid" }}>{t.status}</span>
+                    <span className="ld-stamp" style={{ color: STATUS_COLOR[t.status], borderStyle: t.status === "Live" ? "solid" : "dashed" }}>{t.status}</span>
                   </div>
                   <h3 className="heading" style={{ margin: 0 }}>{t.name}</h3>
                   <p className="body-small ld-muted" style={{ margin: 0 }}>{t.what}</p>
