@@ -67,12 +67,10 @@
 .ld-hero-film { position: relative; margin: 0; min-width: 0; }
 .ld-hero-film > figcaption { position: absolute; top: 100%; left: 0; right: 0; margin-top: 12px; }
 
-/* Built with: four cards in one row when there is room, then 2 × 2, then one column.
-   ld-built--row (the NEAR/Bitcoin stack, six cards): three to a row, so two full rows; two to a row on tablets. */
+/* Built with: four cards in one row when there is room, then 2 × 2, then one column. */
 .ld-3.ld-built { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.ld-3.ld-built.ld-built--row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-@media (max-width: 1023px) { .ld-3.ld-built, .ld-3.ld-built.ld-built--row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 599px) { .ld-3.ld-built, .ld-3.ld-built.ld-built--row { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1023px) { .ld-3.ld-built { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 599px) { .ld-3.ld-built { grid-template-columns: minmax(0, 1fr); } }
 
 /* film: the hero's player (HeroFilm). The poster is brand/assets/Social/video-poster-plain; the play button sits
    where the full poster's rosette has its eye (POSTER_EYE in gen_assets.py), so both versions share one layout. */
