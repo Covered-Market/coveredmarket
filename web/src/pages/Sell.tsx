@@ -189,7 +189,7 @@ export function Sell({ wallet, onConnect, step: asked = 1 }: { wallet: Wallet | 
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
               <div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>How buyers will see it</div>
-              <OfferCard offer={{ strike: k, expiry: expiryDay, premium: pr, annualised: Math.round(ann * 10) / 10, size: s, spot, vault: "made on confirm", seller: wallet ? who(wallet.accountId) : "you", status: "pending" }} action="Preview as a buyer" />
+              <OfferCard offer={{ strike: k, expiry: expiryDay, premium: pr, annualised: Math.round(ann * 10) / 10, size: s, spot, vault: "made on confirm", seller: wallet ? who(wallet.accountId) : "you", status: "pending" }} actionDisabled />
             </div>
           </div>
           <div style={{ border: "1px solid var(--gilt)", background: "var(--paper)", padding: "12px 14px" }}>
