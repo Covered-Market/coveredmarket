@@ -1,5 +1,5 @@
 import { describe as group, expect, it } from "vitest";
-import { ago, describe, newestSerial, who } from "./activity";
+import { accountShort, ago, describe, newestSerial, who } from "./activity";
 import type { Offer } from "./verify";
 
 group("newestSerial", () => {
@@ -71,5 +71,12 @@ group("describe", () => {
     const r = describe(o({ state: "Exercised", created_s: String(NOW - 5 * 3600), committed_at_s: String(NOW - 3 * 3600), signed_at_s: String(NOW - 2 * 3600) }), NOW);
     expect(r).toMatchObject({ serial: 7, sizeBtc: 0.0015, strikeUsd: 76_500, premiumUsd: 0.82, when: "2 hours ago" });
     expect(describe(o({ created_s: undefined }), NOW).when).toBe("");
+  });
+});
+
+group("accountShort", () => {
+  it("shortens an implicit account to its ends and leaves a named one whole", () => {
+    expect(accountShort("d707684f37f903ccab3249302589230eecd3af347fb5503fcd42c1c1c412a6b1")).toBe("d70768…a6b1");
+    expect(accountShort("imani-rce8.coveredmarket-relayer-mwallj7x.testnet")).toBe("imani-rce8.coveredmarket-relayer-mwallj7x.testnet");
   });
 });

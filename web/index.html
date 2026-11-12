@@ -24,6 +24,8 @@
   .cv-root a:not([class]):not([style]) { color: var(--intaglio); }
   .cv-side .cv-figure--xl { font-size: 36px; line-height: 40px; }
   .cv-side .cv-stat { min-width: 0; }
+  /* The account button: one line, cut with an ellipsis; the full account is in its tooltip. */
+  .cv-topbar__right .cv-btn { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
   /* Phones: header on two rows (nav scrolls), certificate in one column, smaller figures. */
   @media (max-width: 760px) {
     .cv-topbar { flex-wrap: wrap; gap: 8px 12px; padding: 10px 16px; }
