@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Offer, Params } from "../lib/verify";
 import { view } from "../lib/near";
+import { who } from "../lib/activity";
 
 export function useOffer(serial: number, everyMs = 10_000) {
   const [offer, setOffer] = useState<Offer | null>(null);
@@ -38,7 +39,7 @@ export const annualised = (premiumUsd: number, sizeBtc: number, spot: number, ex
 export const toOfferCard = (o: { size_sats: string; strike_units: string; premium_units: string; expiry_s: string; address: string; seller: string; state: string }, spot: number) => ({
   strike: Number(o.strike_units) / 1e6, expiry: new Date(Number(o.expiry_s) * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }),
   premium: Number(o.premium_units) / 1e6, annualised: Math.round(annualised(Number(o.premium_units) / 1e6, Number(o.size_sats) / 1e8, spot, Number(o.expiry_s)) * 10) / 10,
-  size: Number(o.size_sats) / 1e8, spot, vault: `${o.address.slice(0, 4)}…${o.address.slice(-4)}`, seller: o.seller, status: stampFor(o.state),
+  size: Number(o.size_sats) / 1e8, spot, vault: `${o.address.slice(0, 4)}…${o.address.slice(-4)}`, seller: who(o.seller), status: stampFor(o.state),
 });
 export const stampFor = (state: string): "open" | "kept" | "exercised" | "settled" | "pending" | "refused" =>
   state === "Kept" ? "kept" : state === "Exercised" ? "exercised" : state === "Withdrawn" || state === "Cancelled" || state === "Rescued" ? "settled" : state === "Created" ? "pending" : "open";

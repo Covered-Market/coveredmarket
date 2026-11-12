@@ -21,6 +21,11 @@ export async function newestSerial(exists: (serial: number) => Promise<boolean>,
   return lo;
 }
 
+/** An account in full, except an implicit one (64 hex characters), which is shortened to its ends ("d70768…a6b1"). */
+export function accountShort(account: string): string {
+  return /^[0-9a-f]{64}$/.test(account) ? `${account.slice(0, 6)}…${account.slice(-4)}` : account;
+}
+
 /** An account as people would say it: the name before the first dot ("ola-x7k2"), or a short hash for an implicit one. */
 export function who(account: string | null | undefined): string {
   if (!account) return "someone";
