@@ -38,6 +38,8 @@ No gradients, no shadows (borders instead), square corners except buttons (2px) 
 
 Guilloche rosette and band (drawn by code), coupon edge, hatch, lid tile, microtext. One per surface, 25–55% opacity, ink on paper or gilt on vault, never under body text.
 
+**Placing the rosette.** As a background the rosette is never shown whole. Its centre sits outside the frame, so only its curves sweep in from an edge: from the top-right corner by default, or from the right edge. Draw it large, with a diameter of about three quarters of the surface's width or more, and put the centre just past the edge (the landing page sets it 6% of the diameter outside the top-right corner; the vault band sets it 18% off the right edge). It may turn slowly; it never pulses or fades. The landing page's hero and vault band and the title and divider slides of a presentation all follow this. A whole rosette is used only small, as a seal: the serial mark on a contract, or a medallion on a section seam.
+
 ## Voice
 
 A careful broker's letter: plain, exact, second person, honest about trust ("signatures come from NEAR's MPC network"), no exclamation marks, no emoji, "custodian" not "trustless", every claim with its figure and UTC date.
