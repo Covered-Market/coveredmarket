@@ -93,7 +93,7 @@ jobs:
           IMAP_USER: ${{ vars.WAITLIST_IMAP_USER }}
           IMAP_HOST: ${{ vars.WAITLIST_IMAP_HOST }}
           WAITLIST_TO: ${{ vars.WAITLIST_TO }}
-          # The website hero's film (a YouTube embed link). Optional: unset, the VM keeps the one it has.
+          # The website hero's film (a YouTube embed link). Optional: unset, the VM keeps the one it has; "none" removes it.
           FILM_URL: ${{ vars.FILM_URL }}
         run: bin/coveredmarket deploy
       - name: save terraform state
