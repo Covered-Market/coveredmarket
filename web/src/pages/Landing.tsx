@@ -2,7 +2,7 @@
  * The public landing page. On the website (CFG.mode "site", covered.market) it carries no network band, switch
  * or contract ids, and every app link leaves for the testnet app (CFG.testnetUrl). On the local stack it is `/` of
  * the local app. The ticker and the market section (LiveMarket) read the configured contract.
- * The page shows no captures of the app, so it cannot fall out of step with it. The hero shows the film (HeroFilm).
+ * The page shows no captures of the app, so it cannot fall out of step with it.
  */
 import { useEffect, useState, type ReactNode } from "react";
 import { CFG } from "../lib/near";
@@ -28,11 +28,6 @@ const SOCIAL: [string, string, string][] = [
 function Social({ className }: { className: string }) {
   return <div className={className}>{SOCIAL.map(([name, href, d]) => <a key={name} href={href} target="_blank" rel="noreferrer" aria-label={`CoveredMarket on ${name}`} title={name}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={d} fill="currentColor" /></svg></a>)}</div>;
 }
-/** The film for the hero: a YouTube embed link, e.g. https://www.youtube-nocookie.com/embed/<id>. Empty until it is
- *  out. The site config's `filmUrl` overrides it. */
-const FILM_URL = "";
-const filmUrl = () => (CFG as unknown as { filmUrl?: string }).filmUrl || FILM_URL;
-
 /** Where links go: the testnet app on the website, this app on the local stack. Read after loadConfig() has run
  *  (module scope runs before it), so a function of CFG. */
 const links = () => {
@@ -43,26 +38,6 @@ const links = () => {
 /** In-page anchors: the app uses the hash for routes, so section links scroll instead of changing the hash. */
 function jump(e: React.MouseEvent, id: string) { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); }
 const A = ({ to, children, className, style }: { to: string; children: ReactNode; className?: string; style?: React.CSSProperties }) => <a href={`#${to}`} onClick={(e) => jump(e, to)} className={className} style={style}>{children}</a>;
-
-/** The film as an embedded player (FILM_URL). Before play it shows the film's poster: the plain version of
- *  brand/assets/Social/video-poster-*, since the page carries the rosette itself (.ld-seal). Pressing play swaps in
- *  the player, with its own controls and full screen. Without a film yet the play mark is decoration. */
-function HeroFilm() {
-  const url = filmUrl();
-  const [playing, setPlaying] = useState(false);
-  const play = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l12-7z" fill="currentColor" /></svg>;
-  if (playing && url) return (
-    <div className="ld-film">
-      <iframe src={`${url}${url.includes("?") ? "&" : "?"}autoplay=1&rel=0`} title="CoveredMarket: from offer to settlement" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
-    </div>
-  );
-  return (
-    <div className="ld-film">
-      <img src="/site/film/poster.svg" alt="From offer to settlement: one covered call on native Bitcoin" />
-      {url ? <button type="button" className="ld-play" onClick={() => setPlaying(true)} aria-label="Play the film">{play}</button> : <span className="ld-play" aria-hidden="true">{play}</span>}
-    </div>
-  );
-}
 
 const Kicker = ({ n, children }: { n?: string; children: ReactNode }) => <p className="ld-kicker">{n ? `Art. ${n} · ` : ""}{children}</p>;
 const Icon = ({ d }: { d: string }) => <svg viewBox="0 0 24 24" aria-hidden="true"><path d={d} fill="none" stroke="var(--intaglio)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
@@ -277,11 +252,6 @@ export function Landing() {
         </section>
 
         <Ticker offers={market.offers} failed={market.failed} href={app} />
-
-        {/* the film, on its own row */}
-        <section id="film" className="ld-film-row" aria-label="The film">
-          <div className="ld-wrap"><figure className="ld-hero-film"><HeroFilm /></figure></div>
-        </section>
 
         {/* benefits */}
         <section id="why" className="ld-sec ld-vault pt-host" data-theme="vault" aria-labelledby="why-h">

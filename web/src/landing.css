@@ -60,28 +60,12 @@
 .ld-hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: clamp(40px, 5vw, 64px); align-items: center; }
 /* The quiet thing beside the headline: the seal, small and soft, echoing the rosette behind the page. */
 .ld-hero-seal { width: clamp(200px, 20vw, 280px); height: auto; display: block; opacity: .85; margin-right: clamp(24px, 6vw, 96px); }
-/* The film on its own row, the full content width. */
-.ld-film-row { padding: 0 0 120px; }
 .ld-hero-lede { font: 400 20px/1.55 var(--font-sans); color: var(--ink-muted); margin: 0; max-width: 34ch; }
-/* The caption hangs below the film, out of the grid's flow, so the film itself centres on the text. */
-.ld-hero-film { position: relative; margin: 0; min-width: 0; }
-.ld-hero-film > figcaption { position: absolute; top: 100%; left: 0; right: 0; margin-top: 12px; }
 
 /* Built with: four cards in one row when there is room, then 2 × 2, then one column. */
 .ld-3.ld-built { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 1023px) { .ld-3.ld-built { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 599px) { .ld-3.ld-built { grid-template-columns: minmax(0, 1fr); } }
-
-/* film: the hero's player (HeroFilm). The poster is brand/assets/Social/video-poster-plain; the play button sits
-   where the full poster's rosette has its eye (POSTER_EYE in gen_assets.py), so both versions share one layout. */
-.ld-film { position: relative; aspect-ratio: 16 / 9; background: #0f211b; overflow: hidden; box-shadow: 0 24px 48px -24px #132a2399; }
-.ld-film > img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.ld-film iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
-.ld-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; width: clamp(56px, 11%, 104px); aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; background: #d9b257; color: #0f211b; border: 0; padding: 0; margin: 0; box-shadow: 0 10px 28px -10px #000c; transition: transform .15s ease; }
-.ld-play svg { width: 44%; height: 44%; display: block; }
-button.ld-play { cursor: pointer; }
-button.ld-play:hover { transform: translate(-50%, -50%) scale(1.06); }
-button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; }
 
 /* benefits */
 .ld-benefit { padding: 28px 0; border-bottom: 1px solid var(--rule); display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-content: start; }
@@ -175,9 +159,7 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
   .ld-hero-grid { gap: 40px; }
   .ld-hero { padding: 149px 0 109px; }
   .ld-hero-seal { display: none; }
-  .ld-film-row { padding-bottom: 80px; }
   .ld-hero .ld-h1 { font-size: clamp(46px, 10vw, 84px); }
-  .ld-hero-film > figcaption { position: static; }
   .ld-h1 { font-size: clamp(46px, 10vw, 84px); }
   .ld-h2 { font-size: clamp(32px, 6vw, 48px); }
   .ld-4, .ld-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -186,7 +168,6 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
   .ld-wrap { padding: 0 16px; }
   .ld-sec { padding: 56px 0; }
   .ld-hero { padding: 103px 0 83px; }
-  .ld-film-row { padding-bottom: 56px; }
   .ld-hero .ld-stack { gap: 24px; }
   .ld-hide-phone { display: none !important; }
   .ld-lede { font-size: 18px; }
@@ -297,9 +278,8 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 .ld a.ld-tick-item:hover { background: var(--paper-sunk); }
 .ld-tick-word { font: 700 11px/16px var(--font-sans); letter-spacing: .14em; text-transform: uppercase; }
 @keyframes ld-tick-run { to { transform: translateX(-50%); } }
-/* The ticker sits in the middle of the gap between the hero and the film. */
+/* The ticker sits between the hero and the benefits. */
 .ld-hero:has(+ .ld-tick) { padding-bottom: 144px; }
-.ld-tick + .ld-film-row { padding-top: 72px; }
 .ld-chart text { font: 500 11px var(--font-mono); fill: var(--ink-muted); }
 .ld-car { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 2px; margin: -2px; }
 .ld-car::-webkit-scrollbar { display: none; }
@@ -312,9 +292,9 @@ button.ld-play:focus-visible { outline: 2px solid #d9b257; outline-offset: 4px; 
 .ld-car-nav button:hover:not(:disabled) { background: var(--paper-sunk); }
 .ld-car-nav button:disabled { opacity: .35; cursor: default; }
 .ld-car-nav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-@media (max-width: 1023px) { .ld-hero:has(+ .ld-tick) { padding-bottom: 109px; } .ld-tick + .ld-film-row { padding-top: 48px; } }
+@media (max-width: 1023px) { .ld-hero:has(+ .ld-tick) { padding-bottom: 109px; } }
 @media (max-width: 599px) {
-  .ld-hero:has(+ .ld-tick) { padding-bottom: 83px; } .ld-tick + .ld-film-row { padding-top: 36px; }
+  .ld-hero:has(+ .ld-tick) { padding-bottom: 83px; }
   .ld a.ld-tick-item { padding: 10px 20px 12px; }
 }
 @media (prefers-reduced-motion: reduce) { .ld-tick-track { animation: none; } .ld-tick-view { overflow-x: auto; } }
