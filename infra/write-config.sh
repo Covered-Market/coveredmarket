@@ -5,6 +5,7 @@
 #   SWITCH_HOST  the other network's app (the header switch)
 #   SITE_HOST    the website, when it is separate from the apps (then `/` on an app opens the app)
 #   TESTNET_HOST, MAINNET_HOST  the two apps, for the website (SITE=1)
+#   FILM_URL     optional: the website hero's film, a YouTube embed link (SITE=1). Empty shows the poster only.
 set -eu
 out=$1
 url() { case "${1:-}" in ""|:*) ;; *) printf 'https://%s' "$1" ;; esac; }
@@ -12,8 +13,8 @@ SWITCH_URL=$(url "${SWITCH_HOST:-}"); SITE_URL=$(url "${SITE_HOST:-}")
 q() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 if [ "${SITE:-}" = 1 ]; then
   # rpc + contract only so the hero certificate can be read live; the page never shows them.
-  printf '{"mode":"site","helper":"/api","appUrl":"%s","testnetUrl":"%s","mainnetLive":false,"rpc":"%s","contract":"%s"}\n' \
-    "$(q "$(url "${MAINNET_HOST:-}")")" "$(q "$(url "${TESTNET_HOST:-}")")" "$(q "${WEB_NEAR_RPC:-${NEAR_RPC:-https://rpc.testnet.fastnear.com}}")" "$(q "${COVERED_ID:-}")" > "$out"
+  printf '{"mode":"site","helper":"/api","appUrl":"%s","testnetUrl":"%s","mainnetLive":false,"rpc":"%s","contract":"%s","filmUrl":"%s"}\n' \
+    "$(q "$(url "${MAINNET_HOST:-}")")" "$(q "$(url "${TESTNET_HOST:-}")")" "$(q "${WEB_NEAR_RPC:-${NEAR_RPC:-https://rpc.testnet.fastnear.com}}")" "$(q "${COVERED_ID:-}")" "$(q "${FILM_URL:-}")" > "$out"
 elif [ -z "${COVERED_ID:-}" ]; then
   printf '{"mode":"%s","disabled":true,"switchUrl":"%s","siteUrl":"%s"}\n' "$(q "${MODE:-mainnet}")" "$(q "$SWITCH_URL")" "$(q "$SITE_URL")" > "$out"
 else
