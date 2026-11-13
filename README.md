@@ -60,7 +60,7 @@ On 10 Nov 2026 one full contract ran on Bitcoin testnet3 and NEAR testnet, throu
 | 14:15:06 | Signed by `v1.signer-prod.testnet` and broadcast: [`2c89e8fa…a6281`](https://mempool.space/testnet/tx/2c89e8fae13903d256ef01ede4f04f5e195c709045a4902cc5f2f32ea87a6281) |
 | 14:16:41 | **Exercised**: spend proven on NEAR, seller claimed 155 USDC |
 
-Contract: [`app-mwaqn3wg.coveredmarket-relayer-mwallj7x.testnet`](https://testnet.nearblocks.io/address/app-mwaqn3wg.coveredmarket-relayer-mwallj7x.testnet), no access keys, code hash `GCKrWg7d8YRJrQTJXm5owmw8ZchcUhEN8ZSv9SHpCk3M`. That is the contract code on `development` today; the testnet site has since been redeployed with the same code hash.
+Contract: [`app-mwaqn3wg.coveredmarket-relayer-mwallj7x.testnet`](https://testnet.nearblocks.io/address/app-mwaqn3wg.coveredmarket-relayer-mwallj7x.testnet), no access keys, code hash `GCKrWg7d8YRJrQTJXm5owmw8ZchcUhEN8ZSv9SHpCk3M`. That is the contract code on `development` today. The testnet site has since been redeployed to [`app-mway9qsa.coveredmarket-relayer-mwallj7x.testnet`](https://testnet.nearblocks.io/address/app-mway9qsa.coveredmarket-relayer-mwallj7x.testnet), with the same code hash and no access keys; the site's [`config.json`](https://testnet.covered.market/config.json) always names the current one.
 
 ## Try it in five minutes
 
