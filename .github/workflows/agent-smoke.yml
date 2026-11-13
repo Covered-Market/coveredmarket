@@ -1,0 +1,39 @@
+name: agent-smoke
+# The agent CLI and MCP server against the deployed testnet app, read-only (e2e/agent-smoke.mjs): params, offers,
+# one offer, a refused call, and the same reads over MCP. It makes no wallet and spends nothing.
+# Runs every 3 hours and after each successful deploy. The app is https://testnet.<DOMAIN repository variable>,
+# or the `site` input; with neither, the run says so and passes.
+on:
+  schedule:
+    - cron: "23 */3 * * *"
+  workflow_run:
+    workflows: [cloud]
+    types: [completed]
+    branches: [development]
+  workflow_dispatch:
+    inputs:
+      site:
+        description: the app's URL, e.g. https://testnet.example.com (empty = https://testnet.<DOMAIN>)
+        default: ""
+concurrency:
+  group: agent-smoke
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  smoke:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SITE: ${{ inputs.site || (vars.DOMAIN && format('https://testnet.{0}', vars.DOMAIN)) || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: no site configured
+        if: env.SITE == ''
+        run: echo "::notice::No app to check. Set the DOMAIN repository variable or pass the site input."
+      - name: agent CLI and MCP against ${{ env.SITE }}
+        if: env.SITE != ''
+        run: node e2e/agent-smoke.mjs

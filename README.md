@@ -104,7 +104,7 @@ The first run takes 4 to 8 minutes, mostly compiling the contracts inside Docker
 bin/coveredmarket e2e-stack
 ```
 
-In about two minutes it drives two contracts through their whole life, one **KEPT** and one **EXERCISED**: create, deposit on regtest, proof, sale, settlement and claim. It then sells and deposits once through the web app, presses **Verify** in a real browser (7 of 7 on each certificate), and sweeps a deposit with the seller's rescue kit after its timelock. The last line is `E2E PASSED`, and screenshots land in `e2e/artifacts/`. On a fresh Linux machine, run `cd e2e && npx playwright install --with-deps chromium` once first, so the browser's system libraries are present.
+In a few minutes it drives two contracts through their whole life, one **KEPT** and one **EXERCISED**: create, deposit on regtest, proof, sale, settlement and claim. It then sells and deposits once through the web app, presses **Verify** in a real browser (7 of 7 on each certificate), sweeps a deposit with the seller's rescue kit after its timelock, and runs one more contract through the agent CLI and MCP server. The last line is `E2E PASSED`, and screenshots land in `e2e/artifacts/`. On a fresh Linux machine, run `cd e2e && npx playwright install --with-deps chromium` once first, so the browser's system libraries are present.
 
 The same two commands run on a clean machine in CI on every pull request and every push to `development` ([stack workflow](https://github.com/Covered-Market/coveredmarket/actions/workflows/stack.yml)), on both x86-64 and arm64.
 

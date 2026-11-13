@@ -140,3 +140,5 @@ From the repository root (`bin/coveredmarket test` runs both, and installs what 
 cd agent && npm test        # keys, rescue kits, store, CLI parsing, MCP tool list
 cd relayer && npm test      # the offer descriptions and next_actions (agentapi.test.ts)
 ```
+
+The CLI and MCP server themselves are tested against a running app. `bin/coveredmarket e2e-stack` sells, deposits, buys and claims through them on the local stack (`e2e/agent.mjs`). `node e2e/agent-smoke.mjs` makes read-only calls against any app (`SITE=…`, default `http://localhost`); CI runs it on the deployed testnet app every 3 hours.

@@ -101,7 +101,17 @@ export class Core implements Esplora {
   }
   async broadcast(raw: string) { if (!txidOf(raw)) throw new Error("bad tx"); return this.rpc<string>("sendrawtransaction", [raw]); }
   /** Regtest only: the `miner` wallet the local bootstrap creates and funds. */
-  private miner<T = any>(method: string, params: unknown[] = []) { return new Core({ ...this.cfg, wallet: "miner" }, this.fetchFn).rpc<T>(method, params, true); }
+  // bitcoind does not reload a wallet after a restart (the container is recreated by `up`, or Docker restarts it),
+  // so load it on first miss and retry once.
+  private async miner<T = any>(method: string, params: unknown[] = []): Promise<T> {
+    const m = new Core({ ...this.cfg, wallet: "miner" }, this.fetchFn);
+    try { return await m.rpc<T>(method, params, true); }
+    catch (e) {
+      if (!/not loaded|does not exist/.test((e as Error).message)) throw e;
+      await this.rpc("loadwallet", ["miner"]).catch((l) => { if (!/already loaded/.test((l as Error).message)) throw l; });
+      return m.rpc<T>(method, params, true);
+    }
+  }
   async mine(n: number) { const addr = await this.miner<string>("getnewaddress"); return this.rpc("generatetoaddress", [n, addr]); }
   async send(address: string, btc: number) { return this.miner<string>("sendtoaddress", [address, btc]); }
   async newAddress() { return this.miner<string>("getnewaddress", ["", "bech32"]); }
