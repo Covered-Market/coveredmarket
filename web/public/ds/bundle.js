@@ -98,8 +98,8 @@
         h('div', null, h('div', { className: 'cv-offer__k' }, 'Premium'), h(Figure, { value: o.premium, kind: 'usd', size: 'xl', tone: 'gilt' })),
         h('div', { className: 'cv-offer__yield' }, fmt(o.annualised, 'pct') + ' annualised')),
       h('div', { className: 'cv-offer__foot' },
-        h('span', { className: 'cv-offer__seller' }, 'seller ' + (o.seller || '')),
-        h(Button, { variant: 'primary', onClick: p.onAct }, p.action || 'Buy this call')));
+        h('span', { className: 'cv-offer__seller', title: o.seller || undefined }, 'seller ' + (o.seller || '')),
+        h(Button, { variant: 'primary', onClick: p.onAct, disabled: !!p.actionDisabled }, p.action || 'Buy this call')));
   }
 
   // ---- PositionsTable ----

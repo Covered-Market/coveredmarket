@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { btc8, C, dateUtc, usd } from "../ds";
+import { btc8, C, dateUtc, duration, usd } from "../ds";
+import { accountShort } from "../lib/activity";
 import { call, CFG, verifyClients, view, type Wallet } from "../lib/near";
 import { runChecks, type CheckResult } from "../lib/verify";
 import { stampFor, useOffer, useParams } from "./hooks";
@@ -37,12 +38,12 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
   const reclaimFrom = Number((offer as any).unlock_s ?? 0) + (params?.escrow_timeout_s ?? 604800);
   const contract = {
     serial: `CV-${serial}`, issued: dateUtc(offer.created_s ?? offer.expiry_s).split(",")[0], size: Number(offer.size_sats) / 1e8, strike: Number(offer.strike_units) / 1e6, expiry: dateUtc(offer.expiry_s),
-    premium: Number(offer.premium_units) / 1e6, vault: offer.address, seller: offer.seller, buyer: offer.buyer ?? undefined, contractId: CFG.contract, status: stampFor(offer.state),
+    premium: Number(offer.premium_units) / 1e6, vault: offer.address, seller: accountShort(offer.seller), buyer: offer.buyer ? accountShort(offer.buyer) : undefined, contractId: CFG.contract, status: stampFor(offer.state),
   };
   const steps = [
     { title: "Coins deposited", detail: offer.collateral_txid ? `${btc8(offer.collateral_value_sats!)} · tx ${offer.collateral_txid.slice(0, 10)}…` : "awaiting deposit", state: offer.collateral_txid ? "done" : "now" },
-    { title: "Call sold", detail: offer.buyer ? `${offer.buyer} · ${usd(offer.premium_units)} credited to the seller` : "listed", state: offer.buyer ? "done" : offer.collateral_txid ? "now" : "todo" },
-    { title: `Exercise window ${dateUtc(expiry).slice(0, 17)} + ${Math.round(grace / 60)} min`, detail: offer.commitment_reason === "Exercise" ? `strike ${usd(offer.strike_total_units)} paid` : now >= expiry + grace ? "closed, not exercised" : windowOpen ? "open now" : "not yet open", state: offer.commitment_reason ? "done" : windowOpen ? "now" : "todo" },
+    { title: "Call sold", detail: offer.buyer ? `to ${accountShort(offer.buyer)} · ${usd(offer.premium_units)} credited to the seller` : "listed", state: offer.buyer ? "done" : offer.collateral_txid ? "now" : "todo" },
+    { title: `Exercise window: ${duration(grace)} from ${dateUtc(expiry)}`, detail: offer.commitment_reason === "Exercise" ? `strike ${usd(offer.strike_total_units)} paid` : now >= expiry + grace ? "closed, not exercised" : windowOpen ? "open now" : "not yet open", state: offer.commitment_reason ? "done" : windowOpen ? "now" : "todo" },
     rescued
       ? { title: "Coins taken back by the seller", detail: "through the seller's own exit on Bitcoin; any strike in escrow went back to the buyer", state: "done" }
       : { title: offer.commitment_reason === "Exercise" ? "Delivery to the buyer" : "Coins returned to the seller", detail: offer.commitment_txid ? `tx ${offer.commitment_txid.slice(0, 10)}… ${offer.signed_tx ? "signed" : "signature requested"}` : "", state: ["Kept", "Exercised", "Withdrawn"].includes(offer.state) ? "done" : offer.commitment_txid ? "now" : "todo" },
@@ -71,7 +72,7 @@ export function Contract({ serial, wallet }: { serial: number; wallet: Wallet | 
         {checks && (
           <div data-cv="verify" style={{ background: "var(--paper-sunk)", border: "1px solid var(--rule-strong)", padding: "16px 18px", fontFamily: "var(--font-mono)", fontSize: 13, lineHeight: "22px" }}>
             {checks.map((k) => (
-              <div key={k.n} style={{ display: "grid", gridTemplateColumns: "18px 18px 1fr", gap: 10, color: k.status === "verified" ? "var(--intaglio)" : k.status === "failed" ? "var(--oxblood)" : "var(--ink-muted)" }}>
+              <div key={k.n} style={{ display: "grid", gridTemplateColumns: "18px 18px minmax(0, 1fr)", gap: 10, overflowWrap: "anywhere", color: k.status === "verified" ? "var(--intaglio)" : k.status === "failed" ? "var(--oxblood)" : "var(--ink-muted)" }}>
                 <span>{k.status === "verified" ? "✓" : k.status === "failed" ? "✗" : "?"}</span><span style={{ color: "var(--ink-muted)" }}>{k.n}</span><span><b>{k.title}</b> · {k.detail}</span>
               </div>
             ))}

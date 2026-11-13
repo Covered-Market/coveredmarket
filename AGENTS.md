@@ -27,7 +27,7 @@ Commands:
 bin/coveredmarket test        # unit tests: contract, relayer, web, agent (Rust 1.85+, Node 22)
 bin/coveredmarket up          # the whole stack in Docker → http://localhost
 bin/coveredmarket e2e-stack   # end-to-end against a running `up`
-cd relayer && npm test        # one package at a time: relayer, web, agent each have `npm test`
+cd relayer && npm ci && npm test   # one package at a time: relayer, web, agent each have `npm test` (agent also needs relayer's `npm ci`)
 ```
 
 Rules that keep the repo consistent:

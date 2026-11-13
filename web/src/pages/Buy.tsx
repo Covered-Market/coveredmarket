@@ -26,7 +26,7 @@ export function Buy({ serial, wallet, onCreate }: { serial: number; wallet: Wall
     <div className="cv-split cv-pad" style={{ padding: "32px 48px", display: "grid", gridTemplateColumns: "minmax(0, 380px) minmax(0, 1fr)", gap: 56, alignItems: "start" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div className="body-small" style={{ color: "var(--ink-muted)" }}>Market / <b style={{ color: "var(--ink)" }}>CV-{serial}</b></div>
-        <OfferCard offer={toOfferCard(offer, spot)} />
+        <OfferCard offer={toOfferCard(offer, spot)} onAct={() => document.getElementById("buy-address")?.focus()} />
         <div style={{ border: "1px solid var(--rule)", background: "var(--paper-raised)", padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
           <div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>Proof the coins exist</div>
           <div className="body-small">{btc8(offer.collateral_value_sats ?? "0")} at <span className="cv-mono" style={{ color: "var(--copper-ink)", wordBreak: "break-all" }}>{offer.address}</span>, proven on NEAR by the light client.</div>
@@ -40,7 +40,7 @@ export function Buy({ serial, wallet, onCreate }: { serial: number; wallet: Wall
           <p className="body" style={{ margin: 0, color: "var(--ink-muted)", maxWidth: 620 }}>You pay {usd(offer.premium_units)} now. For {windowText} from {dateUtc(offer.expiry_s)} you may buy {btc8(offer.size_sats)} for {strikeTotal}, whatever the market price, by paying it. If you don't, the premium is the seller's and the coins go back to the seller.</p>
         </div>
         <div style={{ background: "var(--paper-raised)", border: "1px solid var(--rule)", padding: 24, display: "flex", flexDirection: "column", gap: 16, maxWidth: 640 }}>
-          <Field label="Receive coins at (if you exercise)" value={addr} onChange={(e) => setAddr(e.target.value)} placeholder="tb1q… / bc1q…" help="A Bitcoin address you control, bech32 v0. Fixed at purchase." />
+          <Field id="buy-address" label="Receive coins at (if you exercise)" value={addr} onChange={(e) => setAddr(e.target.value)} placeholder="tb1q… / bc1q…" help="A Bitcoin address you control, bech32 v0. Fixed at purchase." />
           <div data-cv="pay" style={{ padding: 16, background: "var(--paper-sunk)", border: "1px solid var(--rule-strong)", display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ flex: "1 1 260px", minWidth: 0 }}>
               <div className="label" style={{ textTransform: "uppercase", color: "var(--ink-muted)" }}>Pay {usd(offer.premium_units)} USDC from</div>

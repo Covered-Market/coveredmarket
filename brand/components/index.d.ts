@@ -27,7 +27,8 @@ export interface StatTileProps { label: string; value: number | string; kind?: F
 export declare function StatTile(props: StatTileProps): React.ReactElement;
 
 export interface Offer { strike: number; expiry: string; premium: number; annualised: number; size: number; spot: number; vault: string; seller: string; status?: Status }
-export interface OfferCardProps { offer: Offer; action?: string; onAct?: () => void; className?: string }
+/** `actionDisabled` shows the action as it will look but inert, for previews. */
+export interface OfferCardProps { offer: Offer; action?: string; onAct?: () => void; actionDisabled?: boolean; className?: string }
 export declare function OfferCard(props: OfferCardProps): React.ReactElement;
 
 export interface PositionRow { id: string; side: 'sell' | 'buy'; size: number; strike: number; expiry: string; premium: number; status: Status }

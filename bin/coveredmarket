@@ -32,7 +32,10 @@ case "$cmd" in
       cli)  docker compose "${LOCAL[@]}" exec bitcoind bitcoin-cli -regtest -rpcuser=coveredmarket -rpcpassword=coveredmarket "$@" ;;
       *) echo "btc send <addr> <btc> | btc mine [n] | btc cli <args>"; exit 1 ;;
     esac ;;
-  test)      cargo test -p coveredmarket && (cd relayer && npm test) && (cd web && npm test) && (cd agent && npm test) ;;
+  test)      # unit tests; installs each package's npm dependencies first if they are missing (the agent imports the relayer)
+    need cargo "Rust 1.85+"; need npm "Node 22"
+    for p in relayer web agent; do [ -d $p/node_modules ] || (cd $p && npm ci --no-audit --no-fund); done
+    cargo test -p coveredmarket && (cd relayer && npm test) && (cd web && npm test) && (cd agent && npm test) ;;
   build)     set -e; for c in coveredmarket mock-signer mock-btc-client mock-usdc; do cargo near build non-reproducible-wasm --manifest-path contracts/$c/Cargo.toml; done ;;
   e2e)       "$0" build && cargo test -p integration -- --test-threads=1 ;;
   serve)     # on the cloud VM: first start on testnet creates its own contracts, then the two-container stack

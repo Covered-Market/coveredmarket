@@ -133,7 +133,10 @@ Writes stay with you: sign the `call` from `next_actions` with your own NEAR key
 
 ## Tests
 
+From the repository root (`bin/coveredmarket test` runs both, and installs what is missing):
+
 ```sh
+(cd relayer && npm ci) && (cd agent && npm ci)   # once; the agent imports the relayer's code
 cd agent && npm test        # keys, rescue kits, store, CLI parsing, MCP tool list
 cd relayer && npm test      # the offer descriptions and next_actions (agentapi.test.ts)
 ```

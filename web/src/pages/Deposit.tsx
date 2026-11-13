@@ -81,7 +81,7 @@ export function Deposit({ serial, wallet }: { serial: number; wallet: Wallet | n
           <SettlementTimeline steps={steps} />
           {offer.state === "Created" && (seen && !seen.confirmed ? <BlockWait blocks={minConf} what="to include your deposit" /> : seen && seen.depth < minConf ? <BlockWait blocks={minConf - seen.depth} what="for the remaining confirmations" /> : seen ? <span className="body-small" style={{ color: "var(--ink-muted)" }}>Confirmed. The relayer submits the proof within a minute, once the light client has the block's header.</span> : null)}
         </div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <Button variant="primary" size="lg" href={`#/c/${serial}`} disabled={offer.state === "Created"}>{offer.state === "Created" ? "Waiting for the proof" : "Open the certificate"}</Button>
           {wallet?.accountId !== offer.seller && <span className="body-small" style={{ color: "var(--ink-muted)" }}>You are viewing another seller's deposit page.</span>}
         </div>

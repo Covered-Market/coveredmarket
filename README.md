@@ -123,7 +123,7 @@ bin/coveredmarket rescue <kit> <addr>   # the seller's exit: sweep a deposit wit
 These run on your machine rather than in Docker:
 
 ```sh
-bin/coveredmarket test        # unit tests: contract, relayer, web. Needs Rust 1.85+ and Node 22
+bin/coveredmarket test        # unit tests: contract, relayer, web, agent. Needs Rust 1.85+ and Node 22
 bin/coveredmarket e2e         # contract flows on a NEAR sandbox node. Also needs the wasm32 target and cargo-near 0.23 (see DEVELOPING.md)
 bin/coveredmarket e2e-stack   # the whole product against a running `bin/coveredmarket up`, as above
 ```
