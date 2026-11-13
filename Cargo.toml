@@ -1,6 +1,9 @@
 [workspace]
 resolver = "2"
 members = ["contracts/coveredmarket", "contracts/mock-signer", "contracts/mock-btc-client", "contracts/mock-usdc", "integration"]
+# A bare `cargo test` runs the contracts' own tests. The integration tests need the wasm built first and a NEAR
+# sandbox: `bin/coveredmarket e2e` (or `cargo test -p integration` after `bin/coveredmarket build`).
+default-members = ["contracts/coveredmarket", "contracts/mock-signer", "contracts/mock-btc-client", "contracts/mock-usdc"]
 
 [workspace.dependencies]
 near-sdk = "5.30"
