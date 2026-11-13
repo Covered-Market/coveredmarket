@@ -82,9 +82,11 @@ case "$cmd" in
         [ -z "${WAITLIST_TO:-}" ] || printf 'WAITLIST_TO=%s\n' "$WAITLIST_TO"; } \
         | "${SSH[@]}" 'cd /opt/covered && touch .env && grep -vE "^(IMAP_HOST|IMAP_USER|IMAP_PASS|IMAP_PASS_B64|WAITLIST_TO)=" .env > .env.new; cat >> .env.new && chmod 600 .env.new && mv .env.new .env'
     fi
-    # The website hero's film (CI: variable FILM_URL), a YouTube embed link. Unset, the VM keeps the one it has.
+    # The website hero's film (CI: variable FILM_URL), a YouTube embed link. Unset, the VM keeps the one it has;
+    # "none" removes it, so the hero shows the poster only.
     case "${FILM_URL:-}" in
       "") ;;
+      none) "${SSH[@]}" 'cd /opt/covered && touch .env && sed -i "/^FILM_URL=/d" .env' ;;
       https://*[\ \"\$\#]*|https://*\'*) echo "warning: FILM_URL has a space, quote, \$ or #; the VM keeps its film" ;;
       https://*) printf 'FILM_URL=%s\n' "$FILM_URL" \
         | "${SSH[@]}" 'cd /opt/covered && touch .env && grep -v "^FILM_URL=" .env > .env.new; cat >> .env.new && chmod 600 .env.new && mv .env.new .env' ;;
