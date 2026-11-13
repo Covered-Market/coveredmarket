@@ -82,16 +82,6 @@ case "$cmd" in
         [ -z "${WAITLIST_TO:-}" ] || printf 'WAITLIST_TO=%s\n' "$WAITLIST_TO"; } \
         | "${SSH[@]}" 'cd /opt/covered && touch .env && grep -vE "^(IMAP_HOST|IMAP_USER|IMAP_PASS|IMAP_PASS_B64|WAITLIST_TO)=" .env > .env.new; cat >> .env.new && chmod 600 .env.new && mv .env.new .env'
     fi
-    # The website hero's film (CI: variable FILM_URL), a YouTube embed link. Unset, the VM keeps the one it has;
-    # "none" removes it, so the hero shows the poster only.
-    case "${FILM_URL:-}" in
-      "") ;;
-      none) "${SSH[@]}" 'cd /opt/covered && touch .env && sed -i "/^FILM_URL=/d" .env' ;;
-      https://*[\ \"\$\#]*|https://*\'*) echo "warning: FILM_URL has a space, quote, \$ or #; the VM keeps its film" ;;
-      https://*) printf 'FILM_URL=%s\n' "$FILM_URL" \
-        | "${SSH[@]}" 'cd /opt/covered && touch .env && grep -v "^FILM_URL=" .env > .env.new; cat >> .env.new && chmod 600 .env.new && mv .env.new .env' ;;
-      *) echo "warning: FILM_URL must start with https://; the VM keeps its film" ;;
-    esac
     # The website on $site, the two apps on testnet.$site and mainnet.$site, www.$site redirecting to $site.
     mainnet=${MAINNET_SITE:-${site:+mainnet.$site}}; testnet=${TESTNET_SITE:-${site:+testnet.$site}}; www=${site:+www.$site}
     "${SSH[@]}" "cd /opt/covered && { [ -z '$site' ] || { sed -i '/^DOMAIN=/d; /^MAINNET_DOMAIN=/d; /^TESTNET_DOMAIN=/d; /^WWW_DOMAIN=/d' .env; printf 'DOMAIN=%s\nTESTNET_DOMAIN=%s\nMAINNET_DOMAIN=%s\nWWW_DOMAIN=%s\n' '$site' '$testnet' '$mainnet' '$www' >> .env; }; } && { [ -z '${RESET_CONTRACT:-}' ] || sed -i '/^COVERED_ID=/d' .env; } && bin/coveredmarket serve"
