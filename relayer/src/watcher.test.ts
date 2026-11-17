@@ -36,6 +36,15 @@ describe("watcher plan", () => {
     expect(plan([s], params, { depositsAt: {}, depthOf: {}, spentBy: { 1: { txid: "sweep", depth: 5 } } }, 0)).toEqual([], "waits for depth; nothing left to sign or broadcast");
     expect(plan([{ ...s, state: "Committed", retry_after_s: "0" }], params, { depositsAt: {}, depthOf: {}, spentBy: { 1: { txid: "sweep", depth: 6 } } }, 0)).toEqual([{ kind: "confirm_rescue", serial: 1, txid: "sweep" }]);
   });
+  it("proves a rescue of an offer that was still Funded or Sold, and never settles a swept Sold offer", () => {
+    const f = { ...base, state: "Funded", collateral_txid: "c", collateral_vout: 1 };
+    expect(plan([f], params, { depositsAt: {}, depthOf: {}, spentBy: { 1: { txid: "sweep", depth: 6 } } }, 0)).toEqual([{ kind: "confirm_rescue", serial: 1, txid: "sweep" }]);
+    expect(plan([f], params, { depositsAt: {}, depthOf: {}, spentBy: { 1: { txid: "sweep", depth: 5 } } }, 0)).toEqual([]);
+    expect(plan([f], params, { depositsAt: {}, depthOf: {}, spentBy: {} }, 0)).toEqual([]);
+    const late = Number(base.expiry_s) + params.grace_s;
+    expect(plan([{ ...f, state: "Sold" }], params, { depositsAt: {}, depthOf: {}, spentBy: { 1: { txid: "sweep", depth: 6 } } }, late)).toEqual([{ kind: "confirm_rescue", serial: 1, txid: "sweep" }]);
+    expect(plan([{ ...f, state: "Sold" }], params, { depositsAt: {}, depthOf: {}, spentBy: {} }, late)).toEqual([{ kind: "settle", serial: 1 }]);
+  });
   it("bumps the fee of a settlement stuck in the mempool, up to the cap", () => {
     const p = { ...params, fee_bump_after_s: 3600, max_fee_sats: 16000 };
     const s = { ...base, state: "Signed", commitment_txid: "v1", signed_tx: "beef", signed_at_s: "1000", commitment_fee_sats: "1000" };
