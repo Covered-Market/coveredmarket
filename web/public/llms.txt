@@ -26,7 +26,7 @@ The app on testnet is https://testnet.covered.market. It uses test coins and tes
 5. Settle: if not exercised, the coins go back to the seller after the window. The relayer does this; anyone may call `settle`.
 6. Claim: `claim()` pays out the USDC the contract owes the caller.
 
-States: Created → Funded → Sold → (ExercisePending) → Committed → Signed → Kept | Exercised. Also Withdrawn (unsold, seller took the coins back), Cancelled (no deposit) and Rescued (the seller's rescue key swept the deposit).
+States: Created → Funded → Sold → (ExercisePending) → Committed → Signed → Kept | Exercised. Also Withdrawn (unsold, seller took the coins back), Cancelled (no deposit) and Rescued (the seller's rescue key swept the deposit). An unsold offer can be withdrawn until half the rescue delay before `unlock_s`; after that the seller's way back is the rescue key, from `unlock_s`. Each offer's `next_actions` says which applies.
 
 Gas: every call can go through the relayer as a NEP-366 meta-transaction: `POST /api/relay {"signedDelegate": "<base64 borsh>"}`. Users need no NEAR for gas.
 

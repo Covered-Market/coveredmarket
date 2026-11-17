@@ -45,7 +45,7 @@ Same as above until expiry. At 08:00 UTC Bitcoin is $168,000. Within the window 
 
 ### Use case 3 — nobody buys
 
-Astrid lists at $6,000; no buyer appears. In `Funded` she may call `withdraw` at any time and the contract signs the coins back to her, less the Bitcoin fee.
+Astrid lists at $6,000; no buyer appears. In `Funded` she may call `withdraw` and the contract signs the coins back to her, less the Bitcoin fee. She has until half the rescue delay before `unlock_s`: after that the contract refuses, so a settlement always has time to confirm before her exit opens, and she sweeps the coins with her rescue key from `unlock_s` instead.
 
 ### Use case 4 — the operator misbehaves
 

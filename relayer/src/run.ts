@@ -38,7 +38,10 @@ export async function tick(s: Services, nowArg?: number) {
         .filter((t) => t.status.confirmed && t.vout.filter((v) => v.scriptpubkey_address === o.address).length === 1 && t.vout.some((v) => v.scriptpubkey_address === o.address && v.value === Number(o.size_sats)))
         .map((t) => ({ txid: t.txid, depth: tip - (t.status.block_height ?? tip) + 1 }));
     }
-    if ((o.state === "Signed" || o.state === "Committed") && o.collateral_txid && o.collateral_vout != null && s.esplora.outspend) {
+    // Committed / Signed: which version of the settlement (or a rescue) spent the coins. Funded / Sold: only a rescue
+    // can spend them, and only from unlock_s, so those are asked about from then on.
+    const rescuable = (o.state === "Funded" || o.state === "Sold") && o.unlock_s != null && nowS >= Number(o.unlock_s);
+    if ((o.state === "Signed" || o.state === "Committed" || rescuable) && o.collateral_txid && o.collateral_vout != null && s.esplora.outspend) {
       try {
         const sp = await s.esplora.outspend(o.collateral_txid, o.collateral_vout);
         if (sp.spent && sp.txid) {

@@ -46,6 +46,10 @@ const LOCKED = ["Funded", "Sold", "ExercisePending", "Committed", "Signed"];
 const btc = (sats: string | number) => Number(sats) / 1e8;
 const usd = (units: string | number) => Number(units) / 1e6;
 const utc = (s: number) => new Date(s * 1000).toISOString().replace(".000Z", "Z");
+/** The contract refuses withdraw (any settlement) once less than half the rescue delay is left before unlock_s,
+ *  so the settlement has time to confirm before the seller's exit opens. From then the exit is the way back. */
+export const tooLateToWithdraw = (o: { unlock_s: string | number }, p: { rescue_delay_s: number | string }, nowS: number) =>
+  nowS + Math.floor(Number(p.rescue_delay_s) / 2) >= Number(o.unlock_s);
 const ONE_YOCTO = "1";
 /** The contract's network enum names the address format (Testnet4 = any tb1 testnet; the live deployment uses testnet3 coins). */
 export function bitcoinNet(n: string) {
@@ -92,7 +96,10 @@ function summary(o: RawOffer, nowS: number, p: RawParams): string {
   const exp = Number(o.expiry_s), close = exp + Number(p.grace_s);
   switch (o.state) {
     case "Created": return `Waiting for the seller's deposit of exactly ${o.size_sats} sats to ${o.address}. Not for sale until it is proven.`;
-    case "Funded": return nowS < exp - Number(p.buy_cutoff_s) ? "Deposited and for sale." : "Deposited but past its buy cutoff: it can no longer be sold. The seller can withdraw.";
+    case "Funded":
+      if (nowS < exp - Number(p.buy_cutoff_s)) return "Deposited and for sale.";
+      if (tooLateToWithdraw(o, p, nowS)) return `Deposited and unsold, and too late to withdraw: the seller takes the coins back with their rescue key from ${utc(Number(o.unlock_s))}.`;
+      return "Deposited but past its buy cutoff: it can no longer be sold. The seller can withdraw.";
     case "Sold": return nowS < exp ? "Sold. The buyer may exercise once expiry arrives." : nowS < close ? "Sold, exercise window open: the buyer may pay the strike now." : "Sold, window closed without exercise: settling back to the seller.";
     case "ExercisePending": return "The buyer paid the strike; the contract is re-checking the deposit on the light client.";
     case "Committed": return `Settlement committed (${o.commitment_reason}); waiting for the MPC signature.`;
@@ -119,7 +126,8 @@ export function nextActions(o: RawOffer, p: RawParams, nowS: number, ctx: Ctx): 
       break;
     case "Funded":
       if (nowS < cutoff) out.push({ action: "buy", who: "buyer", ready: true, until_s: cutoff, call: pay(o.premium_units, { serial, btc_address: "<your bitcoin address>" }, 100), note: `Pay the ${usd(o.premium_units)} USDC premium. btc_address is where the coins go if you exercise: a v0 witness address (P2WPKH or P2WSH, ${bitcoinNet(p.network).address_prefix}…). The sale is final in that receipt.` });
-      out.push({ action: "withdraw", who: "seller", ready: true, call: self("withdraw"), note: "Take the unsold coins back to the refund address." });
+      if (!tooLateToWithdraw(o, p, nowS)) out.push({ action: "withdraw", who: "seller", ready: true, until_s: Number(o.unlock_s) - Math.floor(Number(p.rescue_delay_s) / 2), call: self("withdraw"), note: "Take the unsold coins back to the refund address." });
+      else if (nowS < Number(o.unlock_s)) out.push({ action: "rescue", who: "seller", ready: false, from_s: Number(o.unlock_s), note: "Too late to withdraw. From unlock, sweep the coins with Bitcoin only: bin/coveredmarket rescue <rescue kit> <your address>." });
       break;
     case "Sold":
       if (nowS < close) out.push({ action: "exercise", who: "buyer", ready: nowS >= exp, from_s: exp, until_s: close, call: pay(o.strike_total_units, { serial, exercise: true }, 300), note: `Pay the ${usd(o.strike_total_units)} USDC strike inside the window to receive the coins at ${o.buyer_address}. Do nothing to let it expire.` });

@@ -6,7 +6,7 @@
 export interface OfferView {
   serial: number; state: string; address: string; size_sats: string; expiry_s: string;
   collateral_txid?: string | null; collateral_vout?: number | null; commitment_txid?: string | null; signed_tx?: string | null; retry_after_s?: string | null;
-  prior_txids?: string[]; signed_at_s?: string | null; commitment_fee_sats?: string | null;
+  prior_txids?: string[]; signed_at_s?: string | null; commitment_fee_sats?: string | null; unlock_s?: string;
 }
 export interface Params { min_conf: number; grace_s: number; fee_bump_after_s?: number; max_fee_sats?: number }
 export interface ChainView {
@@ -36,9 +36,18 @@ export function plan(offers: OfferView[], params: Params, chain: ChainView, nowS
         if (d) out.push({ kind: "confirm_deposit", serial: o.serial, txid: d.txid });
         break;
       }
-      case "Sold":
-        if (nowS >= expiry + params.grace_s) out.push({ kind: "settle", serial: o.serial });
+      case "Funded":
+      case "Sold": {
+        // The seller swept the deposit with the rescue key (possible from unlock_s, e.g. an unsold offer left past
+        // its withdraw deadline). Prove it, so the offer ends as Rescued instead of showing coins that are gone.
+        const spent = chain.spentBy?.[o.serial];
+        if (spent) {
+          if (spent.depth >= params.min_conf) out.push({ kind: "confirm_rescue", serial: o.serial, txid: spent.txid });
+          break;
+        }
+        if (o.state === "Sold" && nowS >= expiry + params.grace_s) out.push({ kind: "settle", serial: o.serial });
         break;
+      }
       case "Committed":
       case "Signed": {
         // Whichever committed version Bitcoin confirmed settles the offer (an earlier, lower-fee one included).
