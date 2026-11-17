@@ -3,6 +3,7 @@ import { C, dateUtc, usd } from "../ds";
 import { describe, who } from "../lib/activity";
 import { call, CFG, view, type Wallet } from "../lib/near";
 import type { Offer, Params } from "../lib/verify";
+import { tooLateToWithdraw } from "../lib/rescue";
 import { ContractLine, EmptyBox } from "./AllContracts";
 import { useParams } from "./hooks";
 
@@ -33,7 +34,9 @@ function todosFor(me: string, offers: Offer[], params: Params | null): Todo[] {
     if (o.seller === me && o.state === "Created")
       out.push({ key: id + "d", text: `${id}: deposit ${btc} to put it on sale`, detail: "Until the coins arrive, nobody can buy it.", href: `#/deposit/${o.serial}`, act: "Deposit" });
     if (o.seller === me && o.state === "Funded" && exp <= now)
-      out.push({ key: id + "w", text: `${id} expired unsold`, detail: "Withdraw your coins back to your Bitcoin address.", href: `#/c/${o.serial}`, act: "Withdraw" });
+      out.push(tooLateToWithdraw(o, params?.rescue_delay_s, now)
+        ? { key: id + "w", text: `${id} expired unsold`, detail: `Too late to withdraw: from ${dateUtc(Number(o.unlock_s))}, take the coins back with your rescue kit.`, href: `#/c/${o.serial}`, act: "Open" }
+        : { key: id + "w", text: `${id} expired unsold`, detail: "Withdraw your coins back to your Bitcoin address.", href: `#/c/${o.serial}`, act: "Withdraw" });
     if (o.buyer === me && o.state === "Sold" && now >= exp && now < exp + grace)
       out.push({ key: id + "x", text: `${id}: your exercise window is open`, detail: `Pay ${usd(o.strike_total_units)} before ${dateUtc(exp + grace)} to receive ${btc}; otherwise it expires.`, href: `#/c/${o.serial}`, act: "Exercise" });
     if (o.buyer === me && o.escrow_units !== "0" && now >= Number(o.unlock_s ?? 0) + timeout)
@@ -43,13 +46,13 @@ function todosFor(me: string, offers: Offer[], params: Params | null): Todo[] {
 }
 
 /** A contract described from your side of it. */
-function mine(o: Offer, me: string, nowS: number) {
+function mine(o: Offer, me: string, nowS: number, params: Params | null) {
   const row = describe(o, nowS), seller = o.seller === me, exp = Number(o.expiry_s), until = dateUtc(exp);
   const exercise = o.commitment_reason === "Exercise";
   const line = seller
     ? ({
         Created: "waiting for your deposit",
-        Funded: exp > nowS ? `for sale; expires ${until}` : "expired unsold; withdraw your coins",
+        Funded: exp > nowS ? `for sale; expires ${until}` : tooLateToWithdraw(o, params?.rescue_delay_s, nowS) ? "expired unsold; take the coins back with your rescue kit" : "expired unsold; withdraw your coins",
         Sold: exp > nowS ? `sold to ${who(o.buyer)}; expires ${until}` : "sold; the buyer's exercise window is open",
         ExercisePending: "the buyer paid the strike; checking the deposit",
         Committed: exercise ? "exercised; coins on their way to the buyer" : "coins on their way back to you",
@@ -72,7 +75,7 @@ function mine(o: Offer, me: string, nowS: number) {
   return { ...row, line: line ?? row.line };
 }
 
-const List = ({ title, note, items, me, now }: { title: string; note?: string; items: Offer[]; me: string; now: number }) => (
+const List = ({ title, note, items, me, now, params }: { title: string; note?: string; items: Offer[]; me: string; now: number; params: Params | null }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
     <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
       <h3 className="label" style={{ margin: 0, textTransform: "uppercase", color: "var(--ink-muted)" }}>{title} <span className="cv-mono">{items.length}</span></h3>
@@ -80,7 +83,7 @@ const List = ({ title, note, items, me, now }: { title: string; note?: string; i
     </div>
     {items.length > 0 && (
       <div style={{ display: "flex", flexDirection: "column", border: "1px solid var(--rule)", background: "var(--paper-raised)" }}>
-        {items.map((o, i) => <ContractLine key={o.serial} {...mine(o, me, now)} first={i === 0} />)}
+        {items.map((o, i) => <ContractLine key={o.serial} {...mine(o, me, now, params)} first={i === 0} />)}
       </div>
     )}
   </div>
@@ -137,7 +140,7 @@ export function Portfolio({ wallet, data, onConnect }: { wallet: Wallet | null; 
     );
   }
 
-  const me = data.me, now = Date.now() / 1000;
+  const me = data.me, now = Date.now() / 1000, params = data.params;
   const selling = data.offers.filter((o) => o.seller === me), bought = data.offers.filter((o) => o.buyer === me && o.seller !== me);
   const final = ["Kept", "Exercised", "Withdrawn", "Cancelled", "Rescued"];
   const rest = selling.filter((o) => ["Funded", "Sold", "ExercisePending", "Committed", "Signed"].includes(o.state)).reduce((s, o) => s + Number(o.size_sats), 0) / 1e8;
@@ -179,17 +182,17 @@ export function Portfolio({ wallet, data, onConnect }: { wallet: Wallet | null; 
           <section aria-labelledby="sell-h" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <h2 id="sell-h" className="display-2" style={{ margin: 0, fontSize: 28, lineHeight: 1.1 }}>Selling</h2>
             {selling.length === 0 ? <EmptyBox title="No calls sold yet" text="Keep your coins on Bitcoin and earn a premium for the rise above a price you choose." action="Sell a call" href="#/sell" /> : <>
-              <List title="Awaiting deposit" items={selling.filter((o) => o.state === "Created")} me={me} now={now} />
-              <List title="For sale" items={selling.filter((o) => o.state === "Funded")} me={me} now={now} />
-              <List title="Sold, live" note="coins locked until expiry" items={selling.filter((o) => !final.includes(o.state) && !["Created", "Funded"].includes(o.state))} me={me} now={now} />
-              <List title="Settled" items={selling.filter((o) => final.includes(o.state))} me={me} now={now} />
+              <List title="Awaiting deposit" items={selling.filter((o) => o.state === "Created")} me={me} now={now} params={params} />
+              <List title="For sale" items={selling.filter((o) => o.state === "Funded")} me={me} now={now} params={params} />
+              <List title="Sold, live" note="coins locked until expiry" items={selling.filter((o) => !final.includes(o.state) && !["Created", "Funded"].includes(o.state))} me={me} now={now} params={params} />
+              <List title="Settled" items={selling.filter((o) => final.includes(o.state))} me={me} now={now} params={params} />
             </>}
           </section>
           <section aria-labelledby="bought-h" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <h2 id="bought-h" className="display-2" style={{ margin: 0, fontSize: 28, lineHeight: 1.1 }}>Bought</h2>
             {bought.length === 0 ? <EmptyBox title="No calls bought yet" text="Pay the premium now, and the strike only if you exercise." action="See what is for sale" href="#/market" /> : <>
-              <List title="Live" items={bought.filter((o) => !final.includes(o.state))} me={me} now={now} />
-              <List title="Settled" items={bought.filter((o) => final.includes(o.state))} me={me} now={now} />
+              <List title="Live" items={bought.filter((o) => !final.includes(o.state))} me={me} now={now} params={params} />
+              <List title="Settled" items={bought.filter((o) => final.includes(o.state))} me={me} now={now} params={params} />
             </>}
           </section>
         </div>

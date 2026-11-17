@@ -28,6 +28,11 @@ export function toWif(priv: Uint8Array, mainnet: boolean): string {
   return base58.encode(new Uint8Array([...body, ...sha256d(body).slice(0, 4)]));
 }
 
+/** Mirrors the contract: withdraw is refused once less than half the rescue delay is left before unlock_s.
+ *  From then the seller's way back is the rescue kit (relayer/src/agentapi.ts has the same rule). */
+export const tooLateToWithdraw = (o: { unlock_s?: string | number }, rescueDelayS: number | undefined, nowS: number) =>
+  rescueDelayS !== undefined && o.unlock_s !== undefined && Number(o.unlock_s) > 0 && nowS + Math.floor(rescueDelayS / 2) >= Number(o.unlock_s);
+
 export function makeKit(offer: { serial: number; address: string; witness_script: string; unlock_s: string; size_sats: string; refund_address: string; rescue_pubkey: string }, priv: Uint8Array): RescueKit {
   const main = CFG.mode === "mainnet";
   const unlock = Number(offer.unlock_s);

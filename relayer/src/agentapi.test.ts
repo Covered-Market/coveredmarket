@@ -46,6 +46,14 @@ describe("describeOffer", () => {
     expect(kinds(offer(), EXP + 1)).toContain("anyone:cancel");
   });
 
+  it("Funded, unsold and too late to withdraw: no withdraw, the rescue exit instead (the contract's rule)", () => {
+    const unlock = EXP + 600 + 21600, last = unlock - 10800; // withdraw is refused from unlock - rescue_delay / 2
+    expect(kinds(offer({ state: "Funded" }), last - 1)).toEqual(["seller:withdraw"]);
+    expect(kinds(offer({ state: "Funded" }), last)).toEqual(["seller:rescue(later)"]);
+    expect(kinds(offer({ state: "Funded" }), unlock)).toEqual(["seller:rescue"]);
+    expect(describeOffer(offer({ state: "Funded" }), p, last, ctx).summary).toMatch(/too late to withdraw/);
+    expect(describeOffer(offer({ state: "Funded" }), p, last - 1, ctx).summary).toMatch(/The seller can withdraw/);
+  });
   it("Funded: the buy call is exact and final-ready", () => {
     const [buy] = nextActions(offer({ state: "Funded" }), p, EXP - 1000, ctx);
     expect(buy.action).toBe("buy");
